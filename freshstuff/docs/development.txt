@@ -1,5 +1,5 @@
 Hostapp-specific modules
-------------------------
+========================
 In general, they shoud take care of the following:
   - They should be the only place for hostapp-specific stuff (events, methods, objects, calls)
   - They should take care of command parsing and rightclick (if any)
@@ -7,9 +7,22 @@ In general, they shoud take care of the following:
   - Environment-specific replies (if possible)
   - Declare the SendOut() function. This function sends debug information and takes the message to be sent as its only argument.
 
+Creating a new module
+=====================
+
+Note that you have to do the following:
+
+----------------------- code start ---------------------------
+module("Extras",package.seeall)
+ModulesLoaded["Extras"] = true
+----------------------- code end ---------------------------
+
+You know where to put this and what these mean. Otherwise stop reading the document. This is needed because the event handler iterates through the ModulesLoaded table. Iterating thorugh _G is expensive.
+
 
 Declaring new commands within your module
------------------------------------------
+=========================================
+
 Typically looks like this:
 
 ----------------------- code start ---------------------------
@@ -37,7 +50,7 @@ _Engine is a metatable of Engine. Its __newindex takes care of the above array, 
 
 
 Messaging
----------
+=========
 
 You shouldn't use hostapp-specific messaging within command functions. Instead, you should use 2 return values if you would like to send a message, as hostapp-pecific modules should take care of these values when parsing commands.
 
@@ -49,3 +62,30 @@ The first return value of command functions is a string that gets sent back to t
     5: Reply goes to all
 
 Please keep this in mind when you write a hostapp-specific module that parses these return values of command functions, and also when you are writing command functions.
+
+Events
+======
+
+The following events are available as of 30 July 2007:
+OnRelAdded (nick, data, cat, tune)
+OnRelDeleted (nick, ID) - note that while this is done the release still exists
+OnCatDeleted (nick,cat)
+OnReqFulfilled (nick,data,cat,tune,reqcomp,username,reqdetails) <-- requires the requester module. In this, nick means the fulfiller's nick, username is the nick of who added the request. reqcomp is the request number that is being fulfilled, while reqdetails is the request text.
+
+The function names are self-explanatory. You have to declare these in the modules where you want to do something on a specific event, e. g. you might want to update a static HTML page or an RSS feed when a new release gets added. Module declaration should go before, because it needs to get into the package.loaded table. Hostapp-specific modules take care of the appropriate calling.
+
+Boring details of my function calling method:
+You have to scan every module's namespace and look for the function name you are declaring:
+We run through package.loaded and check for a specific event within the loaded modules. We omit _G to avoid stack overflows. We also have to make sure that the given module is actually a table in package.loaded. I am not sure about the reason for this.
+
+function OnCatDeleted (nick,cat)
+  for modname in pairs (package.loaded) do
+    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnCatDeleted then
+      local func = _G[modname].OnCatDeleted
+      local txt,ret=func(nick,cat)
+      if txt and ret then
+        -- called the function, now handle the return values adequately
+      end
+    end
+  end
+end

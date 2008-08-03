@@ -1,5 +1,4 @@
 -- FreshStuff3 v5 alpha2
--- License: GNU GPL v2
 -- This is the common script that gets loaded by host apps, then takes care of everything else :-D
 -- Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
 -- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
@@ -12,7 +11,7 @@
   -- Split this config below into module-specific parts.
   -- Document stuff for module developers -- ALMOST DONE
   -- Multilanguage. *shrugs*
-  -- Show the number of new releases on the given day. Make a timer for this, perhaps the metatable could also re-reg the bot with a new desc.
+  -- Show the number of new releases on the given day in the bot desc (hubserver only). Make a timer for this, perhaps the metatable could also re-reg the bot with a new desc.
   -- More bot descriptions (array), changing every X minute.
   -- Make the BCDC module
   -- ?Maybe create a +releases today
@@ -20,12 +19,13 @@
   -- Release rating plugin (reworked metatable for AllStuff, rating goes by indices of course, stored by nicks) - POST-5.0
   -- RSS plugin (generate staticpage, any webserver should be able to serve that, contenttype rss etc. etc.) - POST-5.0
   -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) - POST-5.0 OR ON-DEMAND
+  -- Put the configuration into an SQLite database. Definitely post-5.0.
 
 Bot = {
         name="post-it_memo",
         email="bastyaelvtars@gmail.com",
         desc="Release bot",
-        version="5.0 pre-alpha",
+        version="5.0 alpha4",
       } -- Set the bot's data. (Relevant only for hubsofts, so hubsoftmodule-specific)
     ProfilesUsed= 0 -- 0 for lawmaker/terminator (standard), 1 for robocop, 2 for psyguard (ptokax-only)
     Commands={
@@ -82,6 +82,9 @@ AllStuff,NewestStuff,Engine={},{},{}
 botver="FreshStuff3 v 5.0 alpha3"
 package.path="freshstuff/?.lua"
 package.cpath="freshstuff/lib/?.dll"
+
+ModulesLoaded = {}
+
 do -- detect the host app
 local Host={["frmHub"]="ptokax",["DC"]="bcdc",["VH"]="verli"}
 local c
@@ -91,21 +94,25 @@ local c
   assert(c,"FATAL: This script does not support your host application. :-(")
 end
 
+-- dofile("freshstuff/tables.lua")
+-- dofile("freshstuff/kernel.lua")
+
+require "tables"
+require "kernel"
+
 local hostloader =
   {
     ["ptokax"] = function()
         require "pxlfs"
+        package.path="freshstuff/components/?.lua"
         for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do
           local filename,ext=entry:match("([^%.]+)%.(%w%w%w)")
           if ext == "lua" then
-            require ("components."..filename)
+            require (filename)
           end
         end
       end,
-  }
-
-require "tables"
-require "kernel"
+  }  
 
 for k,v in pairs(hostloader) do
   if package.loaded[k] then v() break end

@@ -9,7 +9,7 @@ do
   Engine[Commands.Show]=
     {
       function (nick,data)
-        if Count < 1 then return "There are no releases yet, please check back soon.",1 end
+        if #AllStuff < 1 then return "There are no releases yet, please check back soon.",1 end
         local cat,latest= data:match("(%S+)%s*(%d*)")
         if not cat then
           return MsgAll,2
@@ -32,28 +32,39 @@ do
   Engine[Commands.Add]=
     {
       function (nick,data)
-        local cat,tune= string.match(data, "(%S+)%s+(.+)")
+        local cat,tune=string.match(data,"(%S+)%s+(.+)")
         if cat then
           if Types[cat] then
-            for _word in pairs(ForbiddenWords) do
+            for _,word in pairs(ForbiddenWords) do
               if string.find(tune,word,1,true) then
-                return "The release name contains the following forbidden word (thus not added): "..word,1
+                return "The release name contains the following forbidden word (thus not added): "..word, 1
               end
             end
-            if Count > 0 then
+            if #AllStuff > 0 then
               for i,v in ipairs(AllStuff) do
-                if v[3]==tune then
-                  return "The release is already added under category "..Types[ct].."."
+                if v[4] == tune then
+                  return "The release is already added under category "..v[1].." by "..v[2]..".", 1
                 end
               end
             end
-            setmetatable (AllStuff,_AllStuff)
-            table.insert(AllStuff,{cat,nick,os.date("%m/%d/%Y"),tune})
---             table.save(AllStuff,"freshstuff/data/releases.dat")
---             ReloadRel()
---             if OnRelAdded then OnRelAdded(nick,data,cat,tune) end
+            setmetatable (AllStuff, 
+            {
+              __newindex=function (tbl, key, value)
+              if #tbl >= #NewestStuff then
+                  table.remove (NewestStuff,1)
+                end
+                table.insert (NewestStuff,value)
+                rawset(tbl, key, value)
+                table.save(tbl,"freshstuff/data/releases.dat")
+                ShowRel(NewestStuff); ShowRel()
+              end
+            })
+            local count = #AllStuff
+            AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
+            HandleEvent("OnRelAdded", nick, data, cat, tune)
+            return tune.." is added to the releases as "..cat, 1
           else
-            return "Unknown category: "..cat,1
+            return "Unknown category: "..cat, 1
           end
         else
           return "yea right, like i know what you got 2 add when you don't tell me!",1
@@ -65,25 +76,26 @@ do
     {
       function (nick,data)
         if data~="" then
-          local cnt,x=0,os.clock()
-          local tmp={}
-          for w in string.gmatch(data,"(%d+)") do
-            table.insert(tmp,tonumber(w))
-          end
-          table.sort(tmp)
-          local msg="\r\n"
-          for k=#tmp,1,-1 do
-            local n=tmp[k]
+          local cnt,x,tmp,msg=0,os.clock(),{},"\r\n"
+          setmetatable(tmp, 
+          {
+          __newindex = function (tbl, n, val)
             if AllStuff[n] then
-              if Allowed(nick,Levels.Delete) or AllStuff[n][2]==nick then
+              if Allowed(nick,Levels.Delete) or AllStuff[n][2] == nick then
+                HandleEvent ("OnRelDeleted", nick, n)
                 msg=msg.."\r\n"..AllStuff[n][4].." is deleted from the releases."
-                AllStuff[n]=nil
-                NewestStuff[n]=nil
+                table.remove(AllStuff,n)
+                table.remove(NewestStuff,n)
+--                 NewestStuff[n]=nil
                 cnt=cnt+1
               end
             else
               msg=msg.."\r\nRelease numbered "..n.." wasn't found in the database."
             end
+          end
+          })
+          for w in string.gmatch(data,"(%d+)") do
+            tmp[tonumber(w)]=true
           end
           if cnt > 0 then
             table.save(AllStuff,"freshstuff/data/releases.dat")
@@ -99,29 +111,29 @@ do
     }
   Engine[Commands.AddCatgry]=
     {
-      function (nick,data)
-        local what1,what2=string.match(data,"(%S+)%s+(.+)")
+      function (nick, data)
+        local what1,what2=string.match(data, "(%S+)%s+(.+)")
         if what1 then
-          if string.find(what1,"$",1,true) then return "The dollar sign is not allowed.",1 end
+          if string.find(what1, "$", 1, true) then return "The dollar sign is not allowed.", 1 end
           if not Types[what1] then
             Types[what1]=what2
             table.save(Types,"freshstuff/data/categories.dat")
-            return "The category "..what1.." has successfully been added.", 2
+            return "The category "..what1.." has successfully been added.", 1
           else
-            if Types[what1]==what2 then
-              return "Already having the type "..what1
+            if Types[what1] == what2 then
+              return "Already having the type "..what1.."with name "..what2, 1
             else
-              Types[what1]=what2
+              Types[what1] = what2
               table.save(Types,"freshstuff/data/categories.dat")
-              return "The category "..what1.." has successfully been changed.",1
+              return "The category "..what1.." has successfully been changed.", 1
             end
           end
           for k in pairs(Types) do table.insert(CatArray,k) table.sort(CatArray) end
         else
-          return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 2
+          return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 1
         end
       end,
-      {},Levels.AddCatgry,"<new_cat> <displayed_name>\t\t\tAdds a new release category, displayed_name is shown when listed."
+      {}, Levels.AddCatgry, "<new_cat> <displayed_name>\t\t\tAdds a new release category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
     {  
@@ -130,25 +142,33 @@ do
         if what then
           if not Types[what] then
             return "The category "..what.." does not exist.",1
-          end
-          local filename = "freshstuff/data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
-          table.save(AllStuff, filename)
-          local bRemoved
-          for key, value in ipairs (AllStuff) do
-            if value[1] == what then
-              AllStuff[key] = nil
-              bRemoved = true
-            end
-          end
-          if bRemoved then
-            table.save(AllStuff,"freshstuff/data/releases.dat")
           else
-            os.remove (filename)
+            local filename = "freshstuff/data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
+            local bRemoved
+            local ret = "The category "..what.." has successfully been deleted."
+            if #AllStuff > 0 then
+              table.save(AllStuff, filename)
+              for key, value in ipairs (AllStuff) do
+                if value[1] == what then
+                  AllStuff[key] = nil
+                  HandleEvent("OnRelDeleted",nick,key)
+                  bRemoved = true
+                  ret = "The category "..what.." has successfully been deleted. Note that the old releases have been backed up to "..filename.." in case you have made a mistake."
+                end
+              end
+            end
+            if bRemoved then
+              table.save(AllStuff,"freshstuff/data/releases.dat")
+              ReloadRel()
+            else
+              os.remove (filename)
+            end
+            Types[what]=nil
+            table.save(Types,"freshstuff/data/categories.dat")
+            HandleEvent("OnCatDeleted", nick, what) 
+--             if OnCatDeleted then OnCatDeleted (nick,what) end
+            return ret,1
           end
-          Types[what]=nil
-          table.save(Types,"freshstuff/data/categories.dat")
-          if OnCatDeleted then OnCatDeleted (nick,what) end
-          return "The category "..what.." has successfully been deleted. Note that the releases have been backed up to "..filename.." in case you have made a mistake.",1
         else
           return "Category should be deleted properly: +"..Commands.DelCatgry.." <category_name>",1
         end
@@ -226,19 +246,18 @@ do
     }
 end
 
-_AllStuff=
-  {
-    __newindex=function (tbl, key, value)
-      if #tbl >= #NewestStuff then
-        table.remove (NewestStuff,1)
-      end
-      table.insert (NewestStuff,value)
-      rawset(tbl,key,value)
-      table.save(tbl,"freshstuff/data/releases.dat")
-      ShowRel(NewestStuff); ShowRel()
-      if OnRelAdded then OnRelAdded(nick,data,cat,tune) end
-    end
-  }
+-- _AllStuff=
+--   {
+--     __newindex=function (tbl, key, value)
+--     if #tbl >= #NewestStuff then
+--         table.remove (NewestStuff,1)
+--       end
+--       table.insert (NewestStuff,value)
+--       rawset(tbl, key, value)
+--       table.save(tbl,"freshstuff/data/releases.dat")
+--       ShowRel(NewestStuff); ShowRel()
+--     end
+--   }
 
 function OpenRel()
 	AllStuff,NewestStuff,TopAdders = nil,nil,nil
@@ -286,11 +305,9 @@ function OpenRel()
 			end
 		end
 	else
-		for i=1, Count do
+		for id, rel in ipairs (AllStuff) do
 			Count2 = Count2 + 1
-      if AllStuff[i] then
-        NewestStuff[Count2]=AllStuff[i]
-      end
+      NewestStuff[Count2]=rel
     end
 	end
 end
@@ -326,7 +343,7 @@ function ShowRel(tab)
     local new=MaxNew if cunt < MaxNew then new=cunt end
     MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n\ --------- The Latest "..new.."  Releases -------- \r\n\r\n"
   else
-    if Count == 0 then
+    if #AllStuff == 0 then
       MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
     else
       MsgHelp  = "  use "..Commands.Show.." <new>"
@@ -334,13 +351,11 @@ function ShowRel(tab)
 	      MsgHelp  = MsgHelp .."/"..a
       end
       MsgHelp  = MsgHelp .."> to see only the selected types"
-      for i=1, Count do
-        if AllStuff[i] then
-          cat,who,when,title=unpack(AllStuff[i])
-          if title then
-            tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-            table.insert(tmptbl[Types[cat]],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
-          end
+      for id, rel in ipairs (AllStuff) do
+        cat,who,when,title=unpack(rel)
+        if title then
+          tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+          table.insert(tmptbl[Types[cat]],Msg.."ID: "..id.."\t"..title.." // (Added by "..who.." at "..when..")")
         end
       end
       for _,a in ipairs (CatArray) do
@@ -356,11 +371,11 @@ end
 function ShowRelType(what)
   local cat,who,when,title
   local Msg,MsgType,tmp,tbl = "\r\n",nil,0,{}
-  if Count == 0 then
+  if #AllStuff == 0 then
     MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
   else
-    for i=1, Count do
-      cat,who,when,title=unpack(AllStuff[i])
+    for id, rel in ipairs(AllStuff) do
+      cat,who,when,title=unpack(rel)
       if cat == what then
         tmp = tmp + 1
         table.insert(tbl,"ID: "..i.."\t"..title.." // (Added by "..who.." at "..when)
@@ -424,7 +439,9 @@ function SplitTimeString(TimeString)
   return {year=Y,month=M,day=D,hour=HR,min=MN,sec=SC}
 end
 
---code snipe from a.i. v2 by plop
+-- The following 2 functions are
+-- Copyright (c) 2005, plop
+-- All rights reserved.
 JulianDate = function(tTime)
   tTime = tTime or os.date("*t")
   return os.time({year = tTime.year, month = tTime.month, day = tTime.day, 
@@ -434,6 +451,17 @@ end
 
 JulianDiff = function(iThen, iNow)
   return os.difftime( (iNow or JulianDate()) , iThen)
+end
+-- End of plop's code
+
+function GetNewRelNumForToday()
+  local new_today = 0
+  for k,v in ipairs(AllStuff) do
+    if v[3] == os.date("%m/%d/%Y") then
+      new_today = new_today + 1
+    end
+  end
+  return new_today
 end
 
 -- OK, we are loading the categories now.
@@ -452,5 +480,20 @@ else
 end
 for k,v in ipairs(AllStuff) do if not Types[v[1]] then Types[v[1]]=v[1]; SendOut("Unknown category :"..Types[v[1]].." - added with description same as name, please take action!") end end
 ReloadRel()
+
+-- This is our event handler.
+function HandleEvent (event, ...)
+  for pkg, moddy in pairs(package.loaded) do
+    if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+      local txt, ret = moddy[event](...)
+      if txt and ret then
+        local args = { ... }
+        local user  = GetItemByName(args[1])
+        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+        parseret[ret][1](unpack(parseret[ret][2]));
+      end
+    end
+  end
+end
 
 SendOut("*** "..botver.." kernel loaded.")

@@ -43,42 +43,47 @@ do
         local cat,reqcomp,tune=string.match(data,"(%S+)%s*(%d*)%s+(.+)")
         if cat then
           if Types[cat] then
-            if string.find(tune,"$",1,true) then
-              return "The release name must NOT contain any dollar signs ($)!",1
-            else
-              for _,word in ipairs(ForbiddenWords) do
-                if string.find(tune,word,1,true) then
-                  return "The release name contains the following forbidden word (thus not added): "..word,1
+            for _,word in pairs(ForbiddenWords) do
+              if string.find(tune,word,1,true) then
+                return "The release name contains the following forbidden word (thus not added): "..word, 1
+              end
+            end
+            if #AllStuff > 0 then
+              for i,v in ipairs(AllStuff) do
+                if v[4] == tune then
+                  return "The release is already added under category "..v[1].." by "..v[2]..".", 1
                 end
               end
             end
-            if Count > 0 then
-              for i=1, Count do
-                local ct,who,when,title=unpack(AllStuff[i])
-                if title==tune then
-                  return "The release is already added under category "..Types[ct]..".",1
+            setmetatable (AllStuff, 
+            {
+              __newindex=function (tbl, key, value)
+              if #tbl >= #NewestStuff then
+                  table.remove (NewestStuff,1)
                 end
+                table.insert (NewestStuff,value)
+                rawset(tbl, key, value)
+                table.save(tbl,"freshstuff/data/releases.dat")
+                ShowRel(NewestStuff); ShowRel()
               end
-            end
-            Count = Count + 1
-            AllStuff[Count]={cat,nick,os.date("%m/%d/%Y"),tune}
-            table.save(AllStuff,"freshstuff/data/releases.dat")
-            ReloadRel()
-            if OnRelAdded then OnRelAdded(nick,data,cat,tune) end
+            })
+            local count = #AllStuff
+            AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
+            HandleEvent("OnRelAdded", nick, data, cat, tune)
             if reqcomp~="" then
               if Requests.NonCompleted[tonumber(reqcomp)] then
                 local username, reqdetails=unpack(Requests.NonCompleted[tonumber(reqcomp)])
                 Requests.NonCompleted[tonumber(reqcomp)]=nil
                 Requests.Completed[username]={reqdetails,tune,cat,nick,}
                 SaveReq()
-                if OnReqFulfilled then OnReqFulfilled(nick,data,cat,tune,reqcomp,reqdetails) end
-                --os.date("%Y. %m. %d. %X")
+                HandleEvent("OnReqFulfilled", nick, data, cat, tune, reqcomp, reqdetails)
               else
-                return "No request with ID "..reqcomp,1
+                return "No request with ID "..reqcomp..". Release has NOT been added.",1
               end
             end
+            return tune.." is added to the releases as "..cat, 1
           else
-            return "Unknown category: "..cat,1
+            return "Unknown category: "..cat, 1
           end
         else
           return "yea right, like i know what you got 2 add when you don't tell me!",1
@@ -204,6 +209,7 @@ function SaveReq()
 end
 
 module("Request",package.seeall)
+ModulesLoaded["Request"] = true
 
 function NewUserConnected(nick)
   if Requests.Completed[nick] then
@@ -215,24 +221,26 @@ function NewUserConnected(nick)
 end
 
 function Main()
-  local f=io.open("freshstuff/data/requests_comp.dat","r")
-  if f then
-    for line in f:lines() do
-      local nick,reqdetails,tune,cat=string.match(line,"(.+)%$(.+)%$(.+)%$(.+)")
-      rawset(Requests.Completed,nick,{reqdetails,tune,cat})
-    end
-    f:close()
-  end
-  f=io.open("freshstuff/data/requests_incomp.dat","r")
-  if f then
-    local c=0
-    for line in f:lines() do
-      c=c+1
-      local nick,reqdetails=string.match(line,"(.+)%$(.+)")
-      rawset(Requests.NonCompleted,c,{nick,reqdetails})
-    end
-    f:close()
-  end
+--   local f=io.open("freshstuff/data/requests_comp.dat","r")
+--   if f then
+--     for line in f:lines() do
+--       local nick,reqdetails,tune,cat=string.match(line,"(.+)%$(.+)%$(.+)%$(.+)")
+--       rawset(Requests.Completed,nick,{reqdetails,tune,cat})
+--     end
+--     f:close()
+--   end
+  Requests.Completed = table.load("freshstuff/data/requests_comp.dat")
+  Requests.NonCompleted = table.load("freshstuff/data/requests_incomp.dat")
+--   f=io.open("freshstuff/data/requests_incomp.dat","r")
+--   if f then
+--     local c=0
+--     for line in f:lines() do
+--       c=c+1
+--       local nick,reqdetails=string.match(line,"(.+)%$(.+)")
+--       rawset(Requests.NonCompleted,c,{nick,reqdetails})
+--     end
+--     f:close()
+--   end
 end
 
 function OnCatDeleted (cat)
@@ -247,13 +255,11 @@ function OnCatDeleted (cat)
   end
   if bRemoved then
     table.save(Requests.NonCompleted,"freshstuff/data/requests_incomp.dat")
-    SendToAll(filename)
   else
     os.remove (filename)
   end
-  return "Note that ncomplete requests have been backed up to "..filename.." in case you have made a mistake.",1
+  return "Note that incomplete requests have been backed up to "..filename.." in case you have made a mistake.", 1
 end
-  
 
 -- [1]={"testnick","request"}
 

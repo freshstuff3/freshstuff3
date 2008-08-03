@@ -1,11 +1,9 @@
--- PtokaX module for FreshStuff3 v5 by bastya_elvtars
--- This module declares the events on PtokaX and contains other PtokaX-specific stuff.
--- Gets loaded only if the script detects PtokaX as host app
--- Warning: the "module" declaration only goes before the OnRelAdded function, since we only need to add that to the "px" table
--- Not so elegant, but works.
-
--- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
-
+--[[
+PtokaX module for FreshStuff3 v5 by bastya_elvtars
+This module declares the events on PtokaX and contains other PtokaX-specific stuff.
+Gets loaded only if the script detects PtokaX as host app
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+ ]]
 SendOut=function (msg)
   SendToOps(Bot.name,msg)
 end
@@ -17,7 +15,7 @@ local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=
 userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 function Main()
-  frmHub:RegBot(Bot.name,1,Bot.desc,Bot.email)
+  frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
   setmetatable(rightclick,_rightclick)
   for a,b in pairs(Types) do
     rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
@@ -29,18 +27,7 @@ function Main()
   end
   SetTimer(60000)
   StartTimer()
-  for modname in pairs(package.loaded) do
-    local t={["_G"]=1,["pickle"]=1}
-    if not t[modname] then -- omit the global environment!!!
-      local ret1,ret2
-      if _G[modname] and _G[modname].Main then ret1,ret2=_G[modname].Main() end
-      if ret1 and ret2 then
-        local parseret={{SendTxt,{user.sName,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
-        local c=parseret[ret2]
-        c[1](unpack(c[2]),Bot.name,ret1)
-      end
-    end
-  end
+--   HandleEvent ("Main")
 end
 
 function ChatArrival(user,data)
@@ -49,6 +36,7 @@ function ChatArrival(user,data)
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
+--   HandleEvent ("ChatArrival",nick,data)
 end
 
 function ToArrival(user,data)
@@ -73,33 +61,24 @@ function NewUserConnected(user)
       end
     end
   end
-  for modname in pairs(package.loaded) do
-    if modname~="_G" then -- omit the global environment!!!
-      local ret1,ret2
-      if _G[modname] and _G[modname].NewUserConnected then ret1,ret2=_G[modname].NewUserConnected(user.sName) end
-      if ret1 and ret2 then
-        local parseret={{SendTxt,{user.sName,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
-        parseret[ret2][1](unpack(parseret[ret2][2]),Bot.name,ret1)
-      end
-    end
-  end
+--   HandleEvent ("NewUserConnected",user)
 end
 
 function OnTimer()
-  if WhenAndWhatToShow[os.date("%H:%M")] then
-    if Types[WhenAndWhatToShow[os.date("%H:%M")]] then
-      SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[os.date("%H:%M")]))
+  local stuff = WhenAndWhatToShow[os.date("%H:%M")] -- to avoid sync errors and unnecessary function calls/tanle lookups
+  if stuff then
+    if Types[stuff] then
+      SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[now]))
     else
-      if WhenAndWhatToShow[os.date("%H:%M")]=="new" then
+      if stuff == "new" then
         SendToAll(Bot.name, MsgNew)
-      elseif WhenAndWhatToShow[os.date("%H:%M")]=="all" then
+      elseif stuff == "all" then
         SendToAll(Bot.name, MsgAll)
-    else
-        SendToOps(Bot.name,"Some fool added something to my timed ad list that I never heard of. :-)")
+      else
+        SendToOps(Bot.name,"Some fool added something to my timed ad list that I have never heard of. :-)")
       end
     end
   end
-  Timer=0
 end
 
 OpConnected=NewUserConnected
@@ -116,36 +95,15 @@ function parsecmds(user,msg,env,cmd,bot)
           local parseret={{SendTxt,{user.sName,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
           parseret[ret2][1](unpack(parseret[ret2][2])); return 1
         end
+      else
+        SendTxt(user.sName,env,bot,"You are not allowed to use this command."); return 1
       end
     else
-       SendTxt(user.sName,env,bot,"You are not allowed to use this command."); return 1
+      SendTxt(user.sName,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
     end
-  else
-    SendTxt(user.sName,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
   end
 end
-
-_rightclick=
-  {
-    __newindex=function (tbl,key,PM)
-      SendToAll(Bot.name,key)
-      local level,context,name,command=unpack(key)
-      if level~=0 then
-        for idx,perm in pairs(userlevels) do
-          rctosend[idx]=rctosend[idx] or {}
-          if perm >= level then -- if user is allowed to use
-            local message; if PM~=0 then
-              message="$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
-            else
-              message="$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
-            end
-            table.insert(rctosend[idx],message) -- then put to the array
-          end
-        end
-      end
-    end
-  }
-
+ 
 function SendTxt(nick,env,bot,text) -- sends message according to environment (main or pm)
   if env=="PM" then
     SendPmToNick(nick,bot,text)
@@ -163,7 +121,29 @@ for _,profName in ipairs(GetProfiles()) do
   local idx=GetProfileIdx(profName)
 	rctosend[idx]=rctosend[idx] or{}
 end
-setmetatable(rightclick,_rightclick)
+
+setmetatable(rightclick,
+  {
+  __newindex=function (tbl,key,PM)
+    SendToAll(Bot.name,key)
+    local level,context,name,command=unpack(key)
+    if level~=0 then
+      for idx,perm in pairs(userlevels) do
+        rctosend[idx]=rctosend[idx] or {}
+        if perm >= level then -- if user is allowed to use
+          local message; if PM~=0 then
+            message="$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
+          else
+            message="$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
+          end
+          table.insert(rctosend[idx],message) -- then put to the array
+        end
+      end
+    end
+  end
+  }
+)
+
 rightclick[{Levels.ShowCtgrs,"1 3","Releases\\Show categories","!"..Commands.ShowCtgrs}]=0
 rightclick[{Levels.Delete,"1 3","Releases\\Delete a release","!"..Commands.Delete.." %[line:ID number(s):]"}]=0
 rightclick[{Levels.ReLoad,"1 3","Releases\\Reload releases database","!"..Commands.ReLoad}]=0
@@ -181,47 +161,44 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
   }
-
-function OnRelAdded (nick, data, cat, tune)
-  for modname in pairs (package.loaded) do -- run thru packages
-    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnRelAdded then -- check if we have a function in that package
-      local func = _G[modname].OnRelAdded -- Let's just grab...
-      local txt,ret=func(nick,data,cat,tune) -- ...and execute it
-      if txt and ret then -- and process return values, send message if appropriate
-        local user = GetItemByName (nick)
-        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
-        parseret[ret][1](unpack(parseret[ret][2]));
-      end
-    end
-  end
-end
-
-function OnCatDeleted (nick,cat)
-  for modname in pairs (package.loaded) do
-    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnCatDeleted then
-      local func = _G[modname].OnCatDeleted
-      local txt,ret=func(nick,cat)
-      if txt and ret then
-        local user = GetItemByName(nick)
-        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
-        parseret[ret][1](unpack(parseret[ret][2]));
-      end
-    end
-  end
-end
   
-function OnReqFulfilled(nick,data,cat,tune,reqcomp,username,reqdetails)
-  for modname in pairs (package.loaded) do
-    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnReqFulfilled then
-      local func = _G[modname].OnCatDeleted
-      local txt,ret=func(nick,data,cat,tune,reqcomp,username,reqdetails)
-      if txt and ret then
-        local user = GetItemByName(nick)
-        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
-        parseret[ret][1](unpack(parseret[ret][2]));
-      end
-    end
-  end
+-- function HandleEvent (event, ...)
+--   for pkg, moddy in pairs(package.loaded) do
+--     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+--       local txt, ret = moddy[event](...)
+--       if txt and ret then
+--         local args = { ... }
+--         local user  = GetItemByName(args[1])
+--         local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+--         parseret[ret][1](unpack(parseret[ret][2]));
+--       end
+--     end
+--   end
+-- end
+
+-- function HandleEvent (event, ...)
+--   for pkg, moddy in pairs(package.loaded) do
+--     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+--         moddy[event](...)
+--     end
+--   end
+-- end
+
+module("ptokax", package.seeall)
+ModulesLoaded["ptokax"] = 1
+  
+function OnRelAdded (nick, data, cat, tune)
+  frmHub:UnregBot(Bot.name)
+  frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
+  SendToAll(Bot.name, nick.." added to the "..cat.." releases: "..tune)
+end
+
+function OnRelDeleted ()
+  frmHub:UnregBot(Bot.name)
+  frmHub:RegBot(Bot.name,1,"["..(GetNewRelNumForToday()-1).." new releases today] "..Bot.desc,Bot.email)
+end
+
+function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
   local usr=GetItemByName(username); if usr then
     usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     Requests.Completed[usr.sName]=nil

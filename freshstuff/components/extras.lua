@@ -6,7 +6,7 @@ do
   setmetatable (Engine,_Engine)
   Engine[Commands.Prune]=
     {
-      function (user,data,env)
+      function (nick,data,env)
         if #AllStuff == 0 then return "There is nothing to prune.",1 end
         setmetatable (AllStuff,nil)
         local Count=#AllStuff
@@ -18,6 +18,7 @@ do
         for i=#AllStuff,1,-1 do
           local diff=JulianDiff(JulianDate(SplitTimeString(AllStuff[i][3].." 00:00:00")))
           if diff > oldest then
+            HandleEvent("OnRelDeleted", nick, i)
             table.remove(AllStuff,i)
             cnt=cnt+1
           end
@@ -32,7 +33,7 @@ do
     }
   Engine[Commands.TopAdders]=
     {
-      function (user,data,env)
+      function (nick,data,env)
         local num=TopAddersCount
         local tmp={}
         local adderz=0
@@ -56,5 +57,12 @@ end
 
 rightclick[{Levels.Prune,"1 3","Releases\\Delete old releases","!"..Commands.Prune.." %[line:Max. age in days (Enter=defaults to "..MaxItemAge.."):]"}]=0
 rightclick[{Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Commands.TopAdders.." %[line:Number of top-adders (Enter defaults to 5):]"}]=0
+
+module("Extras",package.seeall)
+ModulesLoaded["Extras"] = true
+
+function OnCatDeleted (nick, id)
+  SendOut (nick..": "..id)
+end
 
 SendOut("*** "..botver.." 'extras' module loaded.")
