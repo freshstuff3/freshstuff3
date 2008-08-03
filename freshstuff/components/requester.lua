@@ -138,7 +138,7 @@ do
               local done = Requests.NonCompleted[tonumber(reqid)]
               local cat, usernick, date, tune = unpack (AllStuff[tonumber(relid)])
               if done[2] ~= cat then
-                return "This is not the same category as the request. You have specified "..cat.." while the request's category was "..done[2]
+                return "This is not the same category as the request. The release's category is "..Types[cat].." while the request's category is "..Types[done[2]]
                 ..". Request and release have NOT been linked.", 1
               else
                 local username, cat, reqdetails=unpack(done)
@@ -224,6 +224,7 @@ end
 
 rightclick[{Levels.DelReq,"1 3","Requests\\Delete a request","!"..Commands.DelReq.." %[line:ID number(s):]"}]=0
 rightclick[{Levels.ShowReqs,"1 3","Requests\\Show requests","!"..Commands.ShowReqs}]=0
+rightclick[{Levels.Add,"1 3","Requests\\Link a release with a request","!"..Commands.LinkReq.." %[line:Release ID:] %[line:Request ID:]"}]=0
 
 module("Request",package.seeall)
 ModulesLoaded["Request"] = true
@@ -250,10 +251,9 @@ function Start()
     else bErr = true end
   else bErr = true end
   e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
-  SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
+  SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
-    rightclick[{Levels.Add,"1 3","Requests\\Fulfill an item in the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
   end
 end
 

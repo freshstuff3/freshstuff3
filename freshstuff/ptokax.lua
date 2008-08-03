@@ -1,19 +1,21 @@
 --[[
 PtokaX module for FreshStuff3 v5 by bastya_elvtars
+This is for the new PtokaX API (beta)
 This module declares the events on PtokaX and contains other PtokaX-specific stuff.
 Gets loaded only if the script detects PtokaX as host app
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
-SendOut = SendToOps
-
-ScriptsPath = frmHub:GetPtokaXLocation().."scripts/freshstuff/"
+-- Debug message sending
+SendOut = Core.SendToOps
+-- SendOut(Core.GetPtokaXPath())
+ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
 local conf = ScriptsPath.."config/main.lua"
 local _,err = loadfile (conf)
 if not err then dofile (conf) else error(err) end
 
 -- We need the application path
-GetPath=frmHub:GetPtokaXLocation()
+GetPath = Core.GetPtokaXPath
 
 -- Declare table for commands and rightclick.
 commandtable,rightclick,rctosend={},{},{}
@@ -23,10 +25,13 @@ local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=
 userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
-function Main()
+function OnStartup()
   Today = os.date("%m/%d/%Y")
-  frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
-  setmetatable(rightclick, 
+  Core.RegBot(Bot.name, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email, true)
+  if pcall (SetMan.GetBool, 55) then -- Log script errors.
+    SetMan.SetBool(55, true)
+  end
+  setmetatable(rightclick,
   {
     __newindex=function (tbl,key,PM)
       local level,context,name,command=unpack(key)
@@ -35,9 +40,9 @@ function Main()
           rctosend[idx]=rctosend[idx] or {}
           if perm >= level then -- if user is allowed to use
             local message; if PM~=0 then
-              message="$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
+              message = "$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
             else
-              message="$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
+              message = "$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
             end
             table.insert(rctosend[idx],message) -- then put to the array
           end
@@ -46,21 +51,14 @@ function Main()
     end
   })
   for a,b in pairs(Types) do -- Add categories to rightclick. This is impossible on-the-fly.
-    if ModulesLoaded["Request"] then
-      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
-      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
-      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
-    else
-      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
-      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
-      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
-    end
+    rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
+    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
   end
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
-    table.sort(arr)
+    table.sort(arr) -- sort the array
   end
-  SetTimer(60000) -- Start a timer.
-  StartTimer()
+  TmrMan.AddTimer(60000, "OnTimer")
   HandleEvent ("Start")
 end
 
@@ -70,10 +68,10 @@ function ChatArrival(user,data)
   -- We are parsing the command here
   if commandtable[cmd] then
     parsecmds(user,msg,"MAIN",string.lower(cmd))
-    return 1
+    return true
   end
   -- This event is only fired if the chat message is NOT a command.
-  HandleEvent ("ChatMsg",user.sName,data)
+  HandleEvent ("ChatMsg",user.sNick,data)
 end
 
 -- This is executed on a private message
@@ -81,28 +79,28 @@ function ToArrival(user,data)
   local whoto,cmd,msg = data:match("^$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   if commandtable[cmd] then
     parsecmds(user,msg,"PM",string.lower(cmd),whoto)
-    return 1
+    return true
   end
-  HandleEvent ("PrivMsg",user.sName,data)
+  HandleEvent ("PrivMsg",user.sNick,data)
 end
 
 -- This is executed when a new user connects.
--- Covers operators as well.
-function NewUserConnected(user)
-  if  user.bUserCommand then -- if login is successful, and usercommands can be sent
-    user:SendData(table.concat(rctosend[user.iProfile],"|")) -- This may be faster than sending one by one.
-    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+-- Covers regs and operators as well.
+function UserConnected(user)
+  if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
+    Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
+    Core.SendToUser(user, (table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
       if ShowOnEntry==1 then
-        SendTxt(user.sName,"PM",Bot.name, MsgNew)
+        SendTxt(user,"PM",Bot.name, MsgNew)
       else
-        SendTxt(user.sName,"MAIN",Bot.name, MsgNew)
+        SendTxt(user,"MAIN",Bot.name, MsgNew)
       end
     end
   end
-  HandleEvent ("UserConnected",user.sName)
+  HandleEvent ("Connected",user.sNick)
 end
 
 function OnTimer()
@@ -111,62 +109,68 @@ function OnTimer()
   HandleEvent("Timer")
 end
 
-OpConnected=NewUserConnected
+OpConnected=UserConnected
+RegConnected=UserConnected
 OpDisconnected=UserDisconnected
+RegDisconnected=UserDisconnected
 
 function OnError(err)
   SendOut(err)
 end
 
-
 function parsecmds(user,msg,env,cmd,bot)
-  bot=bot or Bot.name
+  bot = bot or Bot.name
   if commandtable[cmd] then -- if it exists
-    local m=commandtable[cmd]
+    local m = commandtable[cmd]
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
-        local ret1,ret2=m["func"](user.sName,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
-        if ret1:len() > 128000 then ret1 = 
+        local ret1,ret2 = m["func"](user.sNick,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
+        if ret1:len() > 128000 then ret1 =
           "The command's output would exceed 128,000 characters. Please report this issue "..
           "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
-          "information you need." 
+          "information you need."
         end
         if ret2 then
-          local parseret={{SendTxt,{user,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
-          parseret[ret2][1](unpack(parseret[ret2][2])); return 1
+          local parseret=
+            {
+              {SendTxt,{user, env, bot, ret1}},
+              {Core.SendPmToUser,{user, bot, ret1}},
+              {Core.SendToOps,{"<"..bot.."> "..ret1}},
+              {Core.SendToAll,{"<"..bot.."> "..ret1}},
+            }
+          parseret[ret2][1](unpack(parseret[ret2][2])); return true
         end
       else
-        SendTxt(user,env,bot,"You are not allowed to use this command."); return 1
+        SendTxt(user,env,bot,"You are not allowed to use this command."); return true
       end
     else
-      SendTxt(user,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
+      SendTxt(user,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return true
     end
   end
 end
- 
-function SendTxt(user,env,bot,text) -- sends message according to environment (main or pm)
+
+function SendTxt(user, env, bot, text) -- sends message according to environment (main or pm)
+--   local user = Core.GetUser(nick)
   if env=="PM" then
-    user:SendPM(bot, text)
+    Core.SendPmToUser(user, bot, text)
   else
-    user:SendData("<"..bot.."> "..text)
+    Core.SendToUser(user,"<"..bot.."> "..text)
   end
 end
 
 function Allowed (nick, level) -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
-  local user=GetItemByName(nick)
-  if userlevels[user.iProfile] >= level then return true end
+  if userlevels[Core.GetUser(nick).iProfile] >= level then return 1 end
 end
 
 -- Rightclick hadling.
 
-for _,profName in ipairs(GetProfiles()) do
-  local idx=GetProfileIdx(profName)
-	rctosend[idx]=rctosend[idx] or{}
+for _, prof in ipairs(ProfMan.GetProfiles()) do
+	rctosend[prof.iProfileNumber]=rctosend[prof.iProfileNumber] or {}
 end
 
 setmetatable(rightclick,
   {
-  __newindex=function (tbl,key,PM)
+  __newindex=function (tbl, key, PM)
     local level,context,name,command=unpack(key)
     if level~=0 then
       for idx,perm in pairs(userlevels) do
@@ -195,11 +199,12 @@ rightclick[{Levels.Help,"1 3","Releases\\Help","!"..Commands.Help}]=0
 rightclick[{Levels.Show,"1 3","Releases\\Show all items","!"..Commands.Show}]=0
 rightclick[{Levels.Show,"1 3","Releases\\Show last "..MaxNew.." items","!"..Commands.Show.." new"}]=0
 rightclick[{Levels.Show,"1 3","Releases\\Show items in a certain range","!"..Commands.Show.." %[line:Start ID:]-%[line:End ID:]"}]=0
+rightclick[{Levels.Change,"1 3","Releases\\Change (edit) a release","!"..Commands.Change.." %[line:ID:] %[line:Enter 1 to change the category, 2 to change the name:] %[line:New value:]"}]=0
 
--- We're finished. Now let's do something with FreshStuff's own events. :-D
+-- We're done. Now let's do something with FreshStuff's own events. :-D
 
 _Engine= -- The metatable for commands engine. I thought it should be hostapp-specific, so we can avoid useless things, like rightclick in BCDC.
-  { 
+  {
     __newindex=function(tbl,cmd,stuff)
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
@@ -211,8 +216,8 @@ function HandleEvent (event, nick, ...)
     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
       local txt, ret = moddy[event](nick, ...)
       if txt and ret then
-        local user  = GetItemByName(nick)
-        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+--         local user  = Core.GetUser(nick)
+        local parseret={{Core.SendToNick,{nick,"<"..Bot.name.."> "..txt.."|"}},{Core.SendPmToNick,{nick,Bot.name,txt.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..txt.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..txt.."|"}}}
         parseret[ret][1](unpack(parseret[ret][2]));
       end
     end
@@ -224,55 +229,55 @@ end
 module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
-  
+
 function OnRelAdded (nick, data, cat, tune)
-  frmHub:UnregBot(Bot.name)
-  frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
-  SendToAll(Bot.name, nick.." added to the "..cat.." releases: "..tune)
+  Core.UnregBot(Bot.name)
+  Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
+  Core.SendToAll("<"..Bot.name.."> "..nick.." added to the "..Types[cat].." releases: "..tune)
 end
 
 function OnRelDeleted ()
-  frmHub:UnregBot(Bot.name)
-  frmHub:RegBot(Bot.name,1,"["..(GetNewRelNumForToday()-1).." new releases today] "..Bot.desc,Bot.email)
+  Core.UnregBot(Bot.name)
+  Core.RegBot(Bot.name,"["..(GetNewRelNumForToday()-1).." new releases today] "..Bot.desc,Bot.email,true)
 end
 
 OnCatDeleted = OnRelDeleted
 
 function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
-  local usr=GetItemByName(username); if usr then
-    usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
+  local usr=Core.GetUser(username); if usr then
+    Core.SendPmToUser(usr,Bot.name,"The stuff you requested (you named it \""..reqdetails.."\")"
+    .."has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     -- Since we 've notified the user, the table entry can be removed.
-    Requests.Completed[usr.sName]=nil
-    table.save(Requests.Completed, Core.GetPtokaXPath().."scripts/freshstuff/data/requests_comp.dat")
+    Requests.Completed[usr.sNick]=nil
+    table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
   end
-  SendToAll(Bot.name, "Request #"..reqcomp.." has successfully been fulfilled thanks to "..nick..".")
+  Core.SendToAll("<"..Bot.name.."> Request #"..reqcomp.." has successfully been fulfilled thanks to "..nick..".")
 end
 
 function Timer()
   if os.date("%m/%d/%Y") ~= Today then
     Today = os.date("%m/%d/%Y")
-    frmHub:UnregBot(Bot.name)
-    frmHub:RegBot(Bot.name, 1, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email)
+    Core.UnregBot(Bot.name)
+    Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
   end
   if #AllStuff > 0 then
-     -- to avoid sync errors and unnecessary function calls/table lookups
+     -- to avoid sync errors and unnecessary function calls/tanle lookups
      -- declare the local variable
     local stuff = WhenAndWhatToShow[os.date("%H:%M")]
     if stuff then
       if Types[stuff] then
-        SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
+        Core.SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
       else
         if stuff == "new" then
-          SendToAll("<"..Bot.name.."> "..MsgNew)
+          Core.SendToAll("<"..Bot.name.."> "..MsgNew)
         elseif stuff == "all" then
-          SendToAll("<"..Bot.name.."> "..MsgAll)
+          Core.SendToAll("<"..Bot.name.."> "..MsgAll)
         else
-          SendOut("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
+          Core.SendToOps("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
         end
       end
     end
   end
 end
 
-local x,y=getHubVersion()
-SendOut("*** "..Bot.version.." detected "..x.." "..y.." as host app.")
+SendOut("*** "..Bot.version.." detected PtokaX "..Core.Version.." as host app.")
