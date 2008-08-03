@@ -8,8 +8,9 @@ You can:
     when the user who requested logs in. If this is a problem, future versions may contain comp. request pruning.
     - It calls OnReqFulfilled when a request is fulfilled. that way, hostapp-specific modules take care of proper user
     notification, which ensures portability.
- ]]
+
 -- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+]]
 
 Requests = {}
 
@@ -24,7 +25,8 @@ do
               if #tbl >= #NewestStuff then
                 table.remove (NewestStuff,1)
               end
-              table.insert (NewestStuff,value)
+              local cat, nick, date, tune = unpack(value)
+              table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new entry gets added
               rawset(tbl, key, value)
               table.save(tbl,"freshstuff/data/releases.dat")
               ShowRel(NewestStuff); ShowRel()

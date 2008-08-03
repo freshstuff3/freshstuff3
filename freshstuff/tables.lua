@@ -11,10 +11,11 @@
 	table.load( file )
 		returns a previously saved table
  
-]]--
 
--- by chill
--- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0
+
+by chill
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0
+]]--
 
 function table.save( t, sfile )
 	local tables = {}
@@ -78,6 +79,7 @@ function string.enclose( s, maxlevel )
 end
  
 function table.load( sfile )
+  -- Return empty table if the file cannot be loaded // bastya_elvtars
   if not loadfile(sfile) then return {} end
 	local tables = dofile( sfile )
 	if tables then

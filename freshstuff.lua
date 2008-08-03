@@ -1,4 +1,4 @@
--- FreshStuff3 v5 alpha2
+-- FreshStuff3 v5
 -- This is the common script that gets loaded by host apps, then takes care of everything else :-D
 -- Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
 -- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
@@ -11,21 +11,19 @@
   -- Split this config below into module-specific parts.
   -- Document stuff for module developers -- ALMOST DONE
   -- Multilanguage. *shrugs*
-  -- Show the number of new releases on the given day in the bot desc (hubserver only). Make a timer for this, perhaps the metatable could also re-reg the bot with a new desc.
   -- More bot descriptions (array), changing every X minute.
   -- Make the BCDC module
-  -- ?Maybe create a +releases today
+  -- Maybe create a +releases today
   
   -- Release rating plugin (reworked metatable for AllStuff, rating goes by indices of course, stored by nicks) - POST-5.0
   -- RSS plugin (generate staticpage, any webserver should be able to serve that, contenttype rss etc. etc.) - POST-5.0
   -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) - POST-5.0 OR ON-DEMAND
-  -- Put the configuration into an SQLite database. Definitely post-5.0.
 
 Bot = {
         name="post-it_memo",
         email="bastyaelvtars@gmail.com",
         desc="Release bot",
-        version="5.0 alpha4",
+        version="5.0 beta 1",
       } -- Set the bot's data. (Relevant only for hubsofts, so hubsoftmodule-specific)
     ProfilesUsed= 0 -- 0 for lawmaker/terminator (standard), 1 for robocop, 2 for psyguard (ptokax-only)
     Commands={
@@ -63,19 +61,19 @@ Bot = {
     MaxItemAge=30 -- IN DAYS
     TopAddersCount=5 -- shows top-adders on command, this is the number how many it should show
     ShowOnEntry = 2 -- Show latest stuff on entry 1=PM, 2=mainchat, 0=no
-    MaxNew = 20 -- Max stuff shown on newalbums/entry
+    MaxNew = 5 -- Max stuff shown on newalbums/entry
     WhenAndWhatToShow={
       ["20:31"]="new",
       ["20:48"]="warez",
       ["20:49"]="new",
       ["20:50"]="all",
-      ["23:44"]="new",
+      ["00:20"]="new",
     }-- Timed release announcing. You can specify a category name, or "all" or "new"
     ForbiddenWords={ -- Releases and requests containing such words cannot be added.
     "rape",
     "incest",
     }
-    SortStuffByName=1 -- Set to 1 to sort the releases within the category-based view alphabetically.
+    SortStuffByName=0 -- Set to 1 to sort the releases within the category-based view alphabetically.
 
 
 AllStuff,NewestStuff,Engine={},{},{}
@@ -93,9 +91,6 @@ local c
   end
   assert(c,"FATAL: This script does not support your host application. :-(")
 end
-
--- dofile("freshstuff/tables.lua")
--- dofile("freshstuff/kernel.lua")
 
 require "tables"
 require "kernel"

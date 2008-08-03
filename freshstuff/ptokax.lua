@@ -3,21 +3,47 @@ PtokaX module for FreshStuff3 v5 by bastya_elvtars
 This module declares the events on PtokaX and contains other PtokaX-specific stuff.
 Gets loaded only if the script detects PtokaX as host app
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
- ]]
+]]
+
+
+-- Declare this function for debug messages
 SendOut=function (msg)
   SendToOps(Bot.name,msg)
 end
 
+-- We need the application path
 GetPath=frmHub:GetPtokaXLocation()
 
+-- Declare table for commands and rightclick.
 commandtable,rightclick,rctosend={},{},{}
+-- This table is for deciding between RoboCop, Leviathan and others. These are unmaintained so I really dunno if
+-- this type of support for them should be kept at all.
 local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=6, [4]=5, [1]=4, [2]=3, [3]=2, [-1]=1},[2]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 ,[4] = 6, [5] = 7}}
 userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
+-- This is executed when the script starts.
 function Main()
   frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
-  setmetatable(rightclick,_rightclick)
-  for a,b in pairs(Types) do
+  setmetatable(rightclick, 
+  {
+    __newindex=function (tbl,key,PM)
+      local level,context,name,command=unpack(key)
+      if level~=0 then
+        for idx,perm in pairs(userlevels) do
+          rctosend[idx]=rctosend[idx] or {}
+          if perm >= level then -- if user is allowed to use
+            local message; if PM~=0 then
+              message="$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
+            else
+              message="$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
+            end
+            table.insert(rctosend[idx],message) -- then put to the array
+          end
+        end
+      end
+    end
+  })
+  for a,b in pairs(Types) do -- ÍAdd categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
     rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
     rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
@@ -25,20 +51,24 @@ function Main()
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
     table.sort(arr) -- sort the array
   end
-  SetTimer(60000)
+  SetTimer(60000) -- Start a timer.
   StartTimer()
   HandleEvent ("Start")
 end
 
+-- This is executed on a chat message
 function ChatArrival(user,data)
   local cmd,msg=data:match("^%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
+  -- We are parsing the command here
   if commandtable[cmd] then
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
+  -- This event is only fired if the chat message is NOIT a command.
   HandleEvent ("ChatMsg",user.sName,data)
 end
 
+-- This is executed on a private message
 function ToArrival(user,data)
   local whoto,cmd,msg = data:match("^$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   if commandtable[cmd] then
@@ -48,12 +78,14 @@ function ToArrival(user,data)
   HandleEvent ("PrivMsg",user.sName,data)
 end
 
+-- This is executed when a new user connects.
+-- Covers operators as well.
 function NewUserConnected(user)
   if  user.bUserCommand then -- if login is successful, and usercommands can be sent
-    user:SendData(table.concat(rctosend[user.iProfile],"|"))
+    user:SendData(table.concat(rctosend[user.iProfile],"|")) -- This may be faster than sending one by one.
     user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..botver)
   end
-  if Count > 0 then
+  if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
       if ShowOnEntry==1 then
         SendTxt(user.sName,"PM",Bot.name, MsgNew)
@@ -66,6 +98,8 @@ function NewUserConnected(user)
 end
 
 function Ontimer()
+  -- Only do event handling here.
+  -- This is to avoid stack overflows caused by recursions.
   HandleEvent("Timer")
 end
 
@@ -100,10 +134,12 @@ function SendTxt(nick,env,bot,text) -- sends message according to environment (m
   end
 end
 
-function Allowed (nick, level)
+function Allowed (nick, level) -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
   local user=GetItemByName(nick)
   if userlevels[user.iProfile] >= level then return true end
 end
+
+-- Rightclick hadling.
 
 for _,profName in ipairs(GetProfiles()) do
   local idx=GetProfileIdx(profName)
@@ -149,8 +185,11 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
   }
+  
+-- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
 module("ptokax", package.seeall)
+-- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
   
 function OnRelAdded (nick, data, cat, tune)
@@ -167,6 +206,7 @@ end
 function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
   local usr=GetItemByName(username); if usr then
     usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
+    -- Since we 've notified the user, the table entry can be removed.
     Requests.Completed[usr.sName]=nil
     table.save(Requests.Completed, "freshstuff/data/requests_comp.dat")
   end
@@ -174,7 +214,9 @@ end
 
 function Timer()
   if #AllStuff > 0 then
-    local stuff = WhenAndWhatToShow[os.date("%H:%M")] -- to avoid sync errors and unnecessary function calls/tanle lookups
+     -- to avoid sync errors and unnecessary function calls/tanle lookups
+     -- declare the local variable
+    local stuff = WhenAndWhatToShow[os.date("%H:%M")]
     if stuff then
       if Types[stuff] then
         SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[now]))

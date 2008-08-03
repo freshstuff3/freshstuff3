@@ -1,5 +1,5 @@
 --[[
-Core module for FreshStuff3 v5 by bastya_elvtars
+Kernel for FreshStuff3 v5 by bastya_elvtars
 This module contains functions that generate the required messages, save/load releases etc.
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
@@ -48,18 +48,20 @@ do
               end
             end
             setmetatable (AllStuff, 
-            {
+            { -- This metatable handles adding stuff to NewestStuff as well.
               __newindex=function (tbl, key, value)
-              if #tbl >= #NewestStuff then
-                  table.remove (NewestStuff,1)
+              if #tbl >= #NewestStuff then -- So We have more entries than the 'new' limit
+                  table.remove (NewestStuff,1) -- so the last entry from the newest is deleted
                 end
-                table.insert (NewestStuff,value)
-                rawset(tbl, key, value)
-                table.save(tbl,"freshstuff/data/releases.dat")
-                ShowRel(NewestStuff); ShowRel()
+                local cat, nick, date, tune = unpack(value)
+                table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new entry gets added
+                rawset(tbl, key, value) -- set this in the original table
+                table.save(tbl,"freshstuff/data/releases.dat") -- save
+                ShowRel(NewestStuff); ShowRel() -- rearrange the global texts
               end
             })
             local count = #AllStuff
+            -- No table.insert (__newindex does not get called!!!)
             AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
             HandleEvent("OnRelAdded", nick, data, cat, tune)
             return tune.." is added to the releases as "..cat, 1
@@ -85,8 +87,12 @@ do
                 HandleEvent ("OnRelDeleted", nick, n)
                 msg=msg.."\r\n"..AllStuff[n][4].." is deleted from the releases."
                 table.remove(AllStuff,n)
-                table.remove(NewestStuff,n)
---                 NewestStuff[n]=nil
+                for k,v in ipairs (NewestStuff) do
+                  if v[5] == n then
+                    table.remove(NewestStuff, k)
+                    break
+                  end
+                end
                 cnt=cnt+1
               end
             else
@@ -150,6 +156,11 @@ do
               table.save(AllStuff, filename)
               for key, value in ipairs (AllStuff) do
                 if value[1] == what then
+                  for k, v in ipairs(NewestStuff) do
+                    if v[5] == key then
+                      table.remove(NewestStuff, k)
+                    end
+                  end
                   AllStuff[key] = nil
                   HandleEvent("OnRelDeleted",nick,key)
                   bRemoved = true
@@ -165,8 +176,7 @@ do
             end
             Types[what]=nil
             table.save(Types,"freshstuff/data/categories.dat")
-            HandleEvent("OnCatDeleted", nick, what) 
---             if OnCatDeleted then OnCatDeleted (nick,what) end
+            HandleEvent("OnCatDeleted", nick, what)
             return ret,1
           end
         else
@@ -246,36 +256,23 @@ do
     }
 end
 
--- _AllStuff=
---   {
---     __newindex=function (tbl, key, value)
---     if #tbl >= #NewestStuff then
---         table.remove (NewestStuff,1)
---       end
---       table.insert (NewestStuff,value)
---       rawset(tbl, key, value)
---       table.save(tbl,"freshstuff/data/releases.dat")
---       ShowRel(NewestStuff); ShowRel()
---     end
---   }
-
 function OpenRel()
 	AllStuff,NewestStuff,TopAdders = nil,nil,nil
 	collectgarbage ("collect"); io.flush()
 	AllStuff,NewestStuff,TopAdders = {},{},{}
   setmetatable (AllStuff, nil)
-	Count2 = 0
   if not loadfile("freshstuff/data/releases.dat") then
+    -- Old file format converter
     local f=io.open("freshstuff/data/releases.dat","r")
     if f then
       for line in f:lines() do
         line=string.gsub(line,"(%[)","(")
         line=string.gsub(line,"(%])",")")
-        local cat,who,when,title=string.match(line, "(.+)$(.+)$(.+)$(.+)")
+        local cat,who,when,title=line:match("(.+)$(.+)$(.+)$(.+)")
         if cat then
           if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
-          if string.find(when,"%d+/%d+/0%d") then -- compatibility with old file format
-            local m,d,y=string.match(when,"(%d+)/(%d+)/(0%d)")
+          if when:find("%d+/%d+/0%d") then -- compatibility with old file format
+            local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
           end
           table.insert(AllStuff,{cat,who,when,title})
@@ -287,27 +284,26 @@ function OpenRel()
       f:close()
       table.save(AllStuff,"freshstuff/data/releases.dat")
     end
+    -- End of old file format converter
   else
     AllStuff=table.load("freshstuff/data/releases.dat")
   end
-  for _,w in ipairs(AllStuff) do
-    local cat,who,when,title=unpack(w)
-    if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
+  for _, w in ipairs(AllStuff) do
+    local cat, who, when, title = unpack(w)
+    if TopAdders[who] then TopAdders[who] = TopAdders[who] + 1 else TopAdders[who] = 1 end
   end
-  Count=#AllStuff
-	if Count > MaxNew then
-		local tmp = Count - MaxNew
-		Count2=(Count - MaxNew)
-		for i = tmp, Count do
-			Count2=Count2 + 1
-			if AllStuff[Count2] then
-				NewestStuff[Count2]=AllStuff[Count2]
-			end
-		end
+	if #AllStuff > MaxNew then
+		local c1, c2 = 0, #AllStuff
+		while c1 ~= MaxNew do
+      local a, b, c ,d = unpack (AllStuff[c2])
+      table.insert (NewestStuff, {a, b, c ,d ,c2})
+      c1 = c1 + 1
+      c2 = c2 - 1
+    end
 	else
 		for id, rel in ipairs (AllStuff) do
-			Count2 = Count2 + 1
-      NewestStuff[Count2]=rel
+      local a, b, c, d = unpack (rel)
+      table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
 end
@@ -315,22 +311,20 @@ end
 function ShowRel(tab)
   local CatArray={}
   local Msg = "\r\n"
-  local cat,who,when,title
+  local cat, who, when, title, oid
   local tmptbl={}
   setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
   local cunt=0
   if tab == NewestStuff then
-    if Count2 == 0 then
+    if #AllStuff == 0 then
       MsgNew = "\r\n\r\n".." --------- The Latest Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- The Latest Releases -------- \r\n\r\n"
     else
-      for i=1, Count2 do
-        if NewestStuff[i] then
-          cat,who,when,title=unpack(NewestStuff[i])
-          if title then
-            tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-            table.insert(tmptbl[Types[cat]],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
-            cunt=cunt+1
-          end
+      for k, v in ipairs(NewestStuff) do
+        cat, who, when, title, oid = unpack(v)
+        if title then
+          tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+          table.insert(tmptbl[Types[cat]],Msg.."ID: "..oid.."\t"..title.." // (Added by "..who.." at "..when..")")
+          cunt=cunt+1
         end
       end
     end
