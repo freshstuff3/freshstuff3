@@ -61,7 +61,7 @@ do
               end
             end
             table.insert(AllStuff,{cat,nick,os.date("%m/%d/%Y"),tune})
-            SaveRel()
+            table.save(AllStuff,"freshstuff/data/releases.dat")
             ReloadRel()
             if OnRelAdded then OnRelAdded(user,data,cat,tune) end
           else
@@ -99,7 +99,7 @@ do
             end
           end
           if cnt>0 then
-            SaveRel()
+            table.save(AllStuff,"freshstuff/data/releases.dat")
             ReloadRel()
             msg=msg.."\r\n\r\nDeletion of "..cnt.." item(s) took "..os.clock()-x.." seconds."
           end
@@ -118,17 +118,18 @@ do
           if string.find(what1,"$",1,true) then return "The dollar sign is not allowed.",1 end
           if not Types[what1] then
             Types[what1]=what2
-            SaveCt()
+            table.save("freshstuff/data/categories.dat",Types)
             return "The category "..what1.." has successfully been added.", 1
           else
             if Types[what1]==what2 then
               return "Already having the type "..what1
             else
               Types[what1]=what2
-              SaveCt()
+              table.save("freshstuff/data/categories.dat",Types)
               return "The category "..what1.." has successfully been changed.",1
             end
           end
+          for k in pairs(Types) do table.insert(CatArray,k) table.sort(CatArray) end
         else
           return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 1
         end
@@ -144,7 +145,7 @@ do
             return "The category "..what.." does not exist.",1
           else
             Types[what]=nil
-            SaveCt()
+            table.save("freshstuff/data/categories.dat",Types)
             return "The category "..what.." has successfully been deleted.",1
           end
         else
@@ -158,7 +159,7 @@ do
       function (user,data)
         local msg="\r\n======================\r\nAvaillable categories:\r\n======================\r\n"
         for a,b in pairs(Types) do
-          msg=msg.."\r\n"..a
+          msg=msg.."\r\n"..a.."\t\t"..b
         end
         return msg,2
       end,
@@ -234,6 +235,8 @@ function OpenRel()
     local f=io.open("freshstuff/data/releases.dat","r")
     if f then
       for line in f:lines() do
+        line=string.gsub(line,"(%[)","(")
+        line=string.gsub(line,"(%])",")")
         local cat,who,when,title=string.match(line, "(.+)$(.+)$(.+)$(.+)")
         if cat then
           if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
@@ -243,17 +246,19 @@ function OpenRel()
           end
           table.insert(AllStuff,{cat,who,when,title})
         else
-          return "Releases file is corrupt, failed to load all items."
+          SendOut("Releases file is corrupt, failed to load all items.")
+          break
         end
       end
       f:close()
+      table.save(AllStuff,"freshstuff/data/releases.dat")
     end
   else
     AllStuff=table.load("freshstuff/data/releases.dat")
-    for _,w in ipairs(AllStuff) do
-      local cat,who,when,title=unpack(w)
-      if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
-    end
+  end
+  for _,w in ipairs(AllStuff) do
+    local cat,who,when,title=unpack(w)
+    if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
   end
   Count=#AllStuff
 	if Count > MaxNew then
@@ -276,27 +281,31 @@ function OpenRel()
 end
 
 function ShowRel(tab)
+  local CatArray={}--; for _,k in pairs(Types) do table.insert(CatArray,k) end; table.sort(CatArray)
   local Msg = "\r\n"
   local cat,who,when,title
   local tmptbl={}
+  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
   local cunt=0
   if tab == NewestStuff then
     if Count2 == 0 then
       MsgNew = "\r\n\r\n".." --------- The Latest Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- The Latest Releases -------- \r\n\r\n"
     else
       for i=1, Count2 do
-	if NewestStuff[i] then
-	  cat,who,when,title=unpack(NewestStuff[i])
-	  if title then
-	    if Types[cat] then cat=Types[cat] end
-	    if not tmptbl[cat] then tmptbl[cat]={} end
-	    table.insert(tmptbl[cat],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
+        if NewestStuff[i] then
+          cat,who,when,title=unpack(NewestStuff[i])
+          if title then
+            tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+            table.insert(tmptbl[Types[cat]],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
             cunt=cunt+1
-	  end
-	end
+          end
+        end
       end
     end
-    for a,b in pairs (tmptbl) do
+    table.sort(CatArray)
+    for _,a in ipairs (CatArray) do
+      local b=tmptbl[a]
+      if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
       Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
     end
     local new=MaxNew if cunt < MaxNew then new=cunt end
@@ -311,16 +320,17 @@ function ShowRel(tab)
       end
       MsgHelp  = MsgHelp .."> to see only the selected types"
       for i=1, Count do
-	if AllStuff[i] then
-	  cat,who,when,title=unpack(AllStuff[i])
-	  if title then
-	    if Types[cat] then cat=Types[cat] end
-	    if not tmptbl[cat] then tmptbl[cat]={} end
-	    table.insert(tmptbl[cat],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
-	  end
-	end
+        if AllStuff[i] then
+          cat,who,when,title=unpack(AllStuff[i])
+          if title then
+            tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+            table.insert(tmptbl[Types[cat]],Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")")
+          end
+        end
       end
-      for a,b in pairs (tmptbl) do
+      for _,a in ipairs (CatArray) do
+        local b=tmptbl[a]
+        if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
         Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
       end
       MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- "..Msg.."\r\n --------- All The Releases -------- \r\n"..MsgHelp .."\r\n"
@@ -372,24 +382,10 @@ function ShowRelNum(what,num) -- to show numbers of categories
   return MsgType
 end
 
-function SaveRel()
-  table.save(AllStuff,"freshstuff/data/releases.dat")
-end
-
 function ReloadRel()
   OpenRel()
   ShowRel(NewestStuff)
   ShowRel(AllStuff)
-end
-
-function SaveCt()
-  local f=io.open("freshstuff/data/categories.dat","w+")
-  f:write("Types={\n")
-  for a,b in pairs(Types) do
-    f:write("[\""..a.."\"]=\""..b.."\",\n")
-  end
-  f:write("}")
-  f:close()
 end
 
 function SplitTimeString(TimeString)

@@ -36,8 +36,8 @@ do
   setmetatable(Engine,_Engine)
   setmetatable(Requests.Completed,_RequestsComp)
   setmetatable(Requests.NonCompleted,_RequestsIncomp)
-  Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-) You enter a number reflecting the request you compelted by releasing this (optional).
-    { 
+  Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
+    {-- You enter a number reflecting the request you compelted by releasing this (optional).
       function (user,data)
         local nick; if hostprg==1 then nick=user.sName end
         local cat,reqcomp,tune=string.match(data,"%b<>%s+%S+%s+(%S+)%s*(%d*)%s+(.+)")
@@ -46,7 +46,7 @@ do
             if string.find(tune,"$",1,true) then
               return "The release name must NOT contain any dollar signs ($)!",1
             else
-              for _word in Bot.ForbiddenWords do
+              for _,word in ipairs(ForbiddenWords) do
                 if string.find(tune,word,1,true) then
                   return "The release name contains the following forbidden word (thus not added): "..word,1
                 end
@@ -62,7 +62,7 @@ do
             end
             Count = Count + 1
             AllStuff[Count]={cat,nick,os.date("%m/%d/%Y"),tune}
-            SaveRel()
+            table.save(AllStuff,"freshstuff/data/releases.dat")
             ReloadRel()
             if OnRelAdded then OnRelAdded(user,data,cat,tune) end
             if reqcomp~="" then

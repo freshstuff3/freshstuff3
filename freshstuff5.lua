@@ -10,13 +10,9 @@
   -- make script decide whether to register rightclicks or not (BCDC++ issue mainly) - this is easy, just need to (not) register this on host-spec. mods
   -- make the script fully portable, i. e. it can use all stuff from the host program, while it interoperates with it smoothly (especially data sending)
   -- make the script automatically detect the environment
-  -- Incorporate a word filter. DONE
-  -- Showing category descriptions on listing
-  -- Sorting the displayed category listing
   -- Showing latest n releases... (?)
   -- Split this config below into module-specific parts.
   -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.)
-  -- Establish a new file format that is suitable for storing multiline releases.
   -- Merge Rodeo73's patches
 
 hostprg=1
@@ -56,11 +52,11 @@ Bot = {
       Prune=5, -- prune (delete old)
       TopAdders=1, -- top release adders
       Help=1, -- Guess what! :P
-      AddReq=1,
-      ShowReqs=1,
-      DelReq=4, -- Delete requests. Note that everyone is allowed to delete the requests they added.
+      AddReq=1, -- Add a request.
+      ShowReqs=1, -- Show requests.
+      DelReq=4, -- Delete requests. Note that everyone is allowed to delete their own requests.
     } -- You set the userlevels according to... you know what :P
-    MaxItemAge=30 --IN DAYS
+    MaxItemAge=30 -- IN DAYS
     TopAddersCount=5 -- shows top-adders on command, this is the number how many it should show
     ShowOnEntry = 2 -- Show latest stuff on entry 1=PM, 2=mainchat, 0=no
     MaxNew = 20 -- Max stuff shown on newalbums/entry
@@ -75,15 +71,15 @@ Bot = {
     "rape",
     "incest",
     }
+    SortStuffByName=1 -- Set to 1 to sort the releases within the category-based view alphabetically.
 
 Host={"ptokax","bcdc","verli","aquila"}
 AllStuff,NewestStuff,rightclick,commandtable,rctosend,Engine={},{},{},{},{},{}
 botver="FreshStuff3 v 5.0 alpha1"
 package.path="freshstuff/?.lua"
-require "table"
 require(Host[hostprg])
 require "kernel"
-package.path="freshstuff/?.lua"
+require "tables"
 require "components.extras"
 require "components.requester"
 

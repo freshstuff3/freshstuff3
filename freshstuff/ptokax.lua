@@ -12,25 +12,17 @@ function Main()
 	userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
   frmHub:RegBot(Bot.name,1,Bot.desc,Bot.email)
   if loadfile("freshstuff/data/categories.dat") then
-    dofile("freshstuff/data/categories.dat")
+    Types=table.load("freshstuff/data/categories.dat")
   else
-      Types={
-	      ["warez"]="Warez",
-	      ["game"]="Games",
-	      ["music"]="Music",
-	      ["movie"]="Movies",
-	    }
+    Types={
+      ["warez"]="Warez",
+      ["game"]="Games",
+      ["music"]="Music",
+      ["movie"]="Movies",
+    }
     SendToOps(Bot.name,"The categories file is corrupt or missing! Created a new one.")
     SendToOps(Bot.name,"If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to the folder called freshstuff (located inside scripts folder, and restart your scripts. Thank you!")
-    local f=io.open("freshstuff/data/categories.dat","w+")
-    f:write(
-  [[Types={
-  ["warez"]="Warez",
-  ["game"]="Games",
-  ["music"]="Music",
-  ["movie"]="Movies",
-  }]])
-  f:close()
+    table.save(Types,"freshstuff/data/categories.dat")
   end
   CreateRightClicks()
   ReloadRel()

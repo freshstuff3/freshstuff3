@@ -1,6 +1,6 @@
     --[[
       table.save 0.3
-
+      by chill
       table.save(table, file) 0.3
         Save Table to File
         Functions, Userdata and indices of these will not be saved
@@ -12,6 +12,7 @@
         returns a previously saved table
 
     ]]--
+-- Modified for use with FreshStuf3 by bastya_elvtars (and added author's name)
 
 function table.save(t, sfile)
   local tables = {}
