@@ -133,23 +133,27 @@ do
       function (nick, data)
         local relid, reqid = string.match (data,"(%d+)%D+(%d+)")
         if relid and reqid then
-          if AllStuff[tonumber(relid)] then
-            if Requests.NonCompleted[tonumber(reqid)] then
-              local done = Requests.NonCompleted[tonumber(reqid)]
-              local cat, usernick, date, tune = unpack (AllStuff[tonumber(relid)])
-              if done[2] ~= cat then
-                return "This is not the same category as the request. The release's category is "..Types[cat].." while the request's category is "..Types[done[2]]
-                ..". Request and release have NOT been linked.", 1
-              else
-                local username, cat, reqdetails=unpack(done)
-                --table.remove (Requests.NonCompleted, tonumber(reqid))
-                Requests.NonCompleted[tonumber(reqid)] = nil
-                Requests.Completed[username]={reqdetails, tune, cat, nick}
-                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-                table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
-                HandleEvent("OnReqFulfilled", usernick, data, cat, tune, reqid, username, reqdetails)
-                return "Release "..tune.." in category "..cat.." has fulfilled request #"..reqid..". Thank you.", 1
-              end
+          local rel = AllStuff[tonumber(relid)] 
+          if rel then
+            local req = Requests.NonCompleted[tonumber(reqid)]
+            if req then
+              if Allowed(nick,Levels.DelReq) or rel[1] == nick or req[1] == nick then
+                local cat, usernick, date, tune = unpack(rel)
+                if req[2] ~= cat then
+                  return "This is not the same category as the request. The release's category is "..Types[cat].." while the request's category is "..Types[done[2]]
+                  ..". Request and release have NOT been linked.", 1
+                else
+                  local username, cat, reqdetails=unpack(req)
+                  Requests.NonCompleted[tonumber(reqid)] = nil
+                  if req[1] ~= nick then -- When a requester links his/her own request, notification is redundant.
+                    Requests.Completed[username]={reqdetails, tune, cat, nick}
+                    table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                  end
+                  table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
+                  HandleEvent("OnReqFulfilled", usernick, data, cat, tune, reqid, username, reqdetails)
+                  return "Release "..tune.." in category "..cat.." has fulfilled request #"..reqid..". Thank you.", 1
+                end
+              else return "You are not allowed to use this command!", 1 end
             else
               return "This request ("..reqid..") does not exist.",1
             end
@@ -202,7 +206,6 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(nick,Levels.DelReq) then
-                --table.remove(Requests.NonCompleted, req)
                 Requests.NonCompleted[req] = nil
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
@@ -263,7 +266,6 @@ function OnCatDeleted (cat)
   local bRemoved
   for key, value in pairs (Requests.NonCompleted) do
     if value[2] == cat then
-      --table.remove (Requests.NonCompleted, key)
       Requests.NonCompleted[key] = nil
       bRemoved = true
     end

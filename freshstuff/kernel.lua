@@ -65,8 +65,8 @@ do
             local count = #AllStuff
             -- No table.insert (__newindex does not get called!!!)
             AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
-            HandleEvent("OnRelAdded", nick, data, cat, tune)
-            return tune.." is added to the releases in this category: "..Types[cat], 1
+            HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
+            return "\""..tune.."\" has been added to the releases in this category: \""..Types[cat].."\" with ID "..count + 1, 1
           else
             return "Unknown category: "..cat, 1
           end
@@ -494,7 +494,7 @@ function ShowRelRange(range)
     if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end
     if cat and title then
       tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-      table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(c):len())..c.." - "..title.."\t- "..title.." // (Added by "..who.." at "..when..")")
+      table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(c):len())..c.." - "..title.." // (Added by "..who.." at "..when..")")
     end
   end
   table.sort(CatArray)

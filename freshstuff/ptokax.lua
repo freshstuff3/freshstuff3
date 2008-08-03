@@ -230,10 +230,10 @@ module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
 
-function OnRelAdded (nick, data, cat, tune)
+function OnRelAdded (nick, data, cat, tune, id)
   Core.UnregBot(Bot.name)
   Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
-  Core.SendToAll("<"..Bot.name.."> "..nick.." added to the "..Types[cat].." releases: "..tune)
+  Core.SendToAll("<"..Bot.name.."> "..nick.." added the following item to the \""..Types[cat].."\" releases: \""..tune.. "\" with the following ID: "..id)
 end
 
 function OnRelDeleted ()
