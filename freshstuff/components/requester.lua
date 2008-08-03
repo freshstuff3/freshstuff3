@@ -215,11 +215,13 @@ function Start()
   SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
+    rightclick[{Levels.Add,"1 3","Requests\\Fulfill an item in the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
   end
 end
 
 function OnCatDeleted (cat)
-  table.save(Requests.NonCompleted, ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat")
+  local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
+  table.save(Requests.NonCompleted, filename)
   local bRemoved
   for key, value in ipairs (Requests.NonCompleted) do
     if value[2] == cat then

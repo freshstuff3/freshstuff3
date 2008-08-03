@@ -8,20 +8,26 @@ local conf = ScriptsPath.."config/extras.lua"
 local _,err = loadfile (conf)
 if not err then dofile (conf) else error(err) end
 
-local TopAdders, TA = {}, {}
-for _, w in ipairs(AllStuff) do
-  local cat, who, when, title = unpack(w)
-  if TA[who] then
+function CountTopAdders()
+  local TopAdders, TA = {}, {}
+  for _, w in ipairs(AllStuff) do
+    local _, who = unpack(w)
+    TA[who] = TA[who] or 0
     TA[who] = TA[who] + 1
-  else
-    TA[who] = 1
   end
+  local TAC = 0
+  for name, number in pairs(TA) do
+    local x = TopAdders[number]
+    if x then
+      TopAdders[number] = x..", "..name
+    else
+      TopAdders[number] = name
+      TAC = TAC+1
+    end
+  end
+  TA=nil; collectgarbage ("collect"); io.flush()
+  return TopAdders, TAC
 end
-for name, number in pairs(TA) do
-  TopAdders[number] = TopAdders[number] or {}
-  table.insert(TopAdders[number], name)
-end
-TA=nil; collectgarbage ("collect"); io.flush()
 
 do
   setmetatable (Engine,_Engine)
@@ -59,12 +65,12 @@ do
   Engine[Commands.TopAdders]=
     {
       function (nick, data, env)
+        local TopAdders, TAC = CountTopAdders()
         local num
         num = tonumber (data) or TopAddersCount
-        if num > TopAddersCount then num = TopAddersCount end
-        if num > #TopAdders then num = #TopAdders end
-        local tmp2={}
-        for num, ppl in pairs(TopAdders) do table.insert(tmp2, {["N"] = num, ["P"] = table.concat(ppl,", ") or ppl[1]}); end
+        if num > TAC then num = TAC end
+        local tmp2 = {}
+        for num, ppl in pairs(TopAdders) do table.insert(tmp2, {["N"] = num, ["P"] = ppl} ) end
         table.sort(tmp2, function(a, b) return a.N > b.N end)
         local msg="\r\nThe top "..num.." release-addders sorted by the number of releases are:\r\n"..("-"):rep(33).."\r\n"
         for nm = 1, num do
@@ -81,19 +87,5 @@ rightclick[{Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Comm
 
 module ("Extras",package.seeall)
 ModulesLoaded["Extras"] = true
-
-function OnCatDeleted (nick, id)
-  SendOut (nick..": "..id)
-end
-
-function OnRelAdded (who, _, cat, tune)
-  if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
-end
-
-function OnRelDeleted (nick, n)
-  local who = AllStuff[n][2]
-  if TopAdders[who] then TopAdders[who] = TopAdders[who]-1 end
-  if TopAdders[who] == 0 then TopAdders[who] = nil end
-end
 
 SendOut("*** "..Bot.version.." 'extras' module loaded.")
