@@ -164,8 +164,8 @@ do
                     end
                   end
                   HandleEvent("OnRelDeleted", nick, key)
-                  AllStuff[key] = nil
---                   HandleEvent("OnRelDeleted", nick, key)
+--                   AllStuff[key] = nil
+                  table.remove (AllStuff, key)
                   bRemoved = true
                   ret = "The category "..what.." has successfully been deleted. Note that the old releases have been backed up to "..filename.." in case you have made a mistake."
                 end
@@ -313,6 +313,16 @@ function OpenRel()
       end
     end
   end
+  local removed
+  -- The code below  is destined to fix broken release tables but
+  -- not sure if this is an issue in a nontesting environment. Anyway,
+  -- I do not care about script load times because they should not be
+  -- interfering with normal hub operation since in a production environment
+  -- there are very few script restarts.
+  for id = 1, #AllStuff do
+    if AllStuff[id] == nil then table.remove (AllStuff, id) removed = true end
+  end
+  if removed then table.save(AllStuff,ScriptsPath.."data/releases.dat") end
 	if #AllStuff > MaxNew then
 		local c1, c2 = 0, #AllStuff
 		while c1 ~= MaxNew do
@@ -412,15 +422,17 @@ function ShowRelNum(what,num) -- to show numbers of categories
   num=tonumber(num)
   local Msg="\r\n"
   local cunt=0
-  local target=#AllStuff+1
+--   local target=#AllStuff+1
   local cat,who,when,title
   if num > #AllStuff then num=#AllStuff end
-  for t=1,#AllStuff do
-		target=target-1
-    cat,who,when,title=unpack(AllStuff[target])
+--   for t = 1, #AllStuff do
+  for t = #AllStuff+1, 1, -1 do
+-- 		target = target-1
+    local tbl = AllStuff[t]
+    if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end -- I do not get why I get nil errors.
     if num ~= cunt then
       if cat == what then
-        Msg = Msg.."ID: "..target.."\t"..title.." // (Added by "..who.." at "..when..")\r\n"
+        Msg = Msg.."ID: "..t.."\t"..title.." // (Added by "..who.." at "..when..")\r\n"
         cunt=cunt+1
       end
     end
@@ -448,7 +460,8 @@ function ShowRelRange(range)
   if e > #AllStuff then e = #AllStuff; end
   if e-s > 100 then return "You can only specify a range no larger than 100 releases.",1 end
   for c = s, e do
-    cat,who,when,title=unpack(AllStuff[c])
+    local tbl = AllStuff[c]
+    if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end
     if cat and title then
       tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
       table.insert(tmptbl[Types[cat]], Msg.."ID: "..c.."\t- "..title.." // (Added by "..who.." at "..when..")")
