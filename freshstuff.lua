@@ -62,7 +62,7 @@ Bot = {
     ShowOnEntry = 2 -- Show latest stuff on entry 1=PM, 2=mainchat, 0=no
     MaxNew = 5 -- Max stuff shown on newalbums/entry
     WhenAndWhatToShow={
-      ["20:31"]="new",
+      ["15:31"]="new",
       ["20:48"]="warez",
       ["20:49"]="new",
       ["20:50"]="all",
@@ -78,7 +78,6 @@ Bot = {
 AllStuff,NewestStuff,Engine={},{},{}
 
 package.path="freshstuff/?.lua"
-package.cpath="freshstuff/lib/?.dll"
 Bot.version="FreshStuff3 5.0 beta 1"
 ModulesLoaded = {}
 
@@ -87,7 +86,8 @@ local Host=
   {
     ["frmHub"]= "ptokax",
     ["DC"]="bcdc",
-    ["VH"]="verli"
+    ["VH"]="verli",
+    ["Core"] = "ptokaxnew",
   }
 
 local c
@@ -107,6 +107,19 @@ local hostloader =
   {
     ["ptokax"] = 
       function()
+        package.cpath="freshstuff/lib/?.dll"
+        require "pxlfs"
+        package.path="freshstuff/components/?.lua"
+        for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do
+          local filename,ext=entry:match("([^%.]+)%.(%w%w%w)")
+          if ext == "lua" then
+            require (filename)
+          end
+        end
+      end,
+    ["ptokaxnew"] = 
+      function()
+        package.cpath="freshstuff/libnew/?.dll"
         require "pxlfs"
         package.path="freshstuff/components/?.lua"
         for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do

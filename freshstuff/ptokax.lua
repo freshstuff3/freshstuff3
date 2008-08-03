@@ -46,7 +46,7 @@ function Main()
     rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
   end
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
-    table.sort(arr) -- sort the array
+    table.sort(arr)
   end
   SetTimer(60000) -- Start a timer.
   StartTimer()
@@ -102,6 +102,11 @@ end
 
 OpConnected=NewUserConnected
 OpDisconnected=UserDisconnected
+
+function OnError(err)
+  SendOut(err)
+end
+
 
 function parsecmds(user,msg,env,cmd,bot)
   bot=bot or Bot.name

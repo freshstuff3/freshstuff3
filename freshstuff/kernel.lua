@@ -303,7 +303,8 @@ function OpenRel()
   else
     AllStuff=table.load("freshstuff/data/releases.dat")
     for id, rel in ipairs (AllStuff) do
-      if not Types[rel[1]] then Types[rel[1]] = rel[1]
+      local cat = rel[1]
+      if not Types[cat] then Types[cat] = cat
         SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
         " everything is alright."); table.save(Types,"freshstuff/data/categories.dat")

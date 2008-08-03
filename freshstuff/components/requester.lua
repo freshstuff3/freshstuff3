@@ -178,6 +178,9 @@ do
     }
 end
 
+rightclick[{Levels.DelReq,"1 3","Requests\\Delete a request","!"..Commands.DelReq.." %[line:ID number(s):]"}]=0
+rightclick[{Levels.ShowReqs,"1 3","Requests\\Show requests","!"..Commands.ShowReqs}]=0
+
 module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
@@ -193,6 +196,9 @@ end
 function Start()
   Requests.Completed = table.load("freshstuff/data/requests_comp.dat")
   Requests.NonCompleted = table.load("freshstuff/data/requests_non_comp.dat")
+  for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
+    rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
+  end
 end
 
 function OnCatDeleted (cat)
