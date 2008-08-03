@@ -257,9 +257,9 @@ do
 end
 
 function OpenRel()
-	AllStuff, NewestStuff, TopAdders, Types = nil, nil, nil, nil
+	AllStuff, NewestStuff, Types = nil, nil, nil, nil
 	collectgarbage ("collect"); io.flush()
-	AllStuff, NewestStuff, TopAdders, Types = {}, {}, {}, {}
+	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
   if loadfile("freshstuff/data/categories.dat") then
     Types = table.load("freshstuff/data/categories.dat")
@@ -284,12 +284,13 @@ function OpenRel()
           if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
           " everything is alright."); table.save(Types,"freshstuff/data/categories.dat"); end
-          if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
+--           HandleEvent("OnRelAdded", who, _, cat, title)
           if when:find("%d+/%d+/0%d") then -- compatibility with old file format
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
           end
           table.insert(AllStuff,{cat,who,when,title})
+--           HandleEvent("OnRelAdded", who, _, cat, title)
         else
           SendOut("Releases file is corrupt, failed to load all items.")
           break
@@ -309,10 +310,10 @@ function OpenRel()
       end
     end
   end
-  for _, w in ipairs(AllStuff) do
-    local cat, who, when, title = unpack(w)
-    if TopAdders[who] then TopAdders[who] = TopAdders[who] + 1 else TopAdders[who] = 1 end
-  end
+--   for _, w in ipairs(AllStuff) do
+--     local cat, who, when, title = unpack(w)
+--     HandleEvent("OnRelAdded", who, _, cat, title)
+--   end
 	if #AllStuff > MaxNew then
 		local c1, c2 = 0, #AllStuff
 		while c1 ~= MaxNew do
@@ -393,7 +394,7 @@ function ShowRelType(what)
       cat,who,when,title=unpack(rel)
       if cat == what then
         tmp = tmp + 1
-        table.insert(tbl,"ID: "..i.."\t"..title.." // (Added by "..who.." at "..when)
+        table.insert(tbl,"ID: "..id.."\t"..title.." // (Added by "..who.." at "..when)
       end
     end
     if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end

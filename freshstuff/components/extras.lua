@@ -2,6 +2,13 @@
 -- Release pruning and top adders
 -- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 
+TopAdders = {}
+
+for _, w in ipairs(AllStuff) do
+  local cat, who, when, title = unpack(w)
+  if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who] = 1 end
+end
+
 do
   setmetatable (Engine,_Engine)
   Engine[Commands.Prune]=
@@ -58,11 +65,21 @@ end
 rightclick[{Levels.Prune,"1 3","Releases\\Delete old releases","!"..Commands.Prune.." %[line:Max. age in days (Enter=defaults to "..MaxItemAge.."):]"}]=0
 rightclick[{Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Commands.TopAdders.." %[line:Number of top-adders (Enter defaults to 5):]"}]=0
 
-module("Extras",package.seeall)
+module ("Extras",package.seeall)
 ModulesLoaded["Extras"] = true
 
 function OnCatDeleted (nick, id)
   SendOut (nick..": "..id)
+end
+
+function OnRelAdded (who, _, cat, tune)
+  if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
+end
+
+function OnRelDeleted (nick, n)
+  local who = AllStuff[n][2]
+  if TopAdders[who] then TopAdders[who] = TopAdders[who]-1 end
+  if TopAdders[who] == 0 then TopAdders[who] = nil end
 end
 
 SendOut("*** "..Bot.version.." 'extras' module loaded.")
