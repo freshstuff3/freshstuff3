@@ -21,75 +21,75 @@ Requests ={Completed = {}, NonCompleted = {}}
 
 do
   setmetatable(Engine,_Engine)
-  Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
-    {-- You enter a number reflecting the request you completed by releasing this (optional).
-      function (nick,data)
-        setmetatable (AllStuff,
-          {
-            __newindex=function (tbl, key, value)
-              if #tbl >= #NewestStuff then -- Take care of removing the thing from NewestStuff too
-                table.remove (NewestStuff, 1)
-              end
-              local cat, nick, date, tune = unpack(value)
-              table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new 'Newest' entry gets added
-              rawset(tbl, key, value)
-              table.save(tbl,ScriptsPath.."data/releases.dat")
-              ShowRel(NewestStuff); ShowRel()
-            end
-          })
-        local reqcomp,cat,tune=string.match(data,"(%d*)%s*(%S+)%s+(.+)")
-        if cat then
-          if Types[cat] then
-            for _,word in pairs(ForbiddenWords) do
-              if string.find(tune,word,1,true) then
-                return "The release name contains the following forbidden word (thus not added): "..word, 1
-              end
-            end
-            if #AllStuff > 0 then
-              for i,v in ipairs(AllStuff) do
-                if string.lower(v[4]) == string.lower(tune) then
-                  return "The release is already added under category "..v[1].." by "..v[2]..".", 1
-                end
-              end
-            end
-            if reqcomp == "" then
-              local count = #AllStuff
-              AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
-              HandleEvent("OnRelAdded", nick, data, cat, tune)
-              return tune.." is added to the releases as "..cat, 1
-            else
-              reqcomp = tonumber(reqcomp)
-              if Requests.NonCompleted[reqcomp] then
-                local done = Requests.NonCompleted[reqcomp]
-                if done[2] ~= cat then
-                  return "This is not the same category as the request. You have specified "..cat.." while the request's category was "..done[2]..". Request and release have NOT been added.", 1
-                else
-                  local count = #AllStuff
-                  AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
-                  local username, cat, reqdetails=unpack(done)
---                   Requests.NonCompleted[tonumber(reqcomp)]=nil
-                  table.remove (Requests.NonCompleted, reqcomp)
-                  Requests.Completed[username]={reqdetails, tune, cat, nick}
-                  table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-                  table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
-                  HandleEvent("OnRelAdded", nick, data, cat, tune)
-                  HandleEvent("OnReqFulfilled", nick, data, cat, tune, reqcomp, username, reqdetails)
-                  return tune.." is added to the releases as "..cat..". Request #"..reqcomp.." has successfully been fulfilled. Thank you.", 1
-                  end
-              else
-                return "No request with ID "..reqcomp..". Release has NOT been added.",1
-              end
-            end
-            return tune.." is added to the releases as "..cat, 1
-          else
-            return "Unknown category: "..cat, 1
-          end
-        else
-          return "yea right, like i know what you got 2 add when you don't tell me!",1
-        end
-      end,
-      {},Levels.Add,"<requestnumber> <type> <name>\t\t\t\tAdd release of given type. Enter the number of request that you are fulfilling wih this release, before category and release name (optional)."
-    }
+--   Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
+--     {-- You enter a number reflecting the request you completed by releasing this (optional).
+--       function (nick,data)
+--         setmetatable (AllStuff,
+--           {
+--             __newindex=function (tbl, key, value)
+--               if #tbl >= #NewestStuff then -- Take care of removing the thing from NewestStuff too
+--                 table.remove (NewestStuff, 1)
+--               end
+--               local cat, nick, date, tune = unpack(value)
+--               table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new 'Newest' entry gets added
+--               rawset(tbl, key, value)
+--               table.save(tbl,ScriptsPath.."data/releases.dat")
+--               ShowRel(NewestStuff); ShowRel()
+--             end
+--           })
+--         local reqcomp,cat,tune=string.match(data,"(%d*)%s*(%S+)%s+(.+)")
+--         if cat then
+--           if Types[cat] then
+--             for _,word in pairs(ForbiddenWords) do
+--               if string.find(tune,word,1,true) then
+--                 return "The release name contains the following forbidden word (thus not added): "..word, 1
+--               end
+--             end
+--             if #AllStuff > 0 then
+--               for i,v in ipairs(AllStuff) do
+--                 if string.lower(v[4]) == string.lower(tune) then
+--                   return "The release is already added under category "..v[1].." by "..v[2]..".", 1
+--                 end
+--               end
+--             end
+--             if reqcomp == "" then
+--               local count = #AllStuff
+--               AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
+--               HandleEvent("OnRelAdded", nick, data, cat, tune)
+--               return tune.." is added to the releases as "..cat, 1
+--             else
+--               reqcomp = tonumber(reqcomp)
+--               if Requests.NonCompleted[reqcomp] then
+--                 local done = Requests.NonCompleted[reqcomp]
+--                 if done[2] ~= cat then
+--                   return "This is not the same category as the request. You have specified "..cat.." while the request's category was "..done[2]..". Request and release have NOT been added.", 1
+--                 else
+--                   local count = #AllStuff
+--                   AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
+--                   local username, cat, reqdetails=unpack(done)
+--                   --Requests.NonCompleted[tonumber(reqcomp)]=nil
+--                   table.remove (Requests.NonCompleted, reqcomp)
+--                   Requests.Completed[username]={reqdetails, tune, cat, nick}
+--                   table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+--                   table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
+--                   HandleEvent("OnRelAdded", nick, data, cat, tune)
+--                   HandleEvent("OnReqFulfilled", nick, data, cat, tune, reqcomp, username, reqdetails)
+--                   return tune.." is added to the releases as "..cat..". Request #"..reqcomp.." has successfully been fulfilled. Thank you.", 1
+--                   end
+--               else
+--                 return "No request with ID "..reqcomp..". Release has NOT been added.",1
+--               end
+--             end
+--             return tune.." is added to the releases as "..cat, 1
+--           else
+--             return "Unknown category: "..cat, 1
+--           end
+--         else
+--           return "yea right, like i know what you got 2 add when you don't tell me!",1
+--         end
+--       end,
+--       {},Levels.Add,"<requestnumber> <type> <name>\t\t\t\tAdd release of given type. Enter the number of request that you are fulfilling wih this release, before category and release name (optional)."
+--     }
     Engine[Commands.AddReq]=
     {
       function(nick,data)
@@ -99,32 +99,65 @@ do
             if not Types[cat] then
               return "The category "..cat.." does not exist.",1
             else
-				for _,word in ipairs(ForbiddenWords) do
-					if string.find(req,word,1,true) then
-					  return "The request name contains the following forbidden word (thus not added): "..word,1
-					end
-				end
-				for nick,tbl in pairs(Requests.Completed) do
-					if req == tbl[2] then
-						return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
-					end
-				end
-				for id,tbl in ipairs(Requests.NonCompleted) do
-					if tbl[3] == req then
-						return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
-					end
-				end
-				table.insert(Requests.NonCompleted,{nick, cat, req})
-				table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-				HandleEvent("OnReqAdded", nick, data, cat, req)
-				return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
-			end
-		  else return "yea right, like i know what i got 2 add when you don't tell me!.",1 end
-		else
-			return "yea right, like i know what i got 2 add when you don't tell me!.",1
-		end
+              for _,word in ipairs(ForbiddenWords) do
+                if string.find(req,word,1,true) then
+                  return "The request name contains the following forbidden word (thus not added): "..word,1
+                end
+              end
+              for nick,tbl in pairs(Requests.Completed) do
+                if req == tbl[2] then
+                  return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
+                end
+              end
+              for id,tbl in ipairs(Requests.NonCompleted) do
+                if tbl[3] == req then
+                  return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
+                end
+              end
+                table.insert(Requests.NonCompleted,{nick, cat, req})
+                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                HandleEvent("OnReqAdded", nick, data, cat, req)
+                return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
+            end
+          else return "yea right, like i know what i got 2 add when you don't tell me!.",1 end
+        else
+          return "yea right, like i know what i got 2 add when you don't tell me!.",1
+        end
       end,
       {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
+    }
+    Engine[Commands.LinkReq] = 
+    {
+      function (nick, data)
+        local relid, reqid = string.match (data,"(%d+)%D+(%d+)")
+        if relid and reqid then
+          if AllStuff[tonumber(relid)] then
+            if Requests.NonCompleted[tonumber(reqid)] then
+              local done = Requests.NonCompleted[tonumber(reqid)]
+              local cat, usernick, date, tune = unpack (AllStuff[tonumber(relid)])
+              if done[2] ~= cat then
+                return "This is not the same category as the request. You have specified "..cat.." while the request's category was "..done[2]
+                ..". Request and release have NOT been linked.", 1
+              else
+                local username, cat, reqdetails=unpack(done)
+                table.remove (Requests.NonCompleted, tonumber(reqid))
+                Requests.Completed[username]={reqdetails, tune, cat, nick}
+                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
+                HandleEvent("OnReqFulfilled", usernick, data, cat, tune, reqid, username, reqdetails)
+                return "Release "..tune.." in category "..cat.." has fulfilled request #"..reqid..". Thank you.", 1
+              end
+            else
+              return "This request ("..reqid..") does not exist.",1
+            end
+          else
+            return "This release ("..relid..") does not exist.",1
+          end
+        else
+          return "Syntax should be: !"..Commands.LinkReq.." release_id request_id",1
+        end
+      end,
+      {},Levels.LinkReq,"<release_id> <request_id>\t\t\t\tLink a release with a request, thus fulfilling it."
     }
     Engine[Commands.ShowReqs]=
     {
