@@ -207,14 +207,13 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
   }
   
 -- This is our event handler.
-function HandleEvent (event, ...)
+function HandleEvent (event, nick, ...)
   for pkg, moddy in pairs(package.loaded) do
     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
-      local txt, ret = moddy[event](...)
+      local txt, ret = moddy[event](nick, ...)
       if txt and ret then
-        local args = { ... }
-        local user  = GetItemByName(args[1])
-        local parseret={{SendTxt,{user.sNick,env,bot,ret1}},{Core.SendPmToNick,{user.sNick,bot,ret1}},{Core.SendToOps,{"<"..bot.."> "..ret1}},{Core.SendToAll,{"<"..bot.."> "..ret1}}}
+        local user  = Core.GetUser(nick)
+        local parseret={{Core.SendToNick,{user.sNick,"<"..Bot.name.."> "..ret.."|"}},{Core.SendPmToNick,{user.sNick,Bot.name,ret.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..ret.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..ret.."|"}}}
         parseret[ret][1](unpack(parseret[ret][2]));
       end
     end
@@ -237,6 +236,8 @@ function OnRelDeleted ()
   Core.UnregBot(Bot.name)
   Core.RegBot(Bot.name,"["..(GetNewRelNumForToday()-1).." new releases today] "..Bot.desc,Bot.email,true)
 end
+
+OnCatDeleted = OnRelDeleted
 
 function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
   local usr=Core.GetUser(username); if usr then

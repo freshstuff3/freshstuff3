@@ -163,8 +163,9 @@ do
                       table.remove(NewestStuff, k)
                     end
                   end
+                  HandleEvent("OnRelDeleted", nick, key)
                   AllStuff[key] = nil
-                  HandleEvent("OnRelDeleted",nick,key)
+--                   HandleEvent("OnRelDeleted", nick, key)
                   bRemoved = true
                   ret = "The category "..what.." has successfully been deleted. Note that the old releases have been backed up to "..filename.." in case you have made a mistake."
                 end

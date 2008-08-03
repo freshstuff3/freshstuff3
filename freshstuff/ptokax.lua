@@ -161,7 +161,6 @@ end
 setmetatable(rightclick,
   {
   __newindex=function (tbl,key,PM)
-    SendToAll(Bot.name,key)
     local level,context,name,command=unpack(key)
     if level~=0 then
       for idx,perm in pairs(userlevels) do
@@ -201,13 +200,12 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
   }
 
 -- This is our event handler.
-function HandleEvent (event, ...)
+function HandleEvent (event, nick, ...)
   for pkg, moddy in pairs(package.loaded) do
     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
-      local txt, ret = moddy[event](...)
+      local txt, ret = moddy[event](nick, ...)
       if txt and ret then
-        local args = { ... }
-        local user  = GetItemByName(args[1])
+        local user  = GetItemByName(nick)
         local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
         parseret[ret][1](unpack(parseret[ret][2]));
       end
@@ -231,6 +229,8 @@ function OnRelDeleted ()
   frmHub:UnregBot(Bot.name)
   frmHub:RegBot(Bot.name,1,"["..(GetNewRelNumForToday()-1).." new releases today] "..Bot.desc,Bot.email)
 end
+
+OnCatDeleted = OnRelDeleted
 
 function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
   local usr=GetItemByName(username); if usr then

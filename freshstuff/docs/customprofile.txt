@@ -1,0 +1,19 @@
+This howto helps you to add custom profiles support for FreshStuff. By default, the script supports the standard PtokaX profiles only. This howto is for your convenience, the process itself is not supported, so if you decide to use custom profiles, you are on your own.
+
+As you probably know, the default user levels for PtokaX have a numerical index. These indices can be retrieved with the ProfMan.GetProfiles() function, that returns an array of all profile objets. Every profile object has an iProfileNumber field. This field holds the profile number. The default profile numbers are
+
+Unregistered user: -1
+Master: 0
+Operator: 1
+VIP: 2
+Registered user: 3
+
+In FreshStuff3, every profile has a umber assigned to it. Unregistered users have 1, while Masters have 5. The more "powerful" the profile, the higher the value of this number is. So, registered users have 2, while VIPs have 3 and operators have 4. This is very important. In FreshStuff, this is reperesented by an associative table:
+
+{ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
+
+If you have custom profiles, you will have to know the profile numbers and the "power" of that profile. For instance, you have created a new profile that has the number 4, and it's stronger than VIPs, but "weaker" than ops or masters. Then you will have to modify this associative table accordingly:
+
+{ [-1] = 1, [0] = 6, [1] = 5, [2] = 3, [3] = 2, [4] = 4 }
+
+and your profile will have the desired strength.
