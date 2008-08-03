@@ -91,7 +91,7 @@ do
           local cat,req = string.match (data,"(%S+)%s+(.+)")
           if cat then
             if not Types[cat] then
-              return "The category "..what.." does not exist.",1
+              return "The category "..cat.." does not exist.",1
             else
               for _,word in ipairs(ForbiddenWords) do
                 if string.find(req,word,1,true) then
@@ -160,7 +160,8 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(user,Levels.DelReq) then
-                Requests.NonCompleted[req]=nil
+--                 Requests.NonCompleted[req]=nil
+                table.remove(Requests.NonCompleted, req)
                 table.save(Requests.NonCompleted,"freshstuff/data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
               else

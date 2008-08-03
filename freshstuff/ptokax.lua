@@ -20,6 +20,7 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
 function Main()
+  BotStart = os.date("%m/%d/%Y")
   frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
   setmetatable(rightclick, 
   {
@@ -94,7 +95,7 @@ function NewUserConnected(user)
   HandleEvent ("UserConnected",user.sName)
 end
 
-function Ontimer()
+function OnTimer()
   -- Only do event handling here.
   -- This is to avoid stack overflows caused by recursions.
   HandleEvent("Timer")
@@ -236,20 +237,24 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
 end
 
 function Timer()
+  if os.date("%m/%d/%Y") ~= BotStart then
+    frmHub:UnregBot(Bot.name)
+    frmHub:RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
+  end
   if #AllStuff > 0 then
-     -- to avoid sync errors and unnecessary function calls/table lookups
+     -- to avoid sync errors and unnecessary function calls/tanle lookups
      -- declare the local variable
     local stuff = WhenAndWhatToShow[os.date("%H:%M")]
     if stuff then
       if Types[stuff] then
-        SendToAll(Bot.name, ShowRelType(stuff))
+        SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
       else
         if stuff == "new" then
-          SendToAll(Bot.name, MsgNew)
+          SendToAll("<"..Bot.name.."> "..MsgNew)
         elseif stuff == "all" then
-          SendToAll(Bot.name, MsgAll)
+          SendToAll("<"..Bot.name.."> "..MsgAll)
         else
-          SendToOps(Bot.name,"Some fool added something to my timed ad list that I have never heard of. :-)")
+          SendOut("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
         end
       end
     end

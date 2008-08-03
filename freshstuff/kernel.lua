@@ -394,7 +394,7 @@ function ShowRelType(what)
       cat,who,when,title=unpack(rel)
       if cat == what then
         tmp = tmp + 1
-        table.insert(tbl,"ID: "..id.."\t"..title.." // (Added by "..who.." at "..when)
+        table.insert(tbl,"ID: "..id.."\t- "..title.." // (Added by "..who.." at "..when)
       end
     end
     if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
