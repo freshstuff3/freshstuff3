@@ -85,31 +85,21 @@ ModulesLoaded = {}
 do -- detect the host app
 local Host=
   {
-    ["frmHub"]= {"ptokax",
-      -- Declare this function for debug messages
-      -- Need to declare it here rather than in the hostapp-module
-      -- since the hostapp-module hast to be loaded after the kernel because
-      -- it needs to deal with the LOADED releases.
-        function (msg)
-          for _, op in ipairs(frmHub:GetOnlineOperators()) do
-            op:SendData(msg)
-          end
-        end},
+    ["frmHub"]= "ptokax",
     ["DC"]="bcdc",
-    ["VH"]="verli"}
+    ["VH"]="verli"
+  }
 
 local c
   for k,v in pairs(Host) do
     if _G[k] then
-      SendOut = v[2]
-      HostApp = v[1]
+      c = require (v)
       break
     end
   end
-  assert(HostApp,"FATAL: This script does not support your host application. :-(")
+  assert(c,"FATAL: This script does not support your host application. :-(")
 end
 
-require (HostApp)
 require "tables"
 require "kernel"
 

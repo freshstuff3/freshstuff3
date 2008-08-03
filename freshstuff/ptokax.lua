@@ -5,6 +5,9 @@ Gets loaded only if the script detects PtokaX as host app
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
+
+SendOut = SendToOps
+
 -- We need the application path
 GetPath=frmHub:GetPtokaXLocation()
 
