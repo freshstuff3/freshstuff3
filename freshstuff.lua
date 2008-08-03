@@ -1,22 +1,24 @@
--- FreshStuff3 v5
--- This is the common script that gets loaded by host apps, then takes care of everything else :-D
--- Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
--- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+--[[
+FreshStuff3 v5
+This is the common script that gets loaded by host apps, then takes care of everything else :-D
+Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+]]
 
 --------
 -- TODO:
 --------
   -- make the script fully portable, i. e. it can use all stuff from the host program, while it interoperates with it smoothly (especially data sending)
-  -- Showing latest n releases... +releases new 4
+  -- Showing latest n releases... +releases new 4 -- DONE
   -- Split this config below into module-specific parts.
   -- Document stuff for module developers -- ALMOST DONE
   -- Multilanguage. *shrugs*
-  -- More bot descriptions (array), changing every X minute.
-  -- Make the BCDC module
+  -- More bot descriptions (array), changing every X minute. -- POSTPONED
+  -- Make the BCDC module -- POSTPONED
   -- Maybe create a +releases today
   
   -- Release rating plugin (reworked metatable for AllStuff, rating goes by indices of course, stored by nicks) - POST-5.0
-  -- RSS plugin (generate staticpage, any webserver should be able to serve that, contenttype rss etc. etc.) - POST-5.0
+  -- RSS plugin (generate a static page, any webserver should be able to serve that, content type rss etc. etc.) - POST-5.0
   -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) - POST-5.0 OR ON-DEMAND
 
 Bot = {
@@ -60,7 +62,7 @@ Bot = {
     MaxItemAge=30 -- IN DAYS
     TopAddersCount=5 -- shows top-adders on command, this is the number how many it should show
     ShowOnEntry = 2 -- Show latest stuff on entry 1=PM, 2=mainchat, 0=no
-    MaxNew = 5 -- Max stuff shown on newalbums/entry
+    MaxNew = 20 -- Max stuff shown on newalbums/entry
     WhenAndWhatToShow={
       ["15:31"]="new",
       ["20:48"]="warez",

@@ -115,6 +115,11 @@ function parsecmds(user,msg,env,cmd,bot)
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
         local ret1,ret2=m["func"](user.sName,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
+        if ret1:len() > 128000 then ret1 = 
+          "The command's output would exceed 128,000 characters. Please report this issue "..
+          "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
+          "information you need." 
+        end
         if ret2 then
           local parseret={{SendTxt,{user.sName,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
           parseret[ret2][1](unpack(parseret[ret2][2])); return 1
@@ -130,9 +135,9 @@ end
  
 function SendTxt(nick,env,bot,text) -- sends message according to environment (main or pm)
   if env=="PM" then
-    SendPmToNick(nick,bot,text)
+    SendPmToNick(nick, bot, text)
   else
-    SendToNick(nick,"<"..bot.."> "..text)
+    SendToNick(nick, "<"..bot.."> "..text)
   end
 end
 
@@ -178,8 +183,9 @@ rightclick[{Levels.AddCatgry,"1 3","Releases\\Add a category","!"..Commands.AddC
 rightclick[{Levels.DelCatgry,"1 3","Releases\\Delete a category","!"..Commands.DelCatgry.." %[line:Category name:]"}]=0
 rightclick[{Levels.Help,"1 3","Releases\\Help","!"..Commands.Help}]=0
 rightclick[{Levels.Show,"1 3","Releases\\Show all items","!"..Commands.Show}]=0
+rightclick[{Levels.Show,"1 3","Releases\\Show items in a certain range","!"..Commands.Show.." %[line:Start ID:]-%[line:End ID:]"}]=0
 
--- We're done. Now let's do something with FreshStuff's own events. :-D
+-- We're finished. Now let's do something with FreshStuff's own events. :-D
 
 _Engine= -- The metatable for commands engine. I thought it should be hostapp-specific, so we can avoid useless things, like rightclick in BCDC.
   { 
@@ -187,7 +193,22 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
   }
-  
+
+-- This is our event handler.
+function HandleEvent (event, ...)
+  for pkg, moddy in pairs(package.loaded) do
+    if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+      local txt, ret = moddy[event](...)
+      if txt and ret then
+        local args = { ... }
+        local user  = GetItemByName(args[1])
+        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+        parseret[ret][1](unpack(parseret[ret][2]));
+      end
+    end
+  end
+end
+
 -- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
 module("ptokax", package.seeall)

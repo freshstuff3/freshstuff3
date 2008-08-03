@@ -1,4 +1,5 @@
---[[ Requester module for freshstuff
+--[[
+Requester module for freshstuff
 You can:
     - add a request
     - list requests
@@ -9,7 +10,7 @@ You can:
     - It calls OnReqFulfilled when a request is fulfilled. that way, hostapp-specific modules take care of proper user
     notification, which ensures portability.
 
--- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
 Requests = {}

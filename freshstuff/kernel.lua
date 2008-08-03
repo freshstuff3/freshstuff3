@@ -22,6 +22,8 @@ do
             else
               return ShowRelType(cat),2
             end
+          elseif cat:find("^%d+%-%d+$") then
+            return ShowRelRange(cat), 2
           else
             return "No such type.",1
           end
@@ -285,13 +287,11 @@ function OpenRel()
           if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
           " everything is alright."); table.save(Types,"freshstuff/data/categories.dat"); end
---           HandleEvent("OnRelAdded", who, _, cat, title)
           if when:find("%d+/%d+/0%d") then -- compatibility with old file format
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
           end
           table.insert(AllStuff,{cat,who,when,title})
---           HandleEvent("OnRelAdded", who, _, cat, title)
         else
           SendOut("Releases file is corrupt, failed to load all items.")
           break
@@ -302,20 +302,16 @@ function OpenRel()
     end
     -- End of old file format converter
   else
-    AllStuff=table.load("freshstuff/data/releases.dat")
+    AllStuff = table.load("freshstuff/data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
-        SendOut("New category detected: "..cat..
+        SendOut("*** New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
         " everything is alright."); table.save(Types,"freshstuff/data/categories.dat")
       end
     end
   end
---   for _, w in ipairs(AllStuff) do
---     local cat, who, when, title = unpack(w)
---     HandleEvent("OnRelAdded", who, _, cat, title)
---   end
 	if #AllStuff > MaxNew then
 		local c1, c2 = 0, #AllStuff
 		while c1 ~= MaxNew do
@@ -330,7 +326,7 @@ function OpenRel()
       table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
-  SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
 end
 
 function ShowRel(tab)
@@ -348,7 +344,7 @@ function ShowRel(tab)
         cat, who, when, title, oid = unpack(v)
         if title then
           tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]],Msg.."ID: "..oid.."\t"..title.." // (Added by "..who.." at "..when..")")
+          table.insert(tmptbl[Types[cat]],Msg.."ID: "..oid.."\t- "..title.." // (Added by "..who.." at "..when..")")
           cunt=cunt+1
         end
       end
@@ -371,15 +367,16 @@ function ShowRel(tab)
       end
       MsgHelp  = MsgHelp .."> to see only the selected types"
       for id, rel in ipairs (AllStuff) do
-        cat,who,when,title=unpack(rel)
-        if title then
-          tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]],Msg.."ID: "..id.."\t"..title.." // (Added by "..who.." at "..when..")")
+        cat,who,when,title = unpack(rel)
+        if cat and title then
+          tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
+          table.insert(tmptbl[Types[cat]], Msg.."ID: "..id.."\t- "..title.." // (Added by "..who.." at "..when..")")
         end
       end
+      table.sort(CatArray)
       for _,a in ipairs (CatArray) do
-        local b=tmptbl[a]
-        if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+        local b = tmptbl[a]
+        if SortStuffByName == 1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
         Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
       end
       MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- "..Msg.."\r\n --------- All The Releases -------- \r\n"..MsgHelp .."\r\n"
@@ -432,6 +429,40 @@ function ShowRelNum(what,num) -- to show numbers of categories
   return MsgType
 end
 
+function ShowRelRange(range)
+  local MsgRange = "\r\n"
+  local tbl = {}
+  local tmptbl={}
+  local CatArray={}
+  local Msg = "\r\n"
+  local cat, who, when, title, oid
+  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
+  local s,e = range:match("^(%d+)%-(%d+)$")
+  if not s then return "Syntax error: it should be !"..Commands.Show.." start#-end#", 1 end
+  s = tonumber (s)
+  if s > #AllStuff then
+    return "There are only "..#AllStuff.." releases!", 1
+  end
+  e = tonumber (e)
+  if e > #AllStuff then e = #AllStuff; end
+  if e-s > 100 then return "You can only specify a range no larger than 100 releases.",1 end
+  for c = s, e do
+    cat,who,when,title=unpack(AllStuff[c])
+    if cat and title then
+      tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
+      table.insert(tmptbl[Types[cat]], Msg.."ID: "..c.."\t- "..title.." // (Added by "..who.." at "..when..")")
+    end
+  end
+  table.sort(CatArray)
+  for _,a in ipairs (CatArray) do
+    local b = tmptbl[a]
+    if SortStuffByName == 1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+    MsgRange = MsgRange.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+  end
+  MsgRange = "\r\n\r\n".." --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n"..MsgRange.."\r\n --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n\r\n"
+  return MsgRange
+end
+
 function ReloadRel()
   OpenRel()
   ShowRel(NewestStuff)
@@ -481,21 +512,6 @@ function GetNewRelNumForToday()
     end
   end
   return new_today
-end
-
--- This is our event handler.
-function HandleEvent (event, ...)
-  for pkg, moddy in pairs(package.loaded) do
-    if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
-      local txt, ret = moddy[event](...)
-      if txt and ret then
-        local args = { ... }
-        local user  = GetItemByName(args[1])
-        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
-        parseret[ret][1](unpack(parseret[ret][2]));
-      end
-    end
-  end
 end
 
 ReloadRel()
