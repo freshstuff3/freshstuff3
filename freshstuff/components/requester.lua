@@ -211,7 +211,7 @@ end
 module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
-function NewUserConnected(nick)
+function UserConnected(nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil
@@ -220,27 +220,9 @@ function NewUserConnected(nick)
   end
 end
 
-function Main()
---   local f=io.open("freshstuff/data/requests_comp.dat","r")
---   if f then
---     for line in f:lines() do
---       local nick,reqdetails,tune,cat=string.match(line,"(.+)%$(.+)%$(.+)%$(.+)")
---       rawset(Requests.Completed,nick,{reqdetails,tune,cat})
---     end
---     f:close()
---   end
+function Start()
   Requests.Completed = table.load("freshstuff/data/requests_comp.dat")
   Requests.NonCompleted = table.load("freshstuff/data/requests_incomp.dat")
---   f=io.open("freshstuff/data/requests_incomp.dat","r")
---   if f then
---     local c=0
---     for line in f:lines() do
---       c=c+1
---       local nick,reqdetails=string.match(line,"(.+)%$(.+)")
---       rawset(Requests.NonCompleted,c,{nick,reqdetails})
---     end
---     f:close()
---   end
 end
 
 function OnCatDeleted (cat)

@@ -27,7 +27,7 @@ function Main()
   end
   SetTimer(60000)
   StartTimer()
---   HandleEvent ("Main")
+  HandleEvent ("Start")
 end
 
 function ChatArrival(user,data)
@@ -36,7 +36,7 @@ function ChatArrival(user,data)
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
---   HandleEvent ("ChatArrival",nick,data)
+  HandleEvent ("ChatMsg",nick,data)
 end
 
 function ToArrival(user,data)
@@ -45,6 +45,7 @@ function ToArrival(user,data)
     parsecmds(user,msg,"PM",string.lower(cmd),whoto)
     return 1
   end
+  HandleEvent ("PrivMsg",nick,data)
 end
 
 function NewUserConnected(user)
@@ -61,24 +62,11 @@ function NewUserConnected(user)
       end
     end
   end
---   HandleEvent ("NewUserConnected",user)
+  HandleEvent ("UserConnected",user)
 end
 
-function OnTimer()
-  local stuff = WhenAndWhatToShow[os.date("%H:%M")] -- to avoid sync errors and unnecessary function calls/tanle lookups
-  if stuff then
-    if Types[stuff] then
-      SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[now]))
-    else
-      if stuff == "new" then
-        SendToAll(Bot.name, MsgNew)
-      elseif stuff == "all" then
-        SendToAll(Bot.name, MsgAll)
-      else
-        SendToOps(Bot.name,"Some fool added something to my timed ad list that I have never heard of. :-)")
-      end
-    end
-  end
+function Ontimer()
+  HandleEvent("Timer")
 end
 
 OpConnected=NewUserConnected
@@ -161,28 +149,6 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
   }
-  
--- function HandleEvent (event, ...)
---   for pkg, moddy in pairs(package.loaded) do
---     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
---       local txt, ret = moddy[event](...)
---       if txt and ret then
---         local args = { ... }
---         local user  = GetItemByName(args[1])
---         local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
---         parseret[ret][1](unpack(parseret[ret][2]));
---       end
---     end
---   end
--- end
-
--- function HandleEvent (event, ...)
---   for pkg, moddy in pairs(package.loaded) do
---     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
---         moddy[event](...)
---     end
---   end
--- end
 
 module("ptokax", package.seeall)
 ModulesLoaded["ptokax"] = 1
@@ -207,6 +173,25 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
       f:write(k.."$"..table.concat(v,"$").."\n")
     end
     f:close()
+  end
+end
+
+function Timer()
+  if #AllStuff > 0 then
+    local stuff = WhenAndWhatToShow[os.date("%H:%M")] -- to avoid sync errors and unnecessary function calls/tanle lookups
+    if stuff then
+      if Types[stuff] then
+        SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[now]))
+      else
+        if stuff == "new" then
+          SendToAll(Bot.name, MsgNew)
+        elseif stuff == "all" then
+          SendToAll(Bot.name, MsgAll)
+        else
+          SendToOps(Bot.name,"Some fool added something to my timed ad list that I have never heard of. :-)")
+        end
+      end
+    end
   end
 end
 

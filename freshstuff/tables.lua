@@ -78,6 +78,7 @@ function string.enclose( s, maxlevel )
 end
  
 function table.load( sfile )
+  if not loadfile(sfile) then return {} end
 	local tables = dofile( sfile )
 	if tables then
 		local tcopy = {}
