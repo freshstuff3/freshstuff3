@@ -9,7 +9,7 @@ AllStuff,NewestStuff,Engine,Bot,Commands,Levels = {},{},{},{},{},{}
 if Core and Core.GetPtokaXPath() then
     package.path = Core.GetPtokaXPath().."scripts/freshstuff/?.lua"
 else
-    package.path = Core.GetPtokaXPath().."scripts/freshstuff/?.lua"
+    package.path = frmHub:GetPtokaXLocation().."scripts/freshstuff/?.lua"
 end
 Bot.version="FreshStuff3 5.0"
 ModulesLoaded = {}
@@ -41,11 +41,11 @@ local hostloader =
   {
     ["ptokax"] = -- This is for old PtokaX
       function()
-        package.cpath=Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll" -- Set the path for C libs.
+        package.cpath = frmHub:GetPtokaXLocation().."/scripts/freshstuff/lib/?.dll" -- Set the path for C libs.
         require "pxlfs" 
-        package.path=Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua" -- Set the path for Lua libs.
-        for entry in lfs.dir( lfs.currentdir().."\\scripts\\freshstuff\\components" ) do -- open the components directory
-          local filename,ext=entry:match("([^%.]+)%.(%w%w%w)") -- search for Lua files
+        package.path = frmHub:GetPtokaXLocation().."/scripts/freshstuff/components/?.lua" -- Set the path for Lua libs.
+        for entry in lfs.dir(  frmHub:GetPtokaXLocation().."/scripts/freshstuff/components" ) do -- open the components directory
+          local filename, ext = entry:match("([^%.]+)%.(%w%w%w)") -- search for Lua files
           if ext == "lua" then
             require (filename) -- and load them
           end
