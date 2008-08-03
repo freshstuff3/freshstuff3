@@ -28,7 +28,9 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 function OnStartup()
   Today = os.date("%m/%d/%Y")
   Core.RegBot(Bot.name, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email, true)
-  SetMan.SetBool(55, true) -- Log script errors.
+  if pcall (SetMan.GetBool, 55) then -- Log script errors.
+    SetMan.SetBool(55, true)
+  end
   setmetatable(rightclick, 
   {
     __newindex=function (tbl,key,PM)

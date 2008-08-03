@@ -5,12 +5,6 @@ Characteristics (well, proposed - no, they are almost real as of end-feb 2007): 
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 AllStuff,NewestStuff,Engine,Bot,Commands,Levels = {},{},{},{},{},{}
-
-if Core and Core.GetPtokaXPath() then
-    package.path = Core.GetPtokaXPath().."scripts/freshstuff/?.lua"
-else
-    package.path = frmHub:GetPtokaXLocation().."scripts/freshstuff/?.lua"
-end
 Bot.version="FreshStuff3 5.0"
 ModulesLoaded = {}
 
@@ -18,16 +12,22 @@ do -- detect the host app
 -- This is done by detecting global tables that are specific to the host app.
 local Host=
   {
-    ["frmHub"]= "ptokax",
-    ["DC"]="bcdc",
-    ["VH"]="verli",
-    ["Core"] = "ptokaxnew",
+    ["frmHub"]= {func = "GetPtokaXLocation", param = "frmHub", path = "scripts/freshstuff/?.lua", mod = "ptokax"},
+--     ["DC"]="bcdc",
+--     ["VH"]="verli",
+    ["Core"] = {func = "GetPtokaXPath", path = "scripts/freshstuff/?.lua", mod = "ptokaxnew"},
   }
 
 local c
-  for k,v in pairs(Host) do
-    if _G[k] then
-      c = require (v)
+  for glob, loader in pairs(Host) do
+    if _G[glob] then
+      if loader.param then
+        package.path = _G[glob][loader.func](_G[loader.param])..loader.path
+      else
+        package.path = _G[glob][loader.func]()..loader.path
+      end
+      require (loader.mod)
+      c = true
       break
     end
   end
