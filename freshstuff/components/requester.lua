@@ -5,7 +5,7 @@ You can:
     - list requests
     - delete a request, if you have the right or you are the one who has added it
     - add releases with an extra option that tells the script you are fulfilling a request
-    - Note that you can only delete a request from the non-completed ones, completed requests get deleted 
+    - Note that you can only delete a request from the non-completed ones, completed requests get deleted
     when the user who requested logs in. If this is a problem, future versions may contain comp. request pruning.
     - It calls OnReqFulfilled when a request is fulfilled. that way, hostapp-specific modules take care of proper user
     notification, which ensures portability.
@@ -24,7 +24,7 @@ do
   Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
     {-- You enter a number reflecting the request you completed by releasing this (optional).
       function (nick,data)
-        setmetatable (AllStuff, 
+        setmetatable (AllStuff,
           {
             __newindex=function (tbl, key, value)
               if #tbl >= #NewestStuff then -- Take care of removing the thing from NewestStuff too
@@ -99,29 +99,30 @@ do
             if not Types[cat] then
               return "The category "..cat.." does not exist.",1
             else
-              for _,word in ipairs(ForbiddenWords) do
-                if string.find(req,word,1,true) then
-                  return "The request name contains the following forbidden word (thus not added): "..word,1
-                end
-              end
-            for nick,tbl in pairs(Requests.Completed) do
-              if req == tbl[2] then
-                return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
-              end
-            end
-            for id,tbl in ipairs(Requests.NonCompleted) do
-                if tbl[3] == req then
-                  return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
-                end
-              end
-            end
-            table.insert(Requests.NonCompleted,{nick, cat, req})
-            table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-            return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
-          else
-            return "yea right, like i know what i got 2 add when you don't tell me!.",1
-          end
-        end
+				for _,word in ipairs(ForbiddenWords) do
+					if string.find(req,word,1,true) then
+					  return "The request name contains the following forbidden word (thus not added): "..word,1
+					end
+				end
+				for nick,tbl in pairs(Requests.Completed) do
+					if req == tbl[2] then
+						return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
+					end
+				end
+				for id,tbl in ipairs(Requests.NonCompleted) do
+					if tbl[3] == req then
+						return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
+					end
+				end
+				table.insert(Requests.NonCompleted,{nick, cat, req})
+				table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+				HandleEvent("OnReqAdded", nick, data, cat, req)
+				return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
+			end
+		  else return "yea right, like i know what i got 2 add when you don't tell me!.",1 end
+		else
+			return "yea right, like i know what i got 2 add when you don't tell me!.",1
+		end
       end,
       {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
     }
@@ -235,6 +236,11 @@ function OnCatDeleted (cat)
     os.remove (filename)
   end
   return "Note that incomplete requests have been backed up to "..filename.." in case you have made a mistake.", 1
+end
+
+function OnReqAdded (nick, data, cat, req)
+	return "A new request has been added to the "..Types[cat].." category by "..nick..": \""
+	..req.."\". Who will be the first to fulfill it? ;-)",4
 end
 
 SendOut("*** "..Bot.version.." 'requester' module loaded.")
