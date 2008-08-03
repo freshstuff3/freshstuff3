@@ -40,7 +40,7 @@ local hostloader =
   {
     ["ptokax"] =
       function()
-        package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
+        package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
         require "pxlfs"
         package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
         for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
