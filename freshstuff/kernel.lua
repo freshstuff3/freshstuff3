@@ -331,6 +331,7 @@ function OpenRel()
       c1 = c1 + 1
       c2 = c2 - 1
     end
+    table.sort(NewestStuff, function(a, b) return b[5] > a[5] end)
 	else
 		for id, rel in ipairs (AllStuff) do
       local a, b, c, d = unpack (rel)
