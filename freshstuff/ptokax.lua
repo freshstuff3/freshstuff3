@@ -1,9 +1,10 @@
 -- PtokaX module for FreshStuff3 v5 by bastya_elvtars
--- License: GNU GPL v2
 -- This module declares the events on PtokaX and contains other PtokaX-specific stuff.
 -- Gets loaded only if the script detects PtokaX as host app
 -- Warning: the "module" declaration only goes before the OnRelAdded function, since we only need to add that to the "px" table
 -- Not so elegant, but works.
+
+-- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 
 SendOut=function (msg)
   SendToOps(Bot.name,msg)
@@ -181,52 +182,25 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
     end
   }
 
--- function OnRelAdded(nick,data,cat,tune)
---   SendTxt(nick,env,Bot.name, tune.." is added to the releases as "..cat)
---   SendToAll(Bot.name, nick.." added to the "..cat.." releases: "..tune)
---   for modname in pairs(package.loaded) do
---     local func=loadstring(modname..".OnRelAdded")
---     if func then
---       local txt,ret=func(user,data,cat,tune)
---       if txt and ret then
---         local parseret={{SendTxt,{nick,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
---         parseret[ret2][1](unpack(parseret[ret2][2]));
---       end
---     end
---   end
--- end
-
 function OnRelAdded (nick, data, cat, tune)
-  for modname in pairs (package.loaded) do
-    if _G[modname].OnRelAdded then
-      local func = _G[modname].OnRelAdded
-      local txt,ret=func(nick,data,cat,tune)
-      if txt and ret then
+  for modname in pairs (package.loaded) do -- run thru packages
+    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnRelAdded then -- check if we have a function in that package
+      local func = _G[modname].OnRelAdded -- Let's just grab...
+      local txt,ret=func(nick,data,cat,tune) -- ...and execute it
+      if txt and ret then -- and process return values, send message if appropriate
         local user = GetItemByName (nick)
-        local parseret={{SendTxt,{nick,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
-        parseret[ret2][1](unpack(parseret[ret2][2]));
+        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+        parseret[ret][1](unpack(parseret[ret][2]));
       end
     end
   end
 end
 
--- function OnCatDeleted (cat)
---   for modname in pairs(package.loaded) do
---     local func=loadstring(modname..".OnCatDeleted")
---     if func then
---       local txt,ret=func(cat)
---       if txt and ret then
---         local parseret={{SendTxt,{nick,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
---         parseret[ret2][1](unpack(parseret[ret2][2]));
---       end
---     end
---   end
--- end
 function OnCatDeleted (nick,cat)
   for modname in pairs (package.loaded) do
     if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnCatDeleted then
       local func = _G[modname].OnCatDeleted
-      local txt,ret=func(cat)
+      local txt,ret=func(nick,cat)
       if txt and ret then
         local user = GetItemByName(nick)
         local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
@@ -237,6 +211,17 @@ function OnCatDeleted (nick,cat)
 end
   
 function OnReqFulfilled(nick,data,cat,tune,reqcomp,username,reqdetails)
+  for modname in pairs (package.loaded) do
+    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnReqFulfilled then
+      local func = _G[modname].OnCatDeleted
+      local txt,ret=func(nick,data,cat,tune,reqcomp,username,reqdetails)
+      if txt and ret then
+        local user = GetItemByName(nick)
+        local parseret={{SendTxt,{nick,env,Bot.name,txt}},{user.SendPM,{user,Bot.name,txt}},{SendToOps,{Bot.name,txt}},{SendToAll,{Bot.name,txt}}}
+        parseret[ret][1](unpack(parseret[ret][2]));
+      end
+    end
+  end
   local usr=GetItemByName(username); if usr then
     usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     Requests.Completed[usr.sName]=nil

@@ -14,6 +14,7 @@
 ]]--
 
 -- by chill
+-- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0
 
 function table.save( t, sfile )
 	local tables = {}

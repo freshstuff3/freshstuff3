@@ -1,6 +1,6 @@
 -- Extras for FreshStuff3 v5 by bastya_elvtars
 -- Release pruning and top adders
--- License: GNU GPL v2
+-- Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 
 do
   setmetatable (Engine,_Engine)

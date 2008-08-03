@@ -1,7 +1,7 @@
 --[[
 Core module for FreshStuff3 v5 by bastya_elvtars
-License: GNU GPL v2
 This module contains functions that generate the required messages, save/load releases etc.
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
 do
@@ -147,7 +147,7 @@ do
           end
           Types[what]=nil
           table.save(Types,"freshstuff/data/categories.dat")
-          OnCatDeleted (nick,what)
+          if OnCatDeleted then OnCatDeleted (nick,what) end
           return "The category "..what.." has successfully been deleted. Note that the releases have been backed up to "..filename.." in case you have made a mistake.",1
         else
           return "Category should be deleted properly: +"..Commands.DelCatgry.." <category_name>",1
