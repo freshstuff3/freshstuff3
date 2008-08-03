@@ -109,12 +109,14 @@ do
                   return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
                 end
               end
-              for id,tbl in ipairs(Requests.NonCompleted) do
+              for id,tbl in pairs(Requests.NonCompleted) do
                 if tbl[3] == req then
                   return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
                 end
               end
-                table.insert(Requests.NonCompleted,{nick, cat, req})
+                --table.insert(Requests.NonCompleted,{nick, cat, req})
+                local no = #Requests.NonCompleted + 1
+                Requests.NonCompleted[no] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 HandleEvent("OnReqAdded", nick, data, cat, req)
                 return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
@@ -140,7 +142,8 @@ do
                 ..". Request and release have NOT been linked.", 1
               else
                 local username, cat, reqdetails=unpack(done)
-                table.remove (Requests.NonCompleted, tonumber(reqid))
+                --table.remove (Requests.NonCompleted, tonumber(reqid))
+                Requests.NonCompleted[tonumber(reqid)] = nil
                 Requests.Completed[username]={reqdetails, tune, cat, nick}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
@@ -172,7 +175,7 @@ do
         if #Requests.NonCompleted == 0 then
           return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n", 2
         else
-          for key, val in ipairs(Requests.NonCompleted) do
+          for key, val in pairs(Requests.NonCompleted) do
             who, cat, title = unpack(val)
             if who then
               tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
@@ -199,7 +202,8 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(nick,Levels.DelReq) then
-                table.remove(Requests.NonCompleted, req)
+                --table.remove(Requests.NonCompleted, req)
+                Requests.NonCompleted[req] = nil
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
               else
@@ -257,9 +261,10 @@ function OnCatDeleted (cat)
   local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
   table.save(Requests.NonCompleted, filename)
   local bRemoved
-  for key, value in ipairs (Requests.NonCompleted) do
+  for key, value in pairs (Requests.NonCompleted) do
     if value[2] == cat then
-      table.remove (Requests.NonCompleted, key)
+      --table.remove (Requests.NonCompleted, key)
+      Requests.NonCompleted[key] = nil
       bRemoved = true
     end
   end
