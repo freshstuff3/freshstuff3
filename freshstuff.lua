@@ -23,7 +23,6 @@ Bot = {
         name="post-it_memo",
         email="bastyaelvtars@gmail.com",
         desc="Release bot",
-        version="5.0 beta 1",
       } -- Set the bot's data. (Relevant only for hubsofts, so hubsoftmodule-specific)
     ProfilesUsed= 0 -- 0 for lawmaker/terminator (standard), 1 for robocop, 2 for psyguard (ptokax-only)
     Commands={
@@ -77,27 +76,47 @@ Bot = {
 
 
 AllStuff,NewestStuff,Engine={},{},{}
-botver="FreshStuff3 v 5.0 alpha3"
+
 package.path="freshstuff/?.lua"
 package.cpath="freshstuff/lib/?.dll"
-
+Bot.version="FreshStuff3 5.0 beta 1"
 ModulesLoaded = {}
 
 do -- detect the host app
-local Host={["frmHub"]="ptokax",["DC"]="bcdc",["VH"]="verli"}
+local Host=
+  {
+    ["frmHub"]= {"ptokax",
+      -- Declare this function for debug messages
+      -- Need to declare it here rather than in the hostapp-module
+      -- since the hostapp-module hast to be loaded after the kernel because
+      -- it needs to deal with the LOADED releases.
+        function (msg)
+          for _, op in ipairs(frmHub:GetOnlineOperators()) do
+            op:SendData(msg)
+          end
+        end},
+    ["DC"]="bcdc",
+    ["VH"]="verli"}
+
 local c
   for k,v in pairs(Host) do
-    if _G[k] then require(v); c=true; break; end
+    if _G[k] then
+      SendOut = v[2]
+      HostApp = v[1]
+      break
+    end
   end
-  assert(c,"FATAL: This script does not support your host application. :-(")
+  assert(HostApp,"FATAL: This script does not support your host application. :-(")
 end
 
 require "tables"
 require "kernel"
+require (HostApp)
 
 local hostloader =
   {
-    ["ptokax"] = function()
+    ["ptokax"] = 
+      function()
         require "pxlfs"
         package.path="freshstuff/components/?.lua"
         for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do
@@ -107,7 +126,7 @@ local hostloader =
           end
         end
       end,
-  }  
+  }
 
 for k,v in pairs(hostloader) do
   if package.loaded[k] then v() break end

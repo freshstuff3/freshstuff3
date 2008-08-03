@@ -5,12 +5,6 @@ Gets loaded only if the script detects PtokaX as host app
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
-
--- Declare this function for debug messages
-SendOut=function (msg)
-  SendToOps(Bot.name,msg)
-end
-
 -- We need the application path
 GetPath=frmHub:GetPtokaXLocation()
 
@@ -23,6 +17,7 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
 function Main()
+  ReloadRel()
   frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
   setmetatable(rightclick, 
   {
@@ -43,7 +38,7 @@ function Main()
       end
     end
   })
-  for a,b in pairs(Types) do -- ÍAdd categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
+  for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
     rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
     rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
@@ -83,7 +78,7 @@ end
 function NewUserConnected(user)
   if  user.bUserCommand then -- if login is successful, and usercommands can be sent
     user:SendData(table.concat(rctosend[user.iProfile],"|")) -- This may be faster than sending one by one.
-    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..botver)
+    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -234,4 +229,4 @@ function Timer()
 end
 
 local x,y=getHubVersion()
-SendOut("*** "..botver.." running on "..x.." "..y.." loading.")
+SendOut("*** "..Bot.version.." detected "..x.." "..y.." as host app.")

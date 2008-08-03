@@ -65,4 +65,4 @@ function OnCatDeleted (nick, id)
   SendOut (nick..": "..id)
 end
 
-SendOut("*** "..botver.." 'extras' module loaded.")
+SendOut("*** "..Bot.version.." 'extras' module loaded.")

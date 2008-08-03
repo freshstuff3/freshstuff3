@@ -213,4 +213,4 @@ function OnCatDeleted (cat)
   return "Note that incomplete requests have been backed up to "..filename.." in case you have made a mistake.", 1
 end
 
-SendOut("*** "..botver.." 'requester' module loaded.")
+SendOut("*** "..Bot.version.." 'requester' module loaded.")

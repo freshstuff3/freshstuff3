@@ -257,19 +257,33 @@ do
 end
 
 function OpenRel()
-	AllStuff,NewestStuff,TopAdders = nil,nil,nil
+	AllStuff, NewestStuff, TopAdders, Types = nil, nil, nil, nil
 	collectgarbage ("collect"); io.flush()
-	AllStuff,NewestStuff,TopAdders = {},{},{}
+	AllStuff, NewestStuff, TopAdders, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
+  if loadfile("freshstuff/data/categories.dat") then
+    Types = table.load("freshstuff/data/categories.dat")
+  else
+    Types={
+      ["warez"]="Warez",
+      ["game"]="Games",
+      ["music"]="Music",
+      ["movie"]="Movies",
+    }
+    SendOut("The categories file is corrupt or missing! Created a new one.")
+    SendOut("If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
+    table.save(Types,"freshstuff/data/categories.dat")
+  end
   if not loadfile("freshstuff/data/releases.dat") then
     -- Old file format converter
     local f=io.open("freshstuff/data/releases.dat","r")
     if f then
       for line in f:lines() do
-        line=string.gsub(line,"(%[)","(")
-        line=string.gsub(line,"(%])",")")
-        local cat,who,when,title=line:match("(.+)$(.+)$(.+)$(.+)")
+        local cat,who,when,title=line:match("^(.-)%$(.-)%$(.-)%$(.-)$")
         if cat then
+          if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
+          ". It has been automatically added to the categories, however you ought to check if"..
+          " everything is alright."); table.save(Types,"freshstuff/data/categories.dat"); end
           if TopAdders[who] then TopAdders[who] = TopAdders[who]+1 else TopAdders[who]=1 end
           if when:find("%d+/%d+/0%d") then -- compatibility with old file format
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
@@ -287,6 +301,13 @@ function OpenRel()
     -- End of old file format converter
   else
     AllStuff=table.load("freshstuff/data/releases.dat")
+    for id, rel in ipairs (FreshStuff) do
+      if not Types[rel[1]] then Types[rel[1]] = rel[1]
+        SendOut("New category detected: "..cat..
+        ". It has been automatically added to the categories, however you ought to check if"..
+        " everything is alright."); table.save(Types,"freshstuff/data/categories.dat")
+      end
+    end
   end
   for _, w in ipairs(AllStuff) do
     local cat, who, when, title = unpack(w)
@@ -458,23 +479,6 @@ function GetNewRelNumForToday()
   return new_today
 end
 
--- OK, we are loading the categories now.
-if loadfile("freshstuff/data/categories.dat") then
-  Types=table.load("freshstuff/data/categories.dat")
-else
-  Types={
-    ["warez"]="Warez",
-    ["game"]="Games",
-    ["music"]="Music",
-    ["movie"]="Movies",
-  }
-  SendOut("The categories file is corrupt or missing! Created a new one.")
-  SendOut("If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
-  table.save(Types,"freshstuff/data/categories.dat")
-end
-for k,v in ipairs(AllStuff) do if not Types[v[1]] then Types[v[1]]=v[1]; SendOut("Unknown category :"..Types[v[1]].." - added with description same as name, please take action!") end end
-ReloadRel()
-
 -- This is our event handler.
 function HandleEvent (event, ...)
   for pkg, moddy in pairs(package.loaded) do
@@ -490,4 +494,4 @@ function HandleEvent (event, ...)
   end
 end
 
-SendOut("*** "..botver.." kernel loaded.")
+SendOut("*** "..Bot.version.." kernel loaded.")
