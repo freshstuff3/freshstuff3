@@ -14,10 +14,11 @@ Distributed under the terms of the Common Development and Distribution License (
 ]]
 
 local conf = ScriptsPath.."config/requester.lua"
-local _,err = loadfile (conf)
+local _, err = loadfile (conf)
 if not err then dofile (conf) else error(err) end
 
-Requests = {}
+Requests ={Completed = {}, NonCompleted = {}}
+
 
 do
   setmetatable(Engine,_Engine)
@@ -28,7 +29,7 @@ do
           {
             __newindex=function (tbl, key, value)
               if #tbl >= #NewestStuff then -- Take care of removing the thing from NewestStuff too
-                table.remove (NewestStuff,1)
+                table.remove (NewestStuff, 1)
               end
               local cat, nick, date, tune = unpack(value)
               table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new 'Newest' entry gets added
@@ -129,7 +130,7 @@ do
         local CatArray={}
         local MsgAll
         local Msg = "\r\n"
-        local cat,who,title
+        local cat, who, title
         local tmptbl={}
         setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
         local cunt=0
@@ -148,8 +149,7 @@ do
             if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
             Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
           end
-          MsgAll = "\r\n\r\r\n".." --------- All The Requests -------- "..Msg.."\r\n --------- All The Requests --------"
-          return MsgAll,2
+          return "\r\n\r\r\n".." --------- All The Requests -------- "..Msg.."\r\n --------- All The Requests --------", 2
         end
       end,
       {},Levels.ShowReqs,"<type> <name>\t\t\t\tShow pending requests."
@@ -164,7 +164,6 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(nick,Levels.DelReq) then
---                 Requests.NonCompleted[req]=nil
                 table.remove(Requests.NonCompleted, req)
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
@@ -200,16 +199,24 @@ function Connected (nick)
 end
 
 function Start()
-  Requests.Completed = table.load("scripts/freshstuff/data/requests_comp.dat")
-  Requests.NonCompleted = table.load("scripts/freshstuff/data/requests_non_comp.dat")
+--   Requests = {NonCompleted = {}, Completed = {}}
+  local x = os.clock()
+  local f1, e1 = loadfile (ScriptsPath.."data/requests_non_comp.dat")
+  local f2, e2 = loadfile (ScriptsPath.."data/requests_comp.dat")
+  if f1 and f2 then
+      Requests.NonCompleted = table.load (ScriptsPath.."data/requests_non_comp.dat")
+      Requests.Completed = table.load (ScriptsPath.."data/requests_comp.dat")
+  else
+    e1 = e1 or e2; SendOut (e1)
+  end
+  SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
 end
 
 function OnCatDeleted (cat)
-  local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
-  table.save(Requests.NonCompleted, filename)
+  table.save(Requests.NonCompleted, ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat")
   local bRemoved
   for key, value in ipairs (Requests.NonCompleted) do
     if value[2] == cat then

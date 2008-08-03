@@ -304,13 +304,12 @@ function OpenRel()
     -- End of old file format converter
   else
     AllStuff = table.load(ScriptsPath.."data/releases.dat")
-    AllStuff = table.load(ScriptsPath.."data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
         SendOut("*** New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
-        " everything is alright."); table.save(Types,"freshstuff/data/categories.dat")
+        " everything is alright."); table.save(Types, ScriptsPath.."data/categories.dat")
       end
     end
   end
