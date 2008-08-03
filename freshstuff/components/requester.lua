@@ -92,7 +92,7 @@ do
           if string.find(data,"$",1,true) then
             return "The release name must NOT contain any dollar signs ($)!",1
           else
-            for _word in Bot.ForbiddenWords do
+            for _word in pairs(ForbiddenWords) do
               if string.find(data,word,1,true) then
                 return "The release name contains the following forbidden word (thus not added): "..word,1
               end

@@ -43,7 +43,7 @@ function Main()
 end
 
 function ChatArrival(user,data)
-  local cmd,msg=data:sub(1,-2):match("%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)")
+  local cmd,msg=data:match("^%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   if commandtable[cmd] then
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
@@ -51,7 +51,7 @@ function ChatArrival(user,data)
 end
 
 function ToArrival(user,data)
-  local whoto,cmd,msg = data:sub(1,-2):match("$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)")
+  local whoto,cmd,msg = data:match("^$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   if commandtable[cmd] then
     parsecmds(user,msg,"PM",string.lower(cmd),whoto)
     return 1
@@ -153,7 +153,8 @@ function SendTxt(nick,env,bot,text) -- sends message according to environment (m
   end
 end
 
-function Allowed (user, level)
+function Allowed (nick, level)
+  local user=GetItemByName(nick)
   if userlevels[user.iProfile] >= level then return true end
 end
 

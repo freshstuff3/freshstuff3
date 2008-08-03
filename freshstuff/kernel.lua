@@ -50,7 +50,7 @@ do
             table.insert(AllStuff,{cat,nick,os.date("%m/%d/%Y"),tune})
             table.save(AllStuff,"freshstuff/data/releases.dat")
             ReloadRel()
-            if OnRelAdded then OnRelAdded(user,data,cat,tune) end
+            if OnRelAdded then OnRelAdded(nick,data,cat,tune) end
           else
             return "Unknown category: "..cat,1
           end
@@ -74,7 +74,7 @@ do
           for k=#tmp,1,-1 do
             local n=tmp[k]
             if AllStuff[n] then
-              if Allowed(user,Levels.Delete) or AllStuff[n][2]==nick then
+              if Allowed(nick,Levels.Delete) or AllStuff[n][2]==nick then
                 msg=msg.."\r\n"..AllStuff[n][4].." is deleted from the releases."
                 AllStuff[n]=nil
                 cnt=cnt+1
@@ -153,11 +153,11 @@ do
   Engine[Commands.Search]=
     {
       function (nick,data)
-        if data then
+        if data~="" then
           local res,rest=0,{}
-          local msg="\r\n---------- You searched for keyword \""..what.."\". The results: ----------\r\n\r\n"
+          local msg="\r\n---------- You searched for keyword \""..data.."\". The results: ----------\r\n\r\n"
           for a,b in ipairs(AllStuff) do
-            if string.find(string.lower(b[4]),string.lower(what),1,true) then
+            if string.find(string.lower(b[4]),string.lower(data),1,true) then
               table.insert(rest,{b[1],b[2],b[3],b[4],a})
             end
           end
@@ -169,7 +169,7 @@ do
             end
             msg=msg.."\r\n"..string.rep("-",20).."\r\n"..res.." results."
           else
-            msg=msg.."\r\nSearch string "..what.." was not found in releases database."
+            msg=msg.."\r\nSearch string "..data.." was not found in releases database."
           end
           return msg,1
         else
@@ -189,13 +189,13 @@ do
     }
   Engine[Commands.Help]=
     {
-      function ()
+      function (nick)
         local count=0
         local hlptbl={}
         local hlp="\r\nCommands available to you are:\r\n=================================================================================================================================\r\n"
         for a,b in pairs(commandtable) do
           if b["level"]~=0 then
-            if Allowed (user, b["level"]) then
+            if Allowed (nick, b["level"]) then
               count=count+1
               table.insert(hlptbl,"!"..a.." "..b["help"])
             end
