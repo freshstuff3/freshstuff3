@@ -36,7 +36,7 @@ function ChatArrival(user,data)
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
-  HandleEvent ("ChatMsg",nick,data)
+  HandleEvent ("ChatMsg",user.sName,data)
 end
 
 function ToArrival(user,data)
@@ -45,7 +45,7 @@ function ToArrival(user,data)
     parsecmds(user,msg,"PM",string.lower(cmd),whoto)
     return 1
   end
-  HandleEvent ("PrivMsg",nick,data)
+  HandleEvent ("PrivMsg",user.sName,data)
 end
 
 function NewUserConnected(user)
@@ -62,7 +62,7 @@ function NewUserConnected(user)
       end
     end
   end
-  HandleEvent ("UserConnected",user)
+  HandleEvent ("UserConnected",user.sName)
 end
 
 function Ontimer()
@@ -168,11 +168,7 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
   local usr=GetItemByName(username); if usr then
     usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     Requests.Completed[usr.sName]=nil
-    local f=io.open("freshstuff/data/requests_comp.dat","w+")
-    for k,v in pairs(Requests.Completed) do
-      f:write(k.."$"..table.concat(v,"$").."\n")
-    end
-    f:close()
+    table.save(Requests.Completed, "freshstuff/data/requests_comp.dat")
   end
 end
 
