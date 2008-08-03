@@ -19,7 +19,6 @@ if not err then dofile (conf) else error(err) end
 
 Requests ={Completed = {}, NonCompleted = {}}
 
-
 do
   setmetatable(Engine,_Engine)
   Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
@@ -48,7 +47,7 @@ do
             end
             if #AllStuff > 0 then
               for i,v in ipairs(AllStuff) do
-                if v[4] == tune then
+                if string.lower(v[4]) == string.lower(tune) then
                   return "The release is already added under category "..v[1].." by "..v[2]..".", 1
                 end
               end
@@ -59,15 +58,17 @@ do
               HandleEvent("OnRelAdded", nick, data, cat, tune)
               return tune.." is added to the releases as "..cat, 1
             else
-              if Requests.NonCompleted[tonumber(reqcomp)] then
-                local done = Requests.NonCompleted[tonumber(reqcomp)]
+              reqcomp = tonumber(reqcomp)
+              if Requests.NonCompleted[reqcomp] then
+                local done = Requests.NonCompleted[reqcomp]
                 if done[2] ~= cat then
                   return "This is not the same category as the request. You have specified "..cat.." while the request's category was "..done[2]..". Request and release have NOT been added.", 1
                 else
                   local count = #AllStuff
                   AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
                   local username, cat, reqdetails=unpack(done)
-                  Requests.NonCompleted[tonumber(reqcomp)]=nil
+--                   Requests.NonCompleted[tonumber(reqcomp)]=nil
+                  table.remove (Requests.NonCompleted, reqcomp)
                   Requests.Completed[username]={reqdetails, tune, cat, nick}
                   table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                   table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
@@ -193,22 +194,24 @@ function Connected (nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil
-    table.save(Requests.NonCompleted, ScriptsPath.."data/requests_comp.dat")
+    table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
     return "Your request (\""..reqdetails.."\") has been completed! It is named "..tune.." under category "..cat..". Has been addded by "..goodguy,2
   end
 end
 
 function Start()
---   Requests = {NonCompleted = {}, Completed = {}}
+  local file_non, file_comp = ScriptsPath.."data/requests_non_comp.dat", ScriptsPath.."data/requests_comp.dat"
   local x = os.clock()
-  local f1, e1 = loadfile (ScriptsPath.."data/requests_non_comp.dat")
-  local f2, e2 = loadfile (ScriptsPath.."data/requests_comp.dat")
-  if f1 and f2 then
-      Requests.NonCompleted = table.load (ScriptsPath.."data/requests_non_comp.dat")
-      Requests.Completed = table.load (ScriptsPath.."data/requests_comp.dat")
-  else
-    e1 = e1 or e2; SendOut (e1)
-  end
+  local _, e1 = loadfile (file_non)
+  local _, e2 = loadfile (file_comp)
+  local bErr
+  if not e1 then
+      Requests.NonCompleted = table.load (file_non)
+    if not e2 then
+      Requests.Completed = table.load (file_comp)
+    else bErr = true end
+  else bErr = true end
+  e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
   SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0

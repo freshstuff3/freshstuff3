@@ -44,7 +44,7 @@ do
             end
             if #AllStuff > 0 then
               for i,v in ipairs(AllStuff) do
-                if v[4] == tune then
+                if string.lower(v[4]) == string.lower(tune) then
                   return "The release is already added under category "..v[1].." by "..v[2]..".", 1
                 end
               end

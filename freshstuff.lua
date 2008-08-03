@@ -11,7 +11,7 @@ if Core and Core.GetPtokaXPath() then
 else
     package.path = "scripts/freshstuff/?.lua"
 end
-Bot.version="FreshStuff3 5.0 Stable"
+Bot.version="FreshStuff3 5.0 Release Candidate 8"
 ModulesLoaded = {}
 
 do -- detect the host app
