@@ -4,7 +4,11 @@ Distributed under the terms of the Common Development and Distribution License (
 ]]
 -- This is the maximum age of the item (in days).
 -- After this, release pruning will delete it.
-MaxItemAge=30
+-- Pruning is always manual and releases get backed up when run.
+MaxItemAge = 30
+
+-- The number of top-adders to show wehen the command is issued.
+TopAddersCount = 5
 
 --[[
 Enter the specific commands, DO NOT INCLUDE THE PREFIX!
