@@ -5,7 +5,7 @@ Characteristics (well, proposed - no, they are almost real as of end-feb 2007): 
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 AllStuff,NewestStuff,Engine,Bot,Commands,Levels = {},{},{},{},{},{}
-Bot.version="FreshStuff3 5.0"
+Bot.version="FreshStuff3 5.0.1"
 ModulesLoaded = {}
 
 do -- detect the host app
