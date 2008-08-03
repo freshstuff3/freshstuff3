@@ -190,7 +190,7 @@ rightclick[{Levels.ShowReqs,"1 3","Requests\\Show requests","!"..Commands.ShowRe
 module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
-function UserConnected (nick)
+function Connected (nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil

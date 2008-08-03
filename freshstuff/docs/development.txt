@@ -66,26 +66,12 @@ Please keep this in mind when you write a hostapp-specific module that parses th
 Events
 ======
 
-The following events are available as of 30 July 2007:
+The following events are available as of 3 Feb 2008:
 OnRelAdded (nick, data, cat, tune)
 OnRelDeleted (nick, ID) - note that while this is done the release still exists
 OnCatDeleted (nick,cat)
 OnReqFulfilled (nick,data,cat,tune,reqcomp,username,reqdetails) <-- requires the requester module. In this, nick means the fulfiller's nick, username is the nick of who added the request. reqcomp is the request number that is being fulfilled, while reqdetails is the request text.
+Connected (nick)
+
 
 The function names are self-explanatory. You have to declare these in the modules where you want to do something on a specific event, e. g. you might want to update a static HTML page or an RSS feed when a new release gets added. Module declaration should go before, because it needs to get into the package.loaded table. Hostapp-specific modules take care of the appropriate calling.
-
-Boring details of my function calling method:
-You have to scan every module's namespace and look for the function name you are declaring:
-We run through package.loaded and check for a specific event within the loaded modules. We omit _G to avoid stack overflows. We also have to make sure that the given module is actually a table in package.loaded. I am not sure about the reason for this.
-
-function OnCatDeleted (nick,cat)
-  for modname in pairs (package.loaded) do
-    if modname ~="_G" and type(_G[modname]) == "table" and _G[modname].OnCatDeleted then
-      local func = _G[modname].OnCatDeleted
-      local txt,ret=func(nick,cat)
-      if txt and ret then
-        -- called the function, now handle the return values adequately
-      end
-    end
-  end
-end

@@ -67,7 +67,7 @@ function ChatArrival(user,data)
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return true
   end
-  -- This event is only fired if the chat message is NOIT a command.
+  -- This event is only fired if the chat message is NOT a command.
   HandleEvent ("ChatMsg",user.sNick,data)
 end
 
@@ -82,11 +82,11 @@ function ToArrival(user,data)
 end
 
 -- This is executed when a new user connects.
--- Covers operators as well.
-function NewUserConnected(user)
+-- Covers regs and operators as well.
+function UserConnected(user)
   if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
-    Core.SendToUser(user,table.concat(rctosend[user.iProfile],"|")) -- This may be faster than sending one by one.
-    Core.SendToUser(user,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+    Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
+    Core.SendToUser(user, (table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -97,7 +97,7 @@ function NewUserConnected(user)
       end
     end
   end
-  HandleEvent ("UserConnected",user.sNick)
+  HandleEvent ("Connected",user.sNick)
 end
 
 function OnTimer()
@@ -106,8 +106,8 @@ function OnTimer()
   HandleEvent("Timer")
 end
 
-OpConnected=NewUserConnected
-RegConnected=NewUserConnected
+OpConnected=UserConnected
+RegConnected=UserConnected
 OpDisconnected=UserDisconnected
 RegDisconnected=UserDisconnected
 

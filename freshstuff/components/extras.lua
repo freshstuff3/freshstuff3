@@ -51,7 +51,9 @@ do
   Engine[Commands.TopAdders]=
     {
       function (nick,data,env)
-        local num=TopAddersCount
+        local num
+        num = tonumber (data) or TopAddersCount
+--         local num=TopAddersCount
         local tmp={}
         local adderz=0
         for name,number in pairs(TopAdders) do
