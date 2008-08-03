@@ -57,10 +57,8 @@ local hostloader =
         require "pxlfs"
         package.path=Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
         for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
-          local filename,ext=entry:match("([^%.]+)%.(%w%w%w)")
-          if ext == "lua" then
-            require (filename)
-          end
+          local filename,ext=entry:match("([^%.]+)%.lua$")
+          if filename then require (filename) end
         end
       end,
   }
