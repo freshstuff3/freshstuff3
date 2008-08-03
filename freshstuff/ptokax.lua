@@ -243,7 +243,7 @@ end
 
 function Timer()
   if os.date("%m/%d/%Y") ~= Today then
-    os.date("%m/%d/%Y") = Today
+    Today = os.date("%m/%d/%Y")
     frmHub:UnregBot(Bot.name)
     frmHub:RegBot(Bot.name, 1, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email)
   end

@@ -250,7 +250,7 @@ end
 
 function Timer()
   if os.date("%m/%d/%Y") ~= Today then
-    os.date("%m/%d/%Y") = Today
+    Today = os.date("%m/%d/%Y")
     Core.UnregBot(Bot.name)
     Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
   end
