@@ -7,21 +7,23 @@ do
   Engine[Commands.Prune]=
     {
       function (user,data,env)
+        if #AllStuff == 0 then return "There is nothing to prune.",1 end
+        setmetatable (AllStuff,nil)
+        local Count=#AllStuff
         local days=data:match("(%d+)")
         days=days or MaxItemAge
         local cnt=0
         local x=os.clock()
-        local oldest=days*1440
-        for i=Count,1,-1 do
+        local oldest=days*1440*60
+        for i=#AllStuff,1,-1 do
           local diff=JulianDiff(JulianDate(SplitTimeString(AllStuff[i][3].." 00:00:00")))
-          local mins = math.floor(diff/60)
-          if mins > oldest then
-            AllStuff[i]=nil
+          if diff > oldest then
+            table.remove(AllStuff,i)
             cnt=cnt+1
           end
         end
         if cnt ~=0 then
-          SaveRel()
+          table.save(AllStuff,"freshstuff/data/releases.dat")
           ReloadRel()
         end
         return "Release prune process just finished, all releases older than "..days.." days have been deleted from the database. "..Count.." items were parsed and "..cnt.." were removed. Took "..os.clock()-x.." seconds.",4

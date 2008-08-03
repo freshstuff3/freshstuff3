@@ -37,7 +37,7 @@ do
   setmetatable(Requests.Completed,_RequestsComp)
   setmetatable(Requests.NonCompleted,_RequestsIncomp)
   Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
-    {-- You enter a number reflecting the request you compelted by releasing this (optional).
+    {-- You enter a number reflecting the request you completed by releasing this (optional).
       function (nick,data)
         local cat,reqcomp,tune=string.match(data,"(%S+)%s*(%d*)%s+(.+)")
         if cat then
@@ -89,29 +89,37 @@ do
     {
       function(nick,data)
         if data~="" then
-          if string.find(data,"$",1,true) then
-            return "The release name must NOT contain any dollar signs ($)!",1
-          else
-            for _word in pairs(ForbiddenWords) do
-              if string.find(data,word,1,true) then
-                return "The release name contains the following forbidden word (thus not added): "..word,1
-              end
+          local cat,req = string.match (data,"(%S+)%s+(.+)")
+          if cat then
+            if not Types[cat] then
+              return "The category "..what.." does not exist.",1
             end
-          end
-          for nick,tbl in pairs(Requests.Completed) do
-            if data==request then
-              return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[2].. " with name "..tbl[3].." by "..tbl[4],1
+            if string.find(req,"$",1,true) then
+              return "The request name must NOT contain any dollar signs ($)!",1
             else
-              for _,tbl in ipairs(Requests.NonCompleted) do
-                if tbl[2]==req then
-                  return req.." has already been requested by "..tbl[1]..".",1
+              for _,word in pairs(ForbiddenWords) do
+                if string.find(req,word,1,true) then
+                  return "The request name contains the following forbidden word (thus not added): "..word,1
                 end
               end
             end
+            for nick,tbl in pairs(Requests.Completed) do
+              if req==tbl[1] then
+                return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
+              else
+                for _,tbl in ipairs(Requests.NonCompleted) do
+                  if tbl[2]==req then
+                    return req.." has already been requested by "..tbl[1]..".",1
+                  end
+                end
+              end
+            end
+            table.insert(Requests.NonCompleted,{nick, cat, req})
+            SaveReq()
+            return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
+          else
+            return "yea right, like i know what i got 2 add when you don't tell me!.",1
           end
-          Requests.NonCompleted[#Requests.NonCompleted+1]={nick,req}
-          SaveReq()
-          return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
         end
       end,
       {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
@@ -119,14 +127,39 @@ do
     Engine[Commands.ShowReqs]=
     {
       function(nick,data)
-        local msg="\r\n"
-        if #Requests.NonCompleted > 0 then
-          for key,val in ipairs(Requests.NonCompleted) do
-            msg=msg.."ID: "..key.."; "..val[2].." -// Requested by "..val[1]
-          end
-          return msg,2
+--         local msg="\r\n"
+--         if #Requests.NonCompleted > 0 then
+--           for key,val in ipairs(Requests.NonCompleted) do
+--             msg=msg.."ID: "..key.."; "..val[2].." -// Requested by "..val[1]
+--           end
+--           return msg,2
+--         else
+--           return "There are no requests now, everyone seems to be satisfied. :-)",1
+--         end
+        local CatArray={}
+        local MsgAll
+        local Msg = "\r\n"
+        local cat,who,title
+        local tmptbl={}
+        setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
+        local cunt=0
+        if #Requests.NonCompleted == 0 then
+          return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n",1
         else
-          return "There are no requests now, everyone seems to be satisfied. :-)",1
+          for key, val in ipairs(Requests.NonCompleted) do
+            who, cat, title = unpack(val)
+            if who then
+              tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+              table.insert(tmptbl[Types[cat]],Msg.."ID: "..key.."\t"..title.." // (Added by "..who..")")
+            end
+          end
+          for _,a in ipairs (CatArray) do
+            local b=tmptbl[a]
+            if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+            Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+          end
+          MsgAll = "\r\n\r\r\n".." --------- All The Requests -------- "..Msg.."\r\n --------- All The Requests --------"
+          return MsgAll,1
         end
       end,
       {},Levels.ShowReqs,"<type> <name>\t\t\t\tShow pending requests."
@@ -162,7 +195,7 @@ function SaveReq()
       f:write(k.."$"..table.concat(v,"$").."\n")
     end
     f:close()
-    local f=io.open("freshstuff/data/requests_incomp.dat","w+")
+    f=io.open("freshstuff/data/requests_incomp.dat","w+")
     for _,v in ipairs(Requests.NonCompleted) do
       f:write(table.concat(v,"$").."\n")
     end
@@ -200,6 +233,26 @@ function Main()
     f:close()
   end
 end
+
+function OnCatDeleted (cat)
+  local filename = "freshstuff/data/requests_incomp"..os.date("%Y%m%d%H%M%S")..".dat"
+  table.save(Requests.NonCompleted, filename)
+  local bRemoved
+  for key, value in ipairs (Requests.NonCompleted) do
+    if value[2] == cat then
+      table.remove (Requests.NonCompleted, key)
+      bRemoved = true
+    end
+  end
+  if bRemoved then
+    table.save(Requests.NonCompleted,"freshstuff/data/requests_incomp.dat")
+    SendToAll(filename)
+  else
+    os.remove (filename)
+  end
+  return "Note that ncomplete requests have been backed up to "..filename.." in case you have made a mistake.",1
+end
+  
 
 -- [1]={"testnick","request"}
 
