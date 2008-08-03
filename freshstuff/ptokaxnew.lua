@@ -250,6 +250,7 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
     Requests.Completed[usr.sNick]=nil
     table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
   end
+  Core.SendToAll("<"..Bot.name.."> Request #"..reqcomp.." has successfully been fulfilled thanks to "..nick..".")
 end
 
 function Timer()
