@@ -243,7 +243,7 @@ do
             for idx,tab in ipairs(rest) do
             local _type,who,when,title,id=unpack(tab)
             res= res + 1
-            msg = msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(t):len())..t.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
+            msg = msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
             end
             msg=msg.."\r\n"..string.rep("-",20).."\r\n"..res.." results."
           else
