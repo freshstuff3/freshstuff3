@@ -257,6 +257,7 @@ do
 end
 
 function OpenRel()
+  local x = os.clock()
 	AllStuff, NewestStuff, Types = nil, nil, nil, nil
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
@@ -329,6 +330,7 @@ function OpenRel()
       table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
+  SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
 end
 
 function ShowRel(tab)

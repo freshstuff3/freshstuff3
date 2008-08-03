@@ -22,6 +22,8 @@ do
         local cnt=0
         local x=os.clock()
         local oldest=days*1440*60
+        local filename = "freshstuff/data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
+        if #AllStuff > 0 then table.save(AllStuff, filename) end
         for i=#AllStuff,1,-1 do
           local diff=JulianDiff(JulianDate(SplitTimeString(AllStuff[i][3].." 00:00:00")))
           if diff > oldest then
@@ -33,6 +35,8 @@ do
         if cnt ~=0 then
           table.save(AllStuff,"freshstuff/data/releases.dat")
           ReloadRel()
+        else
+          os.remove (filename)
         end
         return "Release prune process just finished, all releases older than "..days.." days have been deleted from the database. "..Count.." items were parsed and "..cnt.." were removed. Took "..os.clock()-x.." seconds.",4
       end,

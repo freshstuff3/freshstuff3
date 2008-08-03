@@ -61,7 +61,7 @@ function ChatArrival(user,data)
     parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
-  -- This event is only fired if the chat message is NOIT a command.
+  -- This event is only fired if the chat message is NOT a command.
   HandleEvent ("ChatMsg",user.sName,data)
 end
 

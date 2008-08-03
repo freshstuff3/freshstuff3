@@ -22,11 +22,11 @@ do
         setmetatable (AllStuff, 
           {
             __newindex=function (tbl, key, value)
-              if #tbl >= #NewestStuff then
+              if #tbl >= #NewestStuff then -- Take care of removing the thing from NewestStuff too
                 table.remove (NewestStuff,1)
               end
               local cat, nick, date, tune = unpack(value)
-              table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new entry gets added
+              table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new 'Newest' entry gets added
               rawset(tbl, key, value)
               table.save(tbl,"freshstuff/data/releases.dat")
               ShowRel(NewestStuff); ShowRel()

@@ -78,10 +78,11 @@ Bot = {
 AllStuff,NewestStuff,Engine={},{},{}
 
 package.path="freshstuff/?.lua"
-Bot.version="FreshStuff3 5.0 beta 1"
+Bot.version="FreshStuff3 5.0 Release Candidate 2"
 ModulesLoaded = {}
 
 do -- detect the host app
+-- This is done by detecting global tables that are specific to the host app.
 local Host=
   {
     ["frmHub"]= "ptokax",
@@ -105,15 +106,15 @@ require "kernel"
 
 local hostloader =
   {
-    ["ptokax"] = 
+    ["ptokax"] = -- This is for old PtokaX
       function()
-        package.cpath="freshstuff/lib/?.dll"
-        require "pxlfs"
-        package.path="freshstuff/components/?.lua"
-        for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do
-          local filename,ext=entry:match("([^%.]+)%.(%w%w%w)")
+        package.cpath="freshstuff/lib/?.dll" -- Set the path for C libs.
+        require "pxlfs" 
+        package.path="freshstuff/components/?.lua" -- Set the path for Lua libs.
+        for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do -- open the components directory
+          local filename,ext=entry:match("([^%.]+)%.(%w%w%w)") -- search for Lua files
           if ext == "lua" then
-            require (filename)
+            require (filename) -- and load them
           end
         end
       end,
