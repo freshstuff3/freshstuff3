@@ -31,7 +31,7 @@ function OnStartup()
   if pcall (SetMan.GetBool, 55) then -- Log script errors.
     SetMan.SetBool(55, true)
   end
-  setmetatable(rightclick, 
+  setmetatable(rightclick,
   {
     __newindex=function (tbl,key,PM)
       local level,context,name,command=unpack(key)
@@ -125,10 +125,10 @@ function parsecmds(user,msg,env,cmd,bot)
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
         local ret1,ret2 = m["func"](user.sNick,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
-        if ret1:len() > 128000 then ret1 = 
+        if ret1:len() > 128000 then ret1 =
           "The command's output would exceed 128,000 characters. Please report this issue "..
           "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
-          "information you need." 
+          "information you need."
         end
         if ret2 then
           local parseret=
@@ -148,7 +148,7 @@ function parsecmds(user,msg,env,cmd,bot)
     end
   end
 end
- 
+
 function SendTxt(user, env, bot, text) -- sends message according to environment (main or pm)
 --   local user = Core.GetUser(nick)
   if env=="PM" then
@@ -203,12 +203,12 @@ rightclick[{Levels.Show,"1 3","Releases\\Show items in a certain range","!"..Com
 -- We're done. Now let's do something with FreshStuff's own events. :-D
 
 _Engine= -- The metatable for commands engine. I thought it should be hostapp-specific, so we can avoid useless things, like rightclick in BCDC.
-  { 
+  {
     __newindex=function(tbl,cmd,stuff)
       commandtable[cmd]={["func"]=stuff[1],["parms"]=stuff[2],["level"]=stuff[3],["help"]=stuff[4]}
     end
   }
-  
+
 -- This is our event handler.
 function HandleEvent (event, nick, ...)
   for pkg, moddy in pairs(package.loaded) do
@@ -222,17 +222,17 @@ function HandleEvent (event, nick, ...)
     end
   end
 end
-  
+
 -- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
 module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
-  
+
 function OnRelAdded (nick, data, cat, tune)
   Core.UnregBot(Bot.name)
   Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
-  Core.SendToAll("<"..Bot.name.."> "..nick.." added to the "..cat.." releases: "..tune)
+  Core.SendToAll("<"..Bot.name.."> "..nick.." added to the "..Types[cat].." releases: "..tune)
 end
 
 function OnRelDeleted ()

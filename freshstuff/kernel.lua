@@ -66,7 +66,7 @@ do
             -- No table.insert (__newindex does not get called!!!)
             AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
             HandleEvent("OnRelAdded", nick, data, cat, tune)
-            return tune.." is added to the releases as "..cat, 1
+            return tune.." is added to the releases in this category: "..Types[cat], 1
           else
             return "Unknown category: "..cat, 1
           end
@@ -75,6 +75,33 @@ do
         end
       end,
       {},Levels.Add,"<type> <name>\t\t\t\tAdd release of given type."
+    }
+  Engine[Commands.Change]=
+    {
+      function (nick,data)
+        if data~="" then
+          local id, what, new_data = string.match(data, "(%d+)%s+(%d+)%s+(.+)")
+          if id then
+            id = tonumber (id); what = tonumber (what)
+            if AllStuff[id] then
+              if Allowed(nick,Levels.Change) or AllStuff[id][2] == nick then
+                local what_tbl = {{1, "category"}, {4, "name"} }
+                AllStuff[id][what_tbl[what][1]] = new_data
+                table.save(AllStuff, ScriptsPath.."data/releases.dat")
+                ReloadRel()
+                return "Release #"..id.." is changed: its "..what_tbl[what][2].." is now "..new_data..".",1
+              else
+                return "You are not allowed to use this command.",1
+              end
+            else
+              return "\r\nRelease numbered "..id.." wasn't found in the database.",1
+            end
+          else return "yea right, like i know what i got 2 change when you don't tell me!.",1 end
+        else
+          return "yea right, like i know what i got 2 change when you don't tell me!.",1
+        end
+      end,
+      {},1,"<ID> <field ID> <new data>\t\t\tChanges a release. Field ID can be 1 for category and 2 for release name."
     }
   Engine[Commands.Delete]=
     {
@@ -87,7 +114,7 @@ do
             if AllStuff[n] then
               if Allowed(nick,Levels.Delete) or AllStuff[n][2] == nick then
                 HandleEvent ("OnRelDeleted", nick, n)
-                msg=msg.."\r\n"..AllStuff[n][4].." is deleted from the releases."
+                msg=msg..AllStuff[n][4].." is deleted from the releases.\r\n"
                 table.remove(AllStuff,n)
                 for k,v in ipairs (NewestStuff) do
                   if v[5] == n then
@@ -96,9 +123,11 @@ do
                   end
                 end
                 cnt=cnt+1
+              else
+                return "You are not allowed to use this command.",1
               end
             else
-              msg=msg.."\r\nRelease numbered "..n.." wasn't found in the database."
+              msg=msg.."Release numbered "..n.." wasn't found in the database.\r\n"
             end
           end
           })
@@ -206,7 +235,7 @@ do
           local res,rest=0,{}
           local msg="\r\n---------- You searched for keyword \""..data.."\". The results: ----------\r\n\r\n"
           for a,b in ipairs(AllStuff) do
-            if string.find(string.lower(b[4]),string.lower(data),1,true) then
+            if string.find(string.lower(b[4]),string.lower(data),1,true) or string.find(string.lower(b[2]),string.lower(data),1,true) then
               table.insert(rest,{b[1],b[2],b[3],b[4],a})
             end
           end
@@ -214,7 +243,7 @@ do
             for idx,tab in ipairs(rest) do
             local _type,who,when,title,id=unpack(tab)
             res= res + 1
-            msg = msg.."ID: "..id.."\t"..title.." // (Added by "..who.." at "..when..")\r\n"
+            msg = msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(t):len())..t.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
             end
             msg=msg.."\r\n"..string.rep("-",20).."\r\n"..res.." results."
           else
@@ -356,7 +385,7 @@ function ShowRel(tab)
         cat, who, when, title, oid = unpack(v)
         if title then
           tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]],Msg.."ID: "..oid.."\t- "..title.." // (Added by "..who.." at "..when..")")
+          table.insert(tmptbl[Types[cat]],Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(oid):len())..oid.." - "..title.." // (Added by "..who.." at "..when..")")
           cunt=cunt+1
         end
       end
@@ -382,7 +411,7 @@ function ShowRel(tab)
         cat,who,when,title = unpack(rel)
         if cat and title then
           tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]], Msg.."ID: "..id.."\t- "..title.." // (Added by "..who.." at "..when..")")
+          table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when..")")
         end
       end
       table.sort(CatArray)
@@ -406,7 +435,7 @@ function ShowRelType(what)
       cat,who,when,title=unpack(rel)
       if cat == what then
         tmp = tmp + 1
-        table.insert(tbl,"ID: "..id.."\t- "..title.." // (Added by "..who.." at "..when)
+        table.insert(tbl,"ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when)
       end
     end
     if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
@@ -433,7 +462,7 @@ function ShowRelNum(what,num) -- to show numbers of categories
     if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end -- I do not get why I get nil errors.
     if num ~= cunt then
       if cat == what then
-        Msg = Msg.."ID: "..t.."\t"..title.." // (Added by "..who.." at "..when..")\r\n"
+        Msg = Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(t):len())..t.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
         cunt=cunt+1
       end
     end
@@ -465,7 +494,7 @@ function ShowRelRange(range)
     if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end
     if cat and title then
       tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-      table.insert(tmptbl[Types[cat]], Msg.."ID: "..c.."\t- "..title.." // (Added by "..who.." at "..when..")")
+      table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(c):len())..c.." - "..title.."\t- "..title.." // (Added by "..who.." at "..when..")")
     end
   end
   table.sort(CatArray)

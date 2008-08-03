@@ -62,7 +62,7 @@ For levels (i. e. who are allowed to use the command) you give a number: 0-5. Th
 
 -- Add a new release
 Commands.Add = "addrel" 
-Levels.Add = 1
+Levels.Add = 2
 
 -- This command shows the stuff, syntax : +albums with options new/game/warez/music/movie
 Commands.Show = "releases"
@@ -71,6 +71,10 @@ Levels.Show = 1
 -- This command deletes an entry, syntax : +delalbum THESTUFF2DELETE. Note that everyone is allowed to delete the releases he/she added.
 Commands.Delete="delrel"
 Levels.Delete = 4
+
+-- This command changes an entry. Note that everyone is allowed to change the releases he/she added.
+Commands.Change="changerel"
+Levels.Change = 4
 
 -- This command reloads the datafile. (This command is only needed if you manually edit the datafile which is disrecommended.)
 Commands.ReLoad = "reloadrel"
