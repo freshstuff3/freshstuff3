@@ -132,23 +132,23 @@ function parsecmds(user,msg,env,cmd,bot)
           "information you need." 
         end
         if ret2 then
-          local parseret={{SendTxt,{user.sName,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
+          local parseret={{SendTxt,{user,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
           parseret[ret2][1](unpack(parseret[ret2][2])); return 1
         end
       else
-        SendTxt(user.sName,env,bot,"You are not allowed to use this command."); return 1
+        SendTxt(user,env,bot,"You are not allowed to use this command."); return 1
       end
     else
-      SendTxt(user.sName,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
+      SendTxt(user,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
     end
   end
 end
  
-function SendTxt(nick,env,bot,text) -- sends message according to environment (main or pm)
+function SendTxt(user,env,bot,text) -- sends message according to environment (main or pm)
   if env=="PM" then
-    SendPmToNick(nick, bot, text)
+    user:SendPM(bot, text)
   else
-    SendToNick(nick, "<"..bot.."> "..text)
+    user:SendData("<"..bot.."> "..text)
   end
 end
 

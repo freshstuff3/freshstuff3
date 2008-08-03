@@ -133,7 +133,7 @@ function parsecmds(user,msg,env,cmd,bot)
         if ret2 then
           local parseret=
             {
-              {SendTxt,{user.sNick, env, bot, ret1}},
+              {SendTxt,{user, env, bot, ret1}},
               {Core.SendPmToNick,{user.sNick, bot, ret1}},
               {Core.SendToOps,{"<"..bot.."> "..ret1}},
               {Core.SendToAll,{"<"..bot.."> "..ret1}},
@@ -141,16 +141,16 @@ function parsecmds(user,msg,env,cmd,bot)
           parseret[ret2][1](unpack(parseret[ret2][2])); return true
         end
       else
-        SendTxt(user.sNick,env,bot,"You are not allowed to use this command."); return true
+        SendTxt(user,env,bot,"You are not allowed to use this command."); return true
       end
     else
-      SendTxt(user.sNick,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return true
+      SendTxt(user,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return true
     end
   end
 end
  
-function SendTxt(nick, env, bot, text) -- sends message according to environment (main or pm)
-  local user = Core.GetUser(nick)
+function SendTxt(user, env, bot, text) -- sends message according to environment (main or pm)
+--   local user = Core.GetUser(nick)
   if env=="PM" then
     Core.SendPmToUser(user, bot, text)
   else
