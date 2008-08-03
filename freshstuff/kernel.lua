@@ -29,7 +29,7 @@ do
           end
         end
       end,
-      {},Levels.Show,"<type>\t\t\t\t\tShows the releases of the given type, with no type specified, shows all." 
+      {},Levels.Show,"<type> or <start#-end#>\t\t\t\t\tShows the releases of the given type, with no type specified, shows all. If you specify the start and end numbers, it will show the releases of that ID range (range must not exceed 100 releases)." 
     }
   Engine[Commands.Add]=
     {

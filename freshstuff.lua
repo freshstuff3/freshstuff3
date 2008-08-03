@@ -64,7 +64,7 @@ Bot = {
     ShowOnEntry = 2 -- Show latest stuff on entry 1=PM, 2=mainchat, 0=no
     MaxNew = 20 -- Max stuff shown on newalbums/entry
     WhenAndWhatToShow={
-      ["15:31"]="new",
+      ["18:16"]="Ethnic/World",
       ["20:48"]="warez",
       ["20:49"]="new",
       ["20:50"]="all",

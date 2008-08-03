@@ -237,12 +237,12 @@ end
 
 function Timer()
   if #AllStuff > 0 then
-     -- to avoid sync errors and unnecessary function calls/tanle lookups
+     -- to avoid sync errors and unnecessary function calls/table lookups
      -- declare the local variable
     local stuff = WhenAndWhatToShow[os.date("%H:%M")]
     if stuff then
       if Types[stuff] then
-        SendToAll(Bot.name, ShowRelType(WhenAndWhatToShow[now]))
+        SendToAll(Bot.name, ShowRelType(stuff))
       else
         if stuff == "new" then
           SendToAll(Bot.name, MsgNew)
