@@ -94,9 +94,9 @@ function UserConnected(user)
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
       if ShowOnEntry==1 then
-        SendTxt(user.sNick,"PM",Bot.name, MsgNew)
+        SendTxt(user,"PM",Bot.name, MsgNew)
       else
-        SendTxt(user.sNick,"MAIN",Bot.name, MsgNew)
+        SendTxt(user,"MAIN",Bot.name, MsgNew)
       end
     end
   end
@@ -134,7 +134,7 @@ function parsecmds(user,msg,env,cmd,bot)
           local parseret=
             {
               {SendTxt,{user, env, bot, ret1}},
-              {Core.SendPmToNick,{user.sNick, bot, ret1}},
+              {Core.SendPmToUser,{user, bot, ret1}},
               {Core.SendToOps,{"<"..bot.."> "..ret1}},
               {Core.SendToAll,{"<"..bot.."> "..ret1}},
             }
