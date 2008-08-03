@@ -104,23 +104,24 @@ do
                   return "The request name contains the following forbidden word (thus not added): "..word,1
                 end
               end
-            for nick,tbl in pairs(Requests.Completed) do
-              if req == tbl[2] then
-                return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
+              for nick,tbl in pairs(Requests.Completed) do
+                if req == tbl[2] then
+                  return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
+                end
               end
-            end
-            for id,tbl in ipairs(Requests.NonCompleted) do
+              for id,tbl in ipairs(Requests.NonCompleted) do
                 if tbl[3] == req then
                   return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
                 end
               end
+                table.insert(Requests.NonCompleted,{nick, cat, req})
+                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                HandleEvent("OnReqAdded", nick, data, cat, req)
+                return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
             end
-            table.insert(Requests.NonCompleted,{nick, cat, req})
-            table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-            return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
-          else
-            return "yea right, like i know what i got 2 add when you don't tell me!.",1
-          end
+          else return "yea right, like i know what i got 2 add when you don't tell me!.",1 end
+        else
+          return "yea right, like i know what i got 2 add when you don't tell me!.",1
         end
       end,
       {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
