@@ -7,7 +7,7 @@ do
   Engine[Commands.Prune]=
     {
       function (user,data,env)
-        local days=string.match(data,"%b<>%s+%S+%s+(%d+)")
+        local days=data:match("(%d+)")
         days=days or MaxItemAge
         local cnt=0
         local x=os.clock()
@@ -42,7 +42,7 @@ do
         for num,ppl in pairs(tmp) do local _suck={}; _suck.N=num; _suck.P=table.concat(ppl,", "); table.insert(weird_but_works,_suck); adderz=adderz+1; end
         table.sort(weird_but_works,function(a,b) return a.N < b.N end)
         if TopAddersCount > adderz then num = adderz end
-        local msg="\r\nThe top "..num.." release-addders sorted by the number of releases are:\r\n"..string.rep("-",33).."\r\n"
+        local msg="\r\nThe top "..num.." release-addders sorted by the number of releases are:\r\n"..("-"):rep(33).."\r\n"
         for nm=num,1,-1 do
           msg=msg..weird_but_works[nm].P..": "..weird_but_works[nm].N.." items added\r\n"
         end
@@ -51,5 +51,8 @@ do
       {},Levels.TopAdders,"<number>\t\t\t\tShows the n top-release-adders (with no option, defaults to 5)."
     }
 end
+
+rightclick[{Levels.Prune,"1 3","Releases\\Delete old releases","!"..Commands.Prune.." %[line:Max. age in days (Enter=defaults to "..MaxItemAge.."):]"}]=0
+rightclick[{Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Commands.TopAdders.." %[line:Number of top-adders (Enter defaults to 5):]"}]=0
 
 SendOut("*** "..botver.." 'extras' module loaded.")

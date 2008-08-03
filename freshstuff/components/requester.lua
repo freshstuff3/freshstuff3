@@ -38,9 +38,8 @@ do
   setmetatable(Requests.NonCompleted,_RequestsIncomp)
   Engine[Commands.Add]= -- Yeah, we are redeclaring it. :-)
     {-- You enter a number reflecting the request you compelted by releasing this (optional).
-      function (user,data)
-        local nick; if hostprg==1 then nick=user.sName end
-        local cat,reqcomp,tune=string.match(data,"%b<>%s+%S+%s+(%S+)%s*(%d*)%s+(.+)")
+      function (nick,data)
+        local cat,reqcomp,tune=string.match(data,"(%S+)%s*(%d*)%s+(.+)")
         if cat then
           if Types[cat] then
             if string.find(tune,"$",1,true) then
@@ -64,14 +63,14 @@ do
             AllStuff[Count]={cat,nick,os.date("%m/%d/%Y"),tune}
             table.save(AllStuff,"freshstuff/data/releases.dat")
             ReloadRel()
-            if OnRelAdded then OnRelAdded(user,data,cat,tune) end
+            if OnRelAdded then OnRelAdded(nick,data,cat,tune) end
             if reqcomp~="" then
               if Requests.NonCompleted[tonumber(reqcomp)] then
                 local username, reqdetails=unpack(Requests.NonCompleted[tonumber(reqcomp)])
                 Requests.NonCompleted[tonumber(reqcomp)]=nil
                 Requests.Completed[username]={reqdetails,tune,cat,nick,}
                 SaveReq()
-                if OnReqFulfilled then OnReqFulfilled(user,data,cat,tune,nick,reqcomp,username,reqdetails) end
+                if OnReqFulfilled then OnReqFulfilled(nick,data,cat,tune,reqcomp,reqdetails) end
                 --os.date("%Y. %m. %d. %X")
               else
                 return "No request with ID "..reqcomp,1
@@ -88,21 +87,19 @@ do
     }
     Engine[Commands.AddReq]=
     {
-      function(user,data)
-        local nick; if hostprg==1 then nick=user.sName end
-        local req=string.match(data,"%b<>%s+%S+%s+(.+)")
-        if req then
-          if string.find(req,"$",1,true) then
+      function(nick,data)
+        if data~="" then
+          if string.find(data,"$",1,true) then
             return "The release name must NOT contain any dollar signs ($)!",1
           else
             for _word in Bot.ForbiddenWords do
-              if string.find(req,word,1,true) then
+              if string.find(data,word,1,true) then
                 return "The release name contains the following forbidden word (thus not added): "..word,1
               end
             end
           end
           for nick,tbl in pairs(Requests.Completed) do
-            if req==request then
+            if data==request then
               return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[2].. " with name "..tbl[3].." by "..tbl[4],1
             else
               for _,tbl in ipairs(Requests.NonCompleted) do
@@ -121,7 +118,7 @@ do
     }
     Engine[Commands.ShowReqs]=
     {
-      function(user,data)
+      function(nick,data)
         local msg="\r\n"
         if #Requests.NonCompleted > 0 then
           for key,val in ipairs(Requests.NonCompleted) do
@@ -136,9 +133,8 @@ do
     }
     Engine[Commands.DelReq]=
     {
-      function (user,data)
-        local nick; if hostprg==1 then nick=user.sName end
-        local req=string.match(data,"%b<>%s+%S+%s+(%d+)")
+      function (nick,data)
+        local req=string.match(data,"(%d+)")
         if req then
           req=tonumber(req)
           if Requests.NonCompleted[req] then
@@ -175,8 +171,7 @@ end
 
 module("Request",package.seeall)
 
-function NewUserConnected(user)
-  local nick; if hostprg==1 then nick=user.sName end
+function NewUserConnected(nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil

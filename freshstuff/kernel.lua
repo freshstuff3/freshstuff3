@@ -2,35 +2,28 @@
 Core module for FreshStuff3 v5 by bastya_elvtars
 License: GNU GPL v2
 This module contains functions that generate the required messages, save/load releases etc.
-Command functions return a number after the required parameters and the string to be sent:
-        1: sendtxt (on env/PM only in BCDC),
-        2: PM only (same in BCDC),
-        3: to ops (N/A in BCDC, maybe DC():PrintDebug, or hub:injectChat?)
-        4: to all (BCDC: hub:sendChat)
-That way, we have hostapp-independent code.
 ]]
 
 do
   setmetatable (Engine,_Engine)
   Engine[Commands.Show]=
     {
-      function (user,data)
+      function (nick,data)
         if Count < 1 then return "There are no releases yet, please check back soon.",1 end
-        local cat= string.match(data, "%b<>%s+%S+%s+(%S+)")
-        local latest=string.match(data, "%b<>%s+%S+%s+%S+%s+(%d+)")
+        local cat,latest= data:match("(%S+)%s*(%d*)")
         if not cat then
-          return MsgAll,1
+          return MsgAll,2
         else
           if cat == "new" then
-            return MsgNew,1
+            return MsgNew,2
           elseif Types[cat] then
-            if latest then
-              return ShowRelNum(cat,latest),1
+            if latest~="" then
+              return ShowRelNum(cat,latest),2
             else
-              return ShowRelType(cat),1
+              return ShowRelType(cat),2
             end
           else
-            return "No such type.",1 
+            return "No such type.",1
           end
         end
       end,
@@ -38,19 +31,13 @@ do
     }
   Engine[Commands.Add]=
     {
-      function (user,data)
-        local nick
-        if hostprg==1 then nick=user.sName end
-        local cat,tune= string.match(data, "%b<>%s+%S+%s+(%S+)%s+(.+)")
+      function (nick,data)
+        local cat,tune= string.match(data, "(%S+)%s+(.+)")
         if cat then
           if Types[cat] then
-            if string.find(tune,"$",1,true) then
-              return "The release name must NOT contain any dollar signs ($)!",1
-            else
-              for _word in Bot.ForbiddenWords do
-                if string.find(tune,word,1,true) then
-                  return "The release name contains the following forbidden word (thus not added): "..word,1
-                end
+            for _word in Bot.ForbiddenWords do
+              if string.find(tune,word,1,true) then
+                return "The release name contains the following forbidden word (thus not added): "..word,1
               end
             end
             if Count > 0 then
@@ -75,13 +62,11 @@ do
     }
   Engine[Commands.Delete]=
     {
-      function (user,data)
-        local nick; if hostprg==1 then nick=user.sName end
-        local what=string.match(data,"%b<>%s+%S+%s+(.+)")
-        if what then
+      function (nick,data)
+        if data~="" then
           local cnt,x=0,os.clock()
           local tmp={}
-          for w in string.gmatch(what,"(%d+)") do
+          for w in string.gmatch(data,"(%d+)") do
             table.insert(tmp,tonumber(w))
           end
           table.sort(tmp)
@@ -112,40 +97,40 @@ do
     }
   Engine[Commands.AddCatgry]=
     {
-      function (user,data)
-        local what1,what2=string.match(data,"%b<>%s+%S+%s+(%S+)%s+(.+)")
+      function (nick,data)
+        local what1,what2=string.match(data,"(%S+)%s+(.+)")
         if what1 then
           if string.find(what1,"$",1,true) then return "The dollar sign is not allowed.",1 end
           if not Types[what1] then
             Types[what1]=what2
-            table.save("freshstuff/data/categories.dat",Types)
-            return "The category "..what1.." has successfully been added.", 1
+            table.save(Types,"freshstuff/data/categories.dat")
+            return "The category "..what1.." has successfully been added.", 2
           else
             if Types[what1]==what2 then
               return "Already having the type "..what1
             else
               Types[what1]=what2
-              table.save("freshstuff/data/categories.dat",Types)
+              table.save(Types,"freshstuff/data/categories.dat")
               return "The category "..what1.." has successfully been changed.",1
             end
           end
           for k in pairs(Types) do table.insert(CatArray,k) table.sort(CatArray) end
         else
-          return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 1
+          return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 2
         end
       end,
       {},Levels.AddCatgry,"<new_cat> <displayed_name>\t\t\tAdds a new release category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
     {  
-      function (user,data)
-        local what=string.match(data,"%b<>%s+%S+%s+(%S+)")
+      function (nick,data)
+        local what=string.match(data,"(%S+)")
         if what then
           if not Types[what] then
             return "The category "..what.." does not exist.",1
           else
             Types[what]=nil
-            table.save("freshstuff/data/categories.dat",Types)
+            table.save(Types,"freshstuff/data/categories.dat")
             return "The category "..what.." has successfully been deleted.",1
           end
         else
@@ -156,20 +141,19 @@ do
     }
   Engine[Commands.ShowCtgrs]=
     {
-      function (user,data)
+      function (nick,data)
         local msg="\r\n======================\r\nAvaillable categories:\r\n======================\r\n"
         for a,b in pairs(Types) do
           msg=msg.."\r\n"..a.."\t\t"..b
         end
-        return msg,2
+        return msg,1
       end,
       {},Levels.ShowCtgrs,"\t\t\t\t\tShows the available release categories."
     }
   Engine[Commands.Search]=
     {
-      function (user,data)
-        local what=string.match(data,"%b<>%s+%S+%s+(.+)")
-        if what then
+      function (nick,data)
+        if data then
           local res,rest=0,{}
           local msg="\r\n---------- You searched for keyword \""..what.."\". The results: ----------\r\n\r\n"
           for a,b in ipairs(AllStuff) do
@@ -187,7 +171,7 @@ do
           else
             msg=msg.."\r\nSearch string "..what.." was not found in releases database."
           end
-          return msg,2
+          return msg,1
         else
           return "yea right, like i know what you got 2 search when you don't tell me!",1
         end
@@ -196,7 +180,7 @@ do
     }
   Engine[Commands.ReLoad]=
     {
-      function(user)
+      function()
         local x=os.clock()
         ReloadRel()
         return "Releases reloaded, took "..os.clock()-x.." seconds.",1
@@ -205,7 +189,7 @@ do
     }
   Engine[Commands.Help]=
     {
-      function (user,data,env)
+      function ()
         local count=0
         local hlptbl={}
         local hlp="\r\nCommands available to you are:\r\n=================================================================================================================================\r\n"
@@ -228,7 +212,7 @@ end
 
 function OpenRel()
 	AllStuff,NewestStuff,TopAdders = nil,nil,nil
-	collectgarbage(); io.flush()
+	collectgarbage("collect"); io.flush()
 	AllStuff,NewestStuff,TopAdders = {},{},{}
 	Count2 = 0
   if not loadfile("freshstuff/data/releases.dat") then
@@ -281,7 +265,7 @@ function OpenRel()
 end
 
 function ShowRel(tab)
-  local CatArray={}--; for _,k in pairs(Types) do table.insert(CatArray,k) end; table.sort(CatArray)
+  local CatArray={}
   local Msg = "\r\n"
   local cat,who,when,title
   local tmptbl={}
@@ -340,21 +324,22 @@ end
 
 function ShowRelType(what)
   local cat,who,when,title
-  local Msg,MsgType,tmp = "\r\n",nil,0
+  local Msg,MsgType,tmp,tbl = "\r\n",nil,0,{}
   if Count == 0 then
     MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
   else
     for i=1, Count do
       cat,who,when,title=unpack(AllStuff[i])
       if cat == what then
-	tmp = tmp + 1
-	Msg = Msg.."ID: "..i.."\t"..title.." // (Added by "..who.." at "..when..")\r\n"
+        tmp = tmp + 1
+        table.insert(tbl,"ID: "..i.."\t"..title.." // (Added by "..who.." at "..when)
       end
     end
+    if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
     if tmp == 0 then
-      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..(Types[what]):lower().." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
     else
-      MsgType= "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n"..Msg.."\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      MsgType= "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n"..table.concat(tbl,"\r\n").."\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
     end
   end
   return MsgType
@@ -385,7 +370,7 @@ end
 function ReloadRel()
   OpenRel()
   ShowRel(NewestStuff)
-  ShowRel(AllStuff)
+  ShowRel()
 end
 
 function SplitTimeString(TimeString)
@@ -424,5 +409,22 @@ end
 JulianDiff = function(iThen, iNow)
   return os.difftime( (iNow or JulianDate()) , iThen)
 end
+
+-- OK, we are loading the categories now.
+if loadfile("freshstuff/data/categories.dat") then
+  Types=table.load("freshstuff/data/categories.dat")
+else
+  Types={
+    ["warez"]="Warez",
+    ["game"]="Games",
+    ["music"]="Music",
+    ["movie"]="Movies",
+  }
+  SendOut("The categories file is corrupt or missing! Created a new one.")
+  SendOut("If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
+  table.save(Types,"freshstuff/data/categories.dat")
+end
+for k,v in ipairs(AllStuff) do if not Types[v[1]] then Types[v[1]]=v[1]; SendOut("Unknown category :"..Types[v[1]].." - added with description same as name, please take action!") end end
+ReloadRel()
 
 SendOut("*** "..botver.." kernel loaded.")

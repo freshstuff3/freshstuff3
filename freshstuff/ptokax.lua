@@ -5,27 +5,27 @@
 -- Warning: the "module" declaration only goes before the OnRelAdded function, since we only need to add that to the "px" table
 -- Not so elegant, but works.
 
-SendOut=SendToOps
+SendOut=function (msg)
+  SendToOps(Bot.name,msg)
+end
+
+GetPath=frmHub:GetPtokaXLocation()
+
+commandtable,rightclick,rctosend={},{},{}
+local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=6, [4]=5, [1]=4, [2]=3, [3]=2, [-1]=1},[2]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 ,[4] = 6, [5] = 7}}
+userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 function Main()
-	local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=6, [4]=5, [1]=4, [2]=3, [3]=2, [-1]=1},[2]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 ,[4] = 6, [5] = 7}}
-	userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
   frmHub:RegBot(Bot.name,1,Bot.desc,Bot.email)
-  if loadfile("freshstuff/data/categories.dat") then
-    Types=table.load("freshstuff/data/categories.dat")
-  else
-    Types={
-      ["warez"]="Warez",
-      ["game"]="Games",
-      ["music"]="Music",
-      ["movie"]="Movies",
-    }
-    SendToOps(Bot.name,"The categories file is corrupt or missing! Created a new one.")
-    SendToOps(Bot.name,"If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to the folder called freshstuff (located inside scripts folder, and restart your scripts. Thank you!")
-    table.save(Types,"freshstuff/data/categories.dat")
+  setmetatable(rightclick,_rightclick)
+  for a,b in pairs(Types) do
+    rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
+    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
   end
-  CreateRightClicks()
-  ReloadRel()
+  for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
+    table.sort(arr) -- sort the array
+  end
   SetTimer(60000)
   StartTimer()
   for modname in pairs(package.loaded) do
@@ -34,27 +34,26 @@ function Main()
       local ret1,ret2
       if _G[modname] and _G[modname].Main then ret1,ret2=_G[modname].Main() end
       if ret1 and ret2 then
-        local parseret={{SendTxt,{user,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
-        parseret[ret2][1](unpack(parseret[ret2][2]),Bot.name,ret1)
+        local parseret={{SendTxt,{user.sName,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
+        local c=parseret[ret2]
+        c[1](unpack(c[2]),Bot.name,ret1)
       end
     end
   end
 end
 
 function ChatArrival(user,data)
-  data=string.sub(data,1,string.len(data)-1)
-  local _,_,cmd=string.find(data,"%b<>%s+[%!%+%#%?%-](%S+)")
+  local cmd,msg=data:sub(1,-2):match("%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)")
   if commandtable[cmd] then
-    parsecmds(user,data,"MAIN",string.lower(cmd))
+    parsecmds(user,msg,"MAIN",string.lower(cmd))
     return 1
   end
 end
 
 function ToArrival(user,data)
-  data=string.sub(data,1,string.len(data)-1)
-  local _,_,whoto,cmd = string.find(data,"$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)")
+  local whoto,cmd,msg = data:sub(1,-2):match("$To:%s+(%S+)%s+From:%s+%S+%s+$%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)")
   if commandtable[cmd] then
-    parsecmds(user,data,"PM",string.lower(cmd),whoto)
+    parsecmds(user,msg,"PM",string.lower(cmd),whoto)
     return 1
   end
 end
@@ -62,23 +61,23 @@ end
 function NewUserConnected(user)
   if  user.bUserCommand then -- if login is successful, and usercommands can be sent
     user:SendData(table.concat(rctosend[user.iProfile],"|"))
-    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by ")
+    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..botver)
   end
   if Count > 0 then
     if ShowOnEntry ~=0 then
       if ShowOnEntry==1 then
-        SendTxt(user,"PM",Bot.name, MsgNew)
+        SendTxt(user.sName,"PM",Bot.name, MsgNew)
       else
-        SendTxt(user,"MAIN",Bot.name, MsgNew)
+        SendTxt(user.sName,"MAIN",Bot.name, MsgNew)
       end
     end
   end
   for modname in pairs(package.loaded) do
     if modname~="_G" then -- omit the global environment!!!
       local ret1,ret2
-      if _G[modname] and _G[modname].NewUserConnected then ret1,ret2=_G[modname].NewUserConnected(user) end
+      if _G[modname] and _G[modname].NewUserConnected then ret1,ret2=_G[modname].NewUserConnected(user.sName) end
       if ret1 and ret2 then
-        local parseret={{SendTxt,{user,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
+        local parseret={{SendTxt,{user.sName,env}},{user.SendPM,{user}},{SendToOps,{}},{SendToAll,{}}}
         parseret[ret2][1](unpack(parseret[ret2][2]),Bot.name,ret1)
       end
     end
@@ -105,60 +104,52 @@ end
 OpConnected=NewUserConnected
 OpDisconnected=UserDisconnected
 
-function parsecmds(user,data,env,cmd,bot)
+function parsecmds(user,msg,env,cmd,bot)
+  bot=bot or Bot.name
   if commandtable[cmd] then -- if it exists
     local m=commandtable[cmd]
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
-        local ret1,ret2=m["func"](user,data,env,unpack(m["parms"])) -- user,data,env and more params afterwards
+        local ret1,ret2=m["func"](user.sName,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
         if ret2 then
-          local parseret={{SendTxt,{user,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
+          local parseret={{SendTxt,{user.sName,env,bot,ret1}},{user.SendPM,{user,bot,ret1}},{SendToOps,{bot,ret1}},{SendToAll,{bot,ret1}}}
           parseret[ret2][1](unpack(parseret[ret2][2])); return 1
         end
       end
     else
-       SendTxt(user,env,bot,"You are not allowed to use this command.")
+       SendTxt(user.sName,env,bot,"You are not allowed to use this command."); return 1
     end
   else
-    SendTxt(user,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back.")
+    SendTxt(user.sName,env,bot,"The command you tried to use is disabled now. Contact the hubowner if you want it back."); return 1
   end
 end
 
-function RegCmd(cmnd,func,parms,level,help) -- regs a command, parsed on ToArrival and ChatArrival
-  commandtable[cmnd]={["func"]=func,["parms"]=parms,["level"]=level,["help"]=help}
-end
-
-function RegRC(level,context,name,command,PM)
-  if level==0 then return 1 end
-  if not PM then
-    rightclick["$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"]=level
-  else
-    rightclick["$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"]=level
-  end
-end
-
-function SendTxt(user,env,bot,text) -- sends message according to environment (main or pm)
-  if env=="PM" then
-    user:SendPM(bot,text)
-  else
-    user:SendData(bot,text)
-  end
-end
-
-function CreateRightClicks()
-	for _,profName in ipairs(GetProfiles()) do
-		rctosend[GetProfileIdx(profName)]=rctosend[GetProfileIdx(profName)] or{}
-	end
-  for idx,perm in pairs(userlevels) do -- usual profiles
-    rctosend[idx]=rctosend[idx] or {} -- create if not exist (but this is not SQL :-P)
-    for a,b in pairs(rightclick) do -- run thru the rightclick table
-      if perm >= b then -- if user is allowed to use
-        table.insert(rctosend[idx],a) -- then put to the array
+_rightclick=
+  {
+    __newindex=function (tbl,key,PM)
+      SendToAll(Bot.name,key)
+      local level,context,name,command=unpack(key)
+      if level~=0 then
+        for idx,perm in pairs(userlevels) do
+          rctosend[idx]=rctosend[idx] or {}
+          if perm >= level then -- if user is allowed to use
+            local message; if PM~=0 then
+              message="$UserCommand "..context.." "..name.."$$To: "..Bot.name.." From: %[mynick] $<%[mynick]> "..command.."&#124;"
+            else
+              message="$UserCommand "..context.." "..name.."$<%[mynick]> "..command.."&#124;"
+            end
+            table.insert(rctosend[idx],message) -- then put to the array
+          end
+        end
       end
     end
-    for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
-      table.sort(arr) -- sort the array
-    end
+  }
+
+function SendTxt(nick,env,bot,text) -- sends message according to environment (main or pm)
+  if env=="PM" then
+    SendPmToNick(nick,bot,text)
+  else
+    SendToNick(nick,"<"..bot.."> "..text)
   end
 end
 
@@ -166,33 +157,19 @@ function Allowed (user, level)
   if userlevels[user.iProfile] >= level then return true end
 end
 
--- RegCmd(Commands.Add,AddCrap,{},Levels.Add,"<type> <name>\t\t\t\tAdd release of given type.")
--- RegCmd(Commands.Show,ShowCrap,{},Levels.Show,"<type>\t\t\t\t\tShows the releases of the given type, with no type specified, shows all.")
--- RegCmd(Commands.Delete,DelCrap,{},Levels.Delete,"<ID>\t\t\t\t\tDeletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789")
--- RegCmd(Commands.ReLoad,ReloadRel,{},Levels.ReLoad,"\t\t\t\t\t\tReloads the releases database.")
--- RegCmd(Commands.Search,SearchRel,{},Levels.Search,"<string>\t\t\t\t\tSearches for release NAMES containing the given string.")
--- RegCmd(Commands.AddCatgry,AddCatgry,{},Levels.AddCatgry,"<new_cat> <displayed_name>\t\t\tAdds a new release category, displayed_name is shown when listed.")
--- RegCmd(Commands.DelCatgry,DelCatgry,{},Levels.DelCatgry,"<cat>\t\t\t\t\tDeletes the given release category..")
--- RegCmd(Commands.ShowCtgrs,ShowCatgries,{},Levels.ShowCtgrs,"\t\t\t\t\tShows the available release categories.")
--- RegCmd(Commands.Prune,PruneRel,{},Levels.Prune,"<days>\t\t\t\t\tDeletes all releases older than n days, with no option, it deletes the ones older than "..MaxItemAge.." days.")
--- RegCmd(Commands.TopAdders,ShowTopAdders,{},Levels.TopAdders,"<number>\t\t\t\tShows the n top-release-adders (with no option, defaults to 5).")
-RegRC(Levels.ShowCtgrs,"1 3","Releases\\Show categories","!"..Commands.ShowCtgrs)
-RegRC(Levels.Delete,"1 3","Releases\\Delete a release","!"..Commands.Delete.." %[line:ID number(s):]")
-RegRC(Levels.ReLoad,"1 3","Releases\\Reload releases database","!"..Commands.ReLoad)
-RegRC(Levels.Search,"1 3","Releases\\Search among releases","!"..Commands.Search.." %[line:Search string:]")
-RegRC(Levels.AddCatgry,"1 3","Releases\\Add a category","!"..Commands.AddCatgry.." %[line:Category name:] %[line:Displayed name:]")
-RegRC(Levels.DelCatgry,"1 3","Releases\\Delete a category","!"..Commands.DelCatgry.." %[line:Category name:]")
--- RegRC(Levels.Prune,"1 3","Releases\\Delete old releases","!"..Commands.Prune.." %[line:Max. age in days (Enter=defaults to "..MaxItemAge.."):]")
--- RegRC(Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Commands.TopAdders.." %[line:Number of top-adders (Enter defaults to 5):]")
-
-
--- 	RegRC(Levels.Help,"1 3","Releases\\Help","!"..Commands.Help)
---   for a,b in pairs(Types) do
---     RegRC(Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]")
---     RegRC(Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a)
---     RegRC(Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]")
---   end
--- 	RegRC(Levels.Show,"1 3","Releases\\Show all items","!"..Commands.Show)
+for _,profName in ipairs(GetProfiles()) do
+  local idx=GetProfileIdx(profName)
+	rctosend[idx]=rctosend[idx] or{}
+end
+setmetatable(rightclick,_rightclick)
+rightclick[{Levels.ShowCtgrs,"1 3","Releases\\Show categories","!"..Commands.ShowCtgrs}]=0
+rightclick[{Levels.Delete,"1 3","Releases\\Delete a release","!"..Commands.Delete.." %[line:ID number(s):]"}]=0
+rightclick[{Levels.ReLoad,"1 3","Releases\\Reload releases database","!"..Commands.ReLoad}]=0
+rightclick[{Levels.Search,"1 3","Releases\\Search among releases","!"..Commands.Search.." %[line:Search string:]"}]=0
+rightclick[{Levels.AddCatgry,"1 3","Releases\\Add a category","!"..Commands.AddCatgry.." %[line:Category name:] %[line:Displayed name:]"}]=0
+rightclick[{Levels.DelCatgry,"1 3","Releases\\Delete a category","!"..Commands.DelCatgry.." %[line:Category name:]"}]=0
+rightclick[{Levels.Help,"1 3","Releases\\Help","!"..Commands.Help}]=0
+rightclick[{Levels.Show,"1 3","Releases\\Show all items","!"..Commands.Show}]=0
 
 -- We're done. Now let's do something with FreshStuff's own events. :-D
 
@@ -203,24 +180,24 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
     end
   }
 
-function OnRelAdded(user,data,cat,tune)
-  SendTxt(user,env,Bot.name, tune.." is added to the releases as "..cat)
-  SendToAll(Bot.name, user.sName.." added to the "..cat.." releases: "..tune)
+function OnRelAdded(nick,data,cat,tune)
+  SendTxt(nick,env,Bot.name, tune.." is added to the releases as "..cat)
+  SendToAll(Bot.name, nick.." added to the "..cat.." releases: "..tune)
   for modname in pairs(package.loaded) do
   local func=loadstring(modname.."OnRelAdded")
     if func then
       local txt,ret=func(user,data,cat,tune)
       if txt and ret then
-        local parseret={{SendTxt,{user,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
+        local parseret={{SendTxt,{nick,env,Bot.name,ret1}},{user.SendPM,{user,Bot.name,ret1}},{SendToOps,{Bot.name,ret1}},{SendToAll,{Bot.name,ret1}}}
         parseret[ret2][1](unpack(parseret[ret2][2]));
       end
     end
   end
 end
 
-function OnReqFulfilled(user,data,cat,tune,nick,reqcomp,username,reqdetails)
+function OnReqFulfilled(nick,data,cat,tune,reqcomp,username,reqdetails)
   local usr=GetItemByName(username); if usr then
-    usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..user.sName.." on your request. It is named \""..tune.."\" under category "..cat..".")
+    usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     Requests.Completed[usr.sName]=nil
     local f=io.open("freshstuff/data/requests_comp.dat","w+")
     for k,v in pairs(Requests.Completed) do

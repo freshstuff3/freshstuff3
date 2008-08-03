@@ -1,4 +1,4 @@
--- FreshStuff3 v5 alpha
+-- FreshStuff3 v5 alpha2
 -- License: GNU GPL v2
 -- This is the common script that gets loaded by host apps, then takes care of everything else :-D
 -- Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
@@ -6,16 +6,12 @@
 --------
 -- TODO:
 --------
-  -- make rightclick registration use metatables,
-  -- make script decide whether to register rightclicks or not (BCDC++ issue mainly) - this is easy, just need to (not) register this on host-spec. mods
   -- make the script fully portable, i. e. it can use all stuff from the host program, while it interoperates with it smoothly (especially data sending)
-  -- make the script automatically detect the environment
   -- Showing latest n releases... (?)
   -- Split this config below into module-specific parts.
-  -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.)
+  -- Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) -- WON'T BE DONE UNTIL EXPLICITLY REQUESTED
   -- Merge Rodeo73's patches
-
-hostprg=1
+  -- Document stuff for module developers
 
 Bot = {
         name="post-it_memo",
@@ -73,13 +69,21 @@ Bot = {
     }
     SortStuffByName=1 -- Set to 1 to sort the releases within the category-based view alphabetically.
 
-Host={"ptokax","bcdc","verli","aquila"}
-AllStuff,NewestStuff,rightclick,commandtable,rctosend,Engine={},{},{},{},{},{}
-botver="FreshStuff3 v 5.0 alpha1"
+
+AllStuff,NewestStuff,Engine={},{},{}
+botver="FreshStuff3 v 5.0 alpha2"
 package.path="freshstuff/?.lua"
-require(Host[hostprg])
-require "kernel"
+
+do -- detect the host app
+local Host={["frmHub"]="ptokax",["DC"]="bcdc",["VH"]="verli"}
+local c
+  for k,v in pairs(Host) do
+    if _G[k] then require(v); c=true; break; end
+  end
+  --assert(c,"FATAL: This script does not support your host application. :-(")
+end
 require "tables"
+require "kernel"
 require "components.extras"
 require "components.requester"
 
