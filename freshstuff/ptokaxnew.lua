@@ -8,14 +8,14 @@ Distributed under the terms of the Common Development and Distribution License (
 
 -- Debug message sending
 SendOut = Core.SendToOps
-
+-- SendOut(Core.GetPtokaXPath())
 ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
 local conf = ScriptsPath.."config/main.lua"
 local _,err = loadfile (conf)
 if not err then dofile (conf) else error(err) end
 
 -- We need the application path
-GetPath = Core.GetPtokaXPath()
+GetPath = Core.GetPtokaXPath
 
 -- Declare table for commands and rightclick.
 commandtable,rightclick,rctosend={},{},{}
@@ -47,10 +47,16 @@ function OnStartup()
       end
     end
   })
-  for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
-    rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
-    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
-    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+  for a,b in pairs(Types) do -- Add categories to rightclick. This is impossible on-the-fly.
+    if ModulesLoaded["Request"] then
+      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+    else
+      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+    end
   end
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
     table.sort(arr) -- sort the array
@@ -212,8 +218,8 @@ function HandleEvent (event, nick, ...)
     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
       local txt, ret = moddy[event](nick, ...)
       if txt and ret then
-        local user  = Core.GetUser(nick)
-        local parseret={{Core.SendToNick,{user.sNick,"<"..Bot.name.."> "..ret.."|"}},{Core.SendPmToNick,{user.sNick,Bot.name,ret.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..ret.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..ret.."|"}}}
+--         local user  = Core.GetUser(nick)
+        local parseret={{Core.SendToNick,{nick,"<"..Bot.name.."> "..txt.."|"}},{Core.SendPmToNick,{nick,Bot.name,txt.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..txt.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..txt.."|"}}}
         parseret[ret][1](unpack(parseret[ret][2]));
       end
     end
@@ -245,7 +251,7 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
     .."has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     -- Since we 've notified the user, the table entry can be removed.
     Requests.Completed[usr.sNick]=nil
-    table.save(Requests.Completed, "freshstuff/data/requests_comp.dat")
+    table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
   end
 end
 

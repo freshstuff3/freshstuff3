@@ -28,7 +28,7 @@ do
         local cnt=0
         local x=os.clock()
         local oldest=days*1440*60
-        local filename = "freshstuff/data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
+        local filename = ScriptsPath.."data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
         if #AllStuff > 0 then table.save(AllStuff, filename) end
         for i=#AllStuff,1,-1 do
           local diff=JulianDiff(JulianDate(SplitTimeString(AllStuff[i][3].." 00:00:00")))
@@ -39,7 +39,7 @@ do
           end
         end
         if cnt ~=0 then
-          table.save(AllStuff,"freshstuff/data/releases.dat")
+          table.save(AllStuff,ScriptsPath.."data/releases.dat")
           ReloadRel()
         else
           os.remove (filename)
@@ -53,20 +53,18 @@ do
       function (nick,data,env)
         local num
         num = tonumber (data) or TopAddersCount
---         local num=TopAddersCount
+        if num > TopAddersCount then num = TopAddersCount end
         local tmp={}
-        local adderz=0
         for name,number in pairs(TopAdders) do
           tmp[number] = tmp[number] or {}
           table.insert(tmp[number],name)
         end
-        local weird_but_works={}
-        for num,ppl in pairs(tmp) do local _suck={}; _suck.N=num; _suck.P=table.concat(ppl,", "); table.insert(weird_but_works,_suck); adderz=adderz+1; end
-        table.sort(weird_but_works,function(a,b) return a.N < b.N end)
-        if TopAddersCount > adderz then num = adderz end
+        local tmp2={}
+        for num,ppl in pairs(tmp) do local tmp3={N = num, P = table.concat(ppl,", ")} table.insert(tmp2, tmp3); end
+        table.sort(tmp2,function(a,b) return a.N > b.N end)
         local msg="\r\nThe top "..num.." release-addders sorted by the number of releases are:\r\n"..("-"):rep(33).."\r\n"
-        for nm=num,1,-1 do
-          msg=msg..weird_but_works[nm].P..": "..weird_but_works[nm].N.." items added\r\n"
+        for nm=1, num do
+          msg=msg..tmp2[nm].P..": "..tmp2[nm].N.." items added\r\n"
         end
         return msg,2
       end,

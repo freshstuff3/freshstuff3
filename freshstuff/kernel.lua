@@ -58,7 +58,7 @@ do
                 local cat, nick, date, tune = unpack(value)
                 table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new entry gets added
                 rawset(tbl, key, value) -- set this in the original table
-                table.save(tbl,"freshstuff/data/releases.dat") -- save
+                table.save(tbl,ScriptsPath.."data/releases.dat") -- save
                 ShowRel(NewestStuff); ShowRel() -- rearrange the global texts
               end
             })
@@ -106,7 +106,7 @@ do
             tmp[tonumber(w)]=true
           end
           if cnt > 0 then
-            table.save(AllStuff,"freshstuff/data/releases.dat")
+            table.save(AllStuff,ScriptsPath.."data/releases.dat")
             ReloadRel()
             msg=msg.."\r\n\r\nDeletion of "..cnt.." item(s) took "..os.clock()-x.." seconds."
           end
@@ -125,14 +125,14 @@ do
           if string.find(what1, "$", 1, true) then return "The dollar sign is not allowed.", 1 end
           if not Types[what1] then
             Types[what1]=what2
-            table.save(Types,"freshstuff/data/categories.dat")
+            table.save(Types,ScriptsPath.."data/categories.dat")
             return "The category "..what1.." has successfully been added.", 1
           else
             if Types[what1] == what2 then
               return "Already having the type "..what1.."with name "..what2, 1
             else
               Types[what1] = what2
-              table.save(Types,"freshstuff/data/categories.dat")
+              table.save(Types,ScriptsPath.."data/categories.dat")
               return "The category "..what1.." has successfully been changed.", 1
             end
           end
@@ -151,7 +151,7 @@ do
           if not Types[what] then
             return "The category "..what.." does not exist.",1
           else
-            local filename = "freshstuff/data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
+            local filename = ScriptsPath.."data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
             local bRemoved
             local ret = "The category "..what.." has successfully been deleted."
             if #AllStuff > 0 then
@@ -172,13 +172,13 @@ do
               end
             end
             if bRemoved then
-              table.save(AllStuff,"freshstuff/data/releases.dat")
+              table.save(AllStuff,ScriptsPath.."data/releases.dat")
               ReloadRel()
             else
               os.remove (filename)
             end
             Types[what]=nil
-            table.save(Types,"freshstuff/data/categories.dat")
+            table.save(Types,ScriptsPath.."data/categories.dat")
             HandleEvent("OnCatDeleted", nick, what)
             return ret,1
           end
@@ -265,8 +265,8 @@ function OpenRel()
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
-  if loadfile("freshstuff/data/categories.dat") then
-    Types = table.load("freshstuff/data/categories.dat")
+  if loadfile(ScriptsPath.."data/categories.dat") then
+    Types = table.load(ScriptsPath.."data/categories.dat")
   else
     Types={
       ["warez"]="Warez",
@@ -276,18 +276,18 @@ function OpenRel()
     }
     SendOut("The categories file is corrupt or missing! Created a new one.")
     SendOut("If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
-    table.save(Types,"freshstuff/data/categories.dat")
+    table.save(Types,ScriptsPath.."data/categories.dat")
   end
-  if not loadfile("freshstuff/data/releases.dat") then
+  if not loadfile(ScriptsPath.."data/releases.dat") then
     -- Old file format converter
-    local f=io.open("freshstuff/data/releases.dat","r")
+    local f=io.open(ScriptsPath.."data/releases.dat","r")
     if f then
       for line in f:lines() do
         local cat,who,when,title=line:match("^(.-)%$(.-)%$(.-)%$(.-)$")
         if cat then
           if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
-          " everything is alright."); table.save(Types,"freshstuff/data/categories.dat"); end
+          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
           if when:find("%d+/%d+/0%d") then -- compatibility with old file format
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
@@ -299,11 +299,12 @@ function OpenRel()
         end
       end
       f:close()
-      table.save(AllStuff,"freshstuff/data/releases.dat")
+      table.save(AllStuff,ScriptsPath.."data/releases.dat")
     end
     -- End of old file format converter
   else
-    AllStuff = table.load("freshstuff/data/releases.dat")
+    AllStuff = table.load(ScriptsPath.."data/releases.dat")
+    AllStuff = table.load(ScriptsPath.."data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat

@@ -45,10 +45,16 @@ function Main()
       end
     end
   })
-  for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
-    rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
-    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
-    rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+  for a,b in pairs(Types) do -- Add categories to rightclick. This is impossible on-the-fly.
+    if ModulesLoaded["Request"] then
+      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+    else
+      rightclick[{Levels.Add,"1 3","Releases\\Add an item to the\\"..b,"!"..Commands.Add.." "..a.." %[line:Name:]"}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\All","!"..Commands.Show.." "..a}]=0
+      rightclick[{Levels.Show,"1 3","Releases\\Show items of type\\"..b.."\\Latest...","!"..Commands.Show.." "..a.." %[line:Number of items to show:]"}]=0
+    end
   end
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
     table.sort(arr)
@@ -237,7 +243,7 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
     usr:SendPM(Bot.name,"\""..reqdetails.."\" has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     -- Since we 've notified the user, the table entry can be removed.
     Requests.Completed[usr.sName]=nil
-    table.save(Requests.Completed, "freshstuff/data/requests_comp.dat")
+    table.save(Requests.Completed, Core.GetPtokaXPath().."scripts/freshstuff/data/requests_comp.dat")
   end
 end
 

@@ -1,4 +1,4 @@
---[[
+--[[ 
 FreshStuff3 v5
 This is the common script that gets loaded by host apps, then takes care of everything else :-D
 Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
@@ -6,8 +6,12 @@ Distributed under the terms of the Common Development and Distribution License (
 ]]
 AllStuff,NewestStuff,Engine,Bot,Commands,Levels = {},{},{},{},{},{}
 
-package.path="freshstuff/?.lua"
-Bot.version="FreshStuff3 5.0 Release Candidate 4"
+if Core and Core.GetPtokaXPath() then
+    package.path = Core.GetPtokaXPath().."scripts/freshstuff/?.lua"
+else
+    package.path = "scripts/freshstuff/?.lua"
+end
+Bot.version="FreshStuff3 5.0 Stable"
 ModulesLoaded = {}
 
 do -- detect the host app
@@ -37,10 +41,10 @@ local hostloader =
   {
     ["ptokax"] = -- This is for old PtokaX
       function()
-        package.cpath="freshstuff/lib/?.dll" -- Set the path for C libs.
+        package.cpath="scripts/freshstuff/lib/?.dll" -- Set the path for C libs.
         require "pxlfs" 
-        package.path="freshstuff/components/?.lua" -- Set the path for Lua libs.
-        for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do -- open the components directory
+        package.path="scripts/freshstuff/components/?.lua" -- Set the path for Lua libs.
+        for entry in lfs.dir( lfs.currentdir().."\\scripts\\freshstuff\\components" ) do -- open the components directory
           local filename,ext=entry:match("([^%.]+)%.(%w%w%w)") -- search for Lua files
           if ext == "lua" then
             require (filename) -- and load them
@@ -49,10 +53,10 @@ local hostloader =
       end,
     ["ptokaxnew"] = 
       function()
-        package.cpath="freshstuff/libnew/?.dll"
+        package.cpath=Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
         require "pxlfs"
-        package.path="freshstuff/components/?.lua"
-        for entry in lfs.dir( lfs.currentdir().."\\freshstuff\\components" ) do
+        package.path=Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
+        for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
           local filename,ext=entry:match("([^%.]+)%.(%w%w%w)")
           if ext == "lua" then
             require (filename)

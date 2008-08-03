@@ -33,7 +33,7 @@ do
               local cat, nick, date, tune = unpack(value)
               table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new 'Newest' entry gets added
               rawset(tbl, key, value)
-              table.save(tbl,"freshstuff/data/releases.dat")
+              table.save(tbl,ScriptsPath.."data/releases.dat")
               ShowRel(NewestStuff); ShowRel()
             end
           })
@@ -68,8 +68,8 @@ do
                   local username, cat, reqdetails=unpack(done)
                   Requests.NonCompleted[tonumber(reqcomp)]=nil
                   Requests.Completed[username]={reqdetails, tune, cat, nick}
-                  table.save(Requests.NonCompleted,"freshstuff/data/requests_non_comp.dat")
-                  table.save(Requests.Completed,"freshstuff/data/requests_comp.dat")
+                  table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                  table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
                   HandleEvent("OnRelAdded", nick, data, cat, tune)
                   HandleEvent("OnReqFulfilled", nick, data, cat, tune, reqcomp, username, reqdetails)
                   return tune.." is added to the releases as "..cat..". Request #"..reqcomp.." has successfully been fulfilled. Thank you.", 1
@@ -114,7 +114,7 @@ do
               end
             end
             table.insert(Requests.NonCompleted,{nick, cat, req})
-            table.save(Requests.NonCompleted,"freshstuff/data/requests_non_comp.dat")
+            table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
             return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
           else
             return "yea right, like i know what i got 2 add when you don't tell me!.",1
@@ -134,7 +134,7 @@ do
         setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
         local cunt=0
         if #Requests.NonCompleted == 0 then
-          return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n",1
+          return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n", 2
         else
           for key, val in ipairs(Requests.NonCompleted) do
             who, cat, title = unpack(val)
@@ -149,7 +149,7 @@ do
             Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
           end
           MsgAll = "\r\n\r\r\n".." --------- All The Requests -------- "..Msg.."\r\n --------- All The Requests --------"
-          return MsgAll,1
+          return MsgAll,2
         end
       end,
       {},Levels.ShowReqs,"<type> <name>\t\t\t\tShow pending requests."
@@ -163,13 +163,13 @@ do
             req=tonumber(req)
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
-              if nick == reqnick or Allowed(user,Levels.DelReq) then
+              if nick == reqnick or Allowed(nick,Levels.DelReq) then
 --                 Requests.NonCompleted[req]=nil
                 table.remove(Requests.NonCompleted, req)
-                table.save(Requests.NonCompleted,"freshstuff/data/requests_non_comp.dat")
+                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
               else
-                return "You aren't allowed to delete requests.", 1
+                return "You aren't allowed to delete requests that haven't bee submitted by you.", 1
               end
             else
               msg=msg.."\r\nRequest #"..req.." does not exist."
@@ -194,21 +194,21 @@ function Connected (nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil
-    table.save(Requests.NonCompleted,"freshstuff/data/requests_comp.dat")
+    table.save(Requests.NonCompleted, ScriptsPath.."data/requests_comp.dat")
     return "Your request (\""..reqdetails.."\") has been completed! It is named "..tune.." under category "..cat..". Has been addded by "..goodguy,2
   end
 end
 
 function Start()
-  Requests.Completed = table.load("freshstuff/data/requests_comp.dat")
-  Requests.NonCompleted = table.load("freshstuff/data/requests_non_comp.dat")
+  Requests.Completed = table.load("scripts/freshstuff/data/requests_comp.dat")
+  Requests.NonCompleted = table.load("scripts/freshstuff/data/requests_non_comp.dat")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
 end
 
 function OnCatDeleted (cat)
-  local filename = "freshstuff/data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
+  local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
   table.save(Requests.NonCompleted, filename)
   local bRemoved
   for key, value in ipairs (Requests.NonCompleted) do
@@ -218,7 +218,7 @@ function OnCatDeleted (cat)
     end
   end
   if bRemoved then
-    table.save(Requests.NonCompleted,"freshstuff/data/requests_non_comp.dat")
+    table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
   else
     os.remove (filename)
   end
