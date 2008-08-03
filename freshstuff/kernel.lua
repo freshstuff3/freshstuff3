@@ -301,7 +301,7 @@ function OpenRel()
     -- End of old file format converter
   else
     AllStuff=table.load("freshstuff/data/releases.dat")
-    for id, rel in ipairs (FreshStuff) do
+    for id, rel in ipairs (AllStuff) do
       if not Types[rel[1]] then Types[rel[1]] = rel[1]
         SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
@@ -493,5 +493,7 @@ function HandleEvent (event, ...)
     end
   end
 end
+
+ReloadRel()
 
 SendOut("*** "..Bot.version.." kernel loaded.")

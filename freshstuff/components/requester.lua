@@ -32,7 +32,7 @@ do
               ShowRel(NewestStuff); ShowRel()
             end
           })
-        local cat,reqcomp,tune=string.match(data,"(%S+)%s*(%d*)%s+(.+)")
+        local reqcomp,cat,tune=string.match(data,"(%d*)%s*(%S+)%s+(.+)")
         if cat then
           if Types[cat] then
             for _,word in pairs(ForbiddenWords) do
@@ -81,7 +81,7 @@ do
           return "yea right, like i know what you got 2 add when you don't tell me!",1
         end
       end,
-      {},Levels.Add,"<type> <name>\t\t\t\tAdd release of given type. Enter the number of request that you are fulfilling wih this release, right after category but before release name ( e. g. Music 3 Backstreetboys) - this is optional."
+      {},Levels.Add,"<requestnumber> <type> <name>\t\t\t\tAdd release of given type. Enter the number of request that you are fulfilling wih this release, before category and release name (optional)."
     }
     Engine[Commands.AddReq]=
     {

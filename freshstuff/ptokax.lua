@@ -17,7 +17,6 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
 function Main()
-  ReloadRel()
   frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
   setmetatable(rightclick, 
   {

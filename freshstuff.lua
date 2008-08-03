@@ -109,9 +109,9 @@ local c
   assert(HostApp,"FATAL: This script does not support your host application. :-(")
 end
 
+require (HostApp)
 require "tables"
 require "kernel"
-require (HostApp)
 
 local hostloader =
   {
