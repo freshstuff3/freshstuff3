@@ -1,0 +1,9 @@
+Document stuff for module developers -- ALMOST DONE
+Multilanguage. *shrugs*
+More bot descriptions (array), changing every X minute. -- ON-DEMAND
+Make the BCDC module -- POSTPONED
+Maybe create a +releases today -- ALTERNATIVE SOLUTION ADDED, MORE ON-DEMAND
+  
+Release rating plugin (reworked metatable for AllStuff, rating goes by indices of course, stored by nicks) - POST-5.0
+RSS plugin (generate a static page, any webserver should be able to serve that, content type rss etc. etc.) - POST-5.0
+Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) - POST-5.0 OR ON-DEMAND

@@ -14,3 +14,5 @@ Disclaimer:
 
 This software is distributed under the terms of the Common Development and Distribution
 License (CDDL) Version 1.0. See docs/license.txt for details.
+
+TODO: document commands.

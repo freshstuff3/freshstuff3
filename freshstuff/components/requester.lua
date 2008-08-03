@@ -13,6 +13,10 @@ You can:
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
+local conf = ScriptsPath.."config/requester.lua"
+local _,err = loadfile (conf)
+if not err then dofile (conf) else error(err) end
+
 Requests = {}
 
 do

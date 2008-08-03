@@ -1,0 +1,5 @@
+Just extraxt the cntents of this archive into the scrupts folder.
+NEVER CHANGE THE NAME OF ANY FILES OR FOLDERS, IT MAY RENDER
+THE SCRIPT UNUSABLE!
+
+Config files are located in the 'config' folder.
