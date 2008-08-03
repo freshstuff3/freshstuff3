@@ -24,7 +24,7 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
 function Main()
-  BotStart = os.date("%m/%d/%Y")
+  Today = os.date("%m/%d/%Y")
   frmHub:RegBot(Bot.name,1,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email)
   setmetatable(rightclick, 
   {
@@ -242,7 +242,8 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
 end
 
 function Timer()
-  if os.date("%m/%d/%Y") ~= BotStart then
+  if os.date("%m/%d/%Y") ~= Today then
+    os.date("%m/%d/%Y") = Today
     frmHub:UnregBot(Bot.name)
     frmHub:RegBot(Bot.name, 1, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email)
   end
