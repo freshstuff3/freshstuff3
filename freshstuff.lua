@@ -53,11 +53,13 @@ local hostloader =
       end,
     ["ptokaxnew"] = 
       function()
-        package.cpath=Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
-        require "pxlfs"
-        package.path=Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
+        if not pcall(require, "pxlfs") then -- cannot load from the default C module locations
+          package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
+          require "pxlfs" -- go for bundled Win C modules
+        end
+        package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
         for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
-          local filename,ext=entry:match("([^%.]+)%.lua$")
+          local filename, ext = entry:match("([^%.]+)%.lua$")
           if filename then require (filename) end
         end
       end,
