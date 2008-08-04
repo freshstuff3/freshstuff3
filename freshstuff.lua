@@ -54,7 +54,7 @@ local hostloader =
     ["ptokaxnew"] = 
       function()
         if not pcall(require, "pxlfs") then -- cannot load from the default C module locations
-          package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
+          package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
           require "pxlfs" -- go for bundled Win C modules
         end
         package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
