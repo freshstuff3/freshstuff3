@@ -141,7 +141,7 @@ do
         if #Requests.NonCompleted == 0 then
           return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n", 2
         else
-          for key, val in ipairs(Requests.NonCompleted) do
+          for key, val in pairs(Requests.NonCompleted) do
             who, cat, title = unpack(val)
             if who then
               tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
@@ -168,7 +168,7 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(nick,Levels.DelReq) then
-                table.remove(Requests.NonCompleted, req)
+                Requests.NonCompleted[req] = nil
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
               else
@@ -190,7 +190,7 @@ end
 rightclick[{Levels.DelReq,"1 3","Requests\\Delete a request","!"..Commands.DelReq.." %[line:ID number(s):]"}]=0
 rightclick[{Levels.ShowReqs,"1 3","Requests\\Show requests","!"..Commands.ShowReqs}]=0
 
-module("Request",package.seeall)
+module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
 function Connected (nick)
@@ -215,7 +215,7 @@ function Start()
     else bErr = true end
   else bErr = true end
   e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
-  SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
+  for _,req in ipairs (Requests.Completed) do    local cat = req[3]    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..          ". It has been automatically added to the categories, however you ought to check if"..          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end  end  for _,req in ipairs (Requests.NonCompleted) do    local cat = req[2]    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..          ". It has been automatically added to the categories, however you ought to check if"..          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end  end  SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
     rightclick[{Levels.Add,"1 3","Requests\\Fulfill an item in the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
@@ -226,9 +226,9 @@ function OnCatDeleted (cat)
   local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
   table.save(Requests.NonCompleted, filename)
   local bRemoved
-  for key, value in ipairs (Requests.NonCompleted) do
+  for key, value in pairs (Requests.NonCompleted) do
     if value[2] == cat then
-      table.remove (Requests.NonCompleted, key)
+      Requests.NonCompleted[key] = nil
       bRemoved = true
     end
   end
