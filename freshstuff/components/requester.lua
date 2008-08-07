@@ -147,9 +147,9 @@ do
                   Requests.NonCompleted[tonumber(reqid)] = nil
                   if req[1] ~= nick then -- When a requester links his/her own request, notification is redundant.
                     Requests.Completed[username]={reqdetails, tune, cat, nick}
-                    table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                    table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
                   end
-                  table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
+                  table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                   HandleEvent("OnReqFulfilled", usernick, data, cat, tune, reqid, username, reqdetails)
                   return "Release "..tune.." in category "..cat.." has fulfilled request #"..reqid..". Thank you.", 1
                 end
@@ -254,6 +254,18 @@ function Start()
     else bErr = true end
   else bErr = true end
   e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
+  for _,req in ipairs (Requests.Completed) do
+    local cat = req[3]
+    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
+          ". It has been automatically added to the categories, however you ought to check if"..
+          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+  end
+  for _,req in ipairs (Requests.NonCompleted) do
+    local cat = req[2]
+    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
+          ". It has been automatically added to the categories, however you ought to check if"..
+          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+  end
   SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
