@@ -1,11 +1,8 @@
-Just extraxt the cntents of this archive into the scripts folder.
+Just extract the contents of this archive into the scripts folder.
 NEVER CHANGE THE NAME OF ANY FILES OR FOLDERS, IT MAY RENDER
 THE SCRIPT UNUSABLE!
 
 Config files are located in the 'config' folder.
 
-This script relies on the luafilesystem library. Precompiled DLLs for
-the Windows version are included. Under Linux/BSD you will have to install
-the luafilesystem library -- either via your package manager or via LuaRocks.
-You will find this out, since it is not harder to install PtokaX on these
-platforms. ;-)
+The script should start under all platforms PtokaX runs on with no
+user intervention.
