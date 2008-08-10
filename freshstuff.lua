@@ -53,10 +53,10 @@ local hostloader =
       end,
     ["ptokaxnew"] = 
       function()
+        package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
         if os.getenv("windir") then -- we are running on Windows
           package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
           require "pxlfs"
-          package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
           for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
             local filename, ext = entry:match("([^%.]+)%.lua$")
             if filename then require (filename) end
@@ -67,7 +67,7 @@ local hostloader =
           f:close()
           f = io.popen(ls.." -1 "..Core.GetPtokaXPath().."scripts/freshstuff/components/")
           for line in f:lines() do
-            local filename, ext = entry:match("([^%.]+)%.lua$")
+            local filename, ext = line:match("([^%.]+)%.lua$")
             if filename then require (filename) end
           end
         end
