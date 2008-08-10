@@ -104,26 +104,24 @@ do
                   return "The request name contains the following forbidden word (thus not added): "..word,1
                 end
               end
-              for nick,tbl in pairs(Requests.Completed) do
+              for nick, tbl in pairs(Requests.Completed) do
                 if req == tbl[2] then
                   return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
                 end
               end
-              for id,tbl in pairs(Requests.NonCompleted) do
+              for id, tbl in pairs(Requests.NonCompleted) do
                 if tbl[3] == req then
                   return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
                 end
               end
-                --table.insert(Requests.NonCompleted,{nick, cat, req})
-                local no = #Requests.NonCompleted + 1
-                Requests.NonCompleted[no] = {nick, cat, req}
+                Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 HandleEvent("OnReqAdded", nick, data, cat, req)
                 return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
             end
-          else return "yea right, like i know what i got 2 add when you don't tell me!.",1 end
+          else return "yea right, like i know what i got 2 add when you don't tell me!.", 1 end
         else
-          return "yea right, like i know what i got 2 add when you don't tell me!.",1
+          return "yea right, like i know what i got 2 add when you don't tell me!.", 1
         end
       end,
       {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
@@ -141,7 +139,8 @@ do
         if #Requests.NonCompleted == 0 then
           return "\r\n\r\r\n".." --------- All The Requests -------- \r\n\r\nThere are no requests now, everyone seems to be satisfied. :-)\r\n\r\n --------- All The Requests -------- \r\n\r\n", 2
         else
-          for key, val in pairs(Requests.NonCompleted) do
+          for key, val in pairs(Requests.NonCompleted) do
+
             who, cat, title = unpack(val)
             if who then
               tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
@@ -168,7 +167,8 @@ do
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed(nick,Levels.DelReq) then
-                Requests.NonCompleted[req] = nil
+                Requests.NonCompleted[req] = nil
+
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
               else
@@ -212,10 +212,32 @@ function Start()
       Requests.NonCompleted = table.load (file_non)
     if not e2 then
       Requests.Completed = table.load (file_comp)
-    else bErr = true end
-  else bErr = true end
+    else bErr = true; Requests.Completed = {} end
+  else bErr = true; Requests.NonCompleted = {} end
   e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
-  for _,req in ipairs (Requests.Completed) do    local cat = req[3]    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..          ". It has been automatically added to the categories, however you ought to check if"..          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end  end  for _,req in ipairs (Requests.NonCompleted) do    local cat = req[2]    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..          ". It has been automatically added to the categories, however you ought to check if"..          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end  end  SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
+  for _, req in ipairs (Requests.Completed) do
+    local cat = req[3]
+    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
+          ". It has been automatically added to the categories, however you ought to check if"..
+          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+  end
+  for _,req in pairs (Requests.NonCompleted) do
+    local cat = req[2]
+    if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
+          ". It has been automatically added to the categories, however you ought to check if"..
+          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+  end
+  setmetatable(Requests.NonCompleted,
+  {
+    __call = function(tbl)
+      local c = 0
+      for _, _ in pairs(tbl) do
+        c = c+1
+      end
+      return c
+    end
+  })
+  SendOut("*** Loaded "..Requests.NonCompleted().." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
     rightclick[{Levels.Add,"1 3","Requests\\Fulfill an item in the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
@@ -226,9 +248,11 @@ function OnCatDeleted (cat)
   local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
   table.save(Requests.NonCompleted, filename)
   local bRemoved
-  for key, value in pairs (Requests.NonCompleted) do
+  for key, value in pairs (Requests.NonCompleted) do
+
     if value[2] == cat then
-      Requests.NonCompleted[key] = nil
+      Requests.NonCompleted[key] = nil
+
       bRemoved = true
     end
   end

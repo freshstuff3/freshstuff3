@@ -1,8 +1,8 @@
 --[[ 
 FreshStuff3 v5
 This is the common script that gets loaded by host apps, then takes care of everything else :-D
-Characteristics (well, proposed - no, they are almost real as of end-feb 2007): modular and portable among host programs
-Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0.
+See docs/license.txt for details.
 ]]
 AllStuff,NewestStuff,Engine,Bot,Commands,Levels = {},{},{},{},{},{}
 Bot.version="FreshStuff3 5.0.1"
