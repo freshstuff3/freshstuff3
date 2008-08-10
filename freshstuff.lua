@@ -42,7 +42,7 @@ local hostloader =
       function()
         package.path = Core.GetPtokaXPath().."scripts/freshstuff/components/?.lua"
         if os.getenv("windir") then -- we are running on Windows
-          package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/libnew/?.dll"
+          package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
           require "pxlfs"
           for entry in lfs.dir( Core.GetPtokaXPath().."scripts/freshstuff/components" ) do
             local filename, ext = entry:match("([^%.]+)%.lua$")
