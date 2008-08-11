@@ -109,7 +109,7 @@ do
           return "yea right, like i know what i got 2 add when you don't tell me!.", 1
         end
       end,
-      {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
+      {},Levels.AddReq,"<type> <name> // Add a request for a particular release."
     }
     Engine[Commands.LinkReq] = 
     {
@@ -148,7 +148,7 @@ do
           return "Syntax should be: !"..Commands.LinkReq.." release_id request_id",1
         end
       end,
-      {},Levels.LinkReq,"<release_id> <request_id>\t\t\t\tLink a release with a request, thus fulfilling it."
+      {},Levels.LinkReq,"<release_id> <request_id> // Link a release with a request, thus fulfilling it."
     }
     Engine[Commands.ShowReqs]=
     {
@@ -156,7 +156,7 @@ do
         local trick = {["nope"] = "There are no requests now, everyone seems satisfied. :-)"}
         if string.find(data, "new", 1, true) then return trick[Request.NewReq] or Request.NewReq, 2 else return trick[Request.AllReq] or Request.AllReq, 2 end
       end,
-      {},Levels.ShowReqs,"<type> <name>\t\t\t\tShow pending requests. If you add 'new' as an option, it will show the latest "..MaxNewReq.." ones."
+      {},Levels.ShowReqs,"<type> <name> // Show pending requests. If you add 'new' as an option, it will show the latest "..MaxNewReq.." ones."
     }
     Engine[Commands.DelReq]=
     {
@@ -184,28 +184,36 @@ do
           return "yea right, like i know what i got 2 delete when you don't tell me!.", 1
         end
       end,
-      {}, 1,"<type> <name>\t\t\t\tDelete a request from the non-completed ones."
+      {}, 1,"<type> <name> // Delete a request from the non-completed ones."
     }
     Engine[Commands.SubscrReq]=
     {
       function (nick, data)
         local ret_neg = "Insufficient or incorrect parameters, please refer to the help."
-        if data ~="" and data:find("^%d+$") then
-          local what = data:match("^(%d+)$")
+        if data ~="" then
+          what = tonumber(data)
           if what then
-            what = tonumber(what)
             local repl_arr = 
             {
               "You will be notified of new requests and will get the latest "..MaxNewReq.." requests every time you connect the hub.",
-              "You will be notified of new requests.",
-              "You will get the latest "..MaxNewReq.." requests every time you connect the hub.",
+              "You will be notified of new requests only when they are added.",
+              "You will only get the latest "..MaxNewReq.." requests every time you connect the hub.",
             }
             if repl_arr[what] then
               Requests.Subscribers[nick] = what
+              local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
+              f:write(nick.."|"..what.."\n")
+              f:close()
               return repl_arr[what], 1
             else
               return ret_neg, 1
             end
+          elseif data:find("delete", 1, true) then
+            Requests.Subscribers[nick] = nil
+            local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
+            f:write(nick.."|a".."\n")
+            f:close()
+            return "You will no longer be notified of new requests.", 1
           else
             return ret_neg, 1
           end
@@ -213,7 +221,7 @@ do
           return ret_neg, 1
         end
       end,
-      {}, Levels.SubscrReq, "<option>\t\t\t\tSubscribe for requests. Option can be: 1 for new requests and on-connect, 2 for new requests, 3 for on-connect. If you are already subscribed, your preference will be changed.."
+      {}, Levels.SubscrReq, "<option> // Subscribe for requests. Option can be: 1 for new requests and on-connect, 2 for new requests, 3 for on-connect. If you are already subscribed, your preference will be changed. If you specify 'delete' as option, you will unsubscribe."
     }
 end
 
@@ -277,25 +285,18 @@ function Start()
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
-  local f = io.open(ScriptsPath.."data/reqsubscr.dat","r+")
+  local f = io.open(ScriptsPath.."data/reqsubscr.dat","r")
   if not f then return end
   for line in f:lines() do
-    local name, opt = line:find("([^%|]+)%|(.+)")
-    Requests.Subscribers[name] = opt
+    local name, opt = line:match("([^%|]+)%|([123a])")
+    Requests.Subscribers[name] = tonumber(opt)
   end
   f:close()
   f = io.open(ScriptsPath.."data/reqsubscr.dat","w+")
   for name, opt in pairs (Requests.Subscribers) do
-    f:write(name.."|"..opt)
+    f:write(name.."|"..opt.."\n")
   end
-  setmetatable(Requests.Subscribers,
-  {
-    __newindex = function(tbl, key, val)
-      local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
-      f:write(key.."|"..val)
-      f:close()
-    end
-  })
+  f:close()
 end
 
 function OnCatDeleted (cat)

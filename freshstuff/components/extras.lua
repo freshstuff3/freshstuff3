@@ -60,7 +60,7 @@ do
         end
         return "Release prune process just finished, all releases older than "..days.." days have been deleted from the database. "..Count.." items were parsed and "..cnt.." were removed. Took "..os.clock()-x.." seconds.",4
       end,
-      {},Levels.Prune,"<days>\t\t\t\t\tDeletes all releases older than n days, with no option, it deletes the ones older than "..MaxItemAge.." days."
+      {},Levels.Prune,"<days> // Deletes all releases older than n days, with no option, it deletes the ones older than "..MaxItemAge.." days."
     }
   Engine[Commands.TopAdders]=
     {
@@ -78,7 +78,7 @@ do
         end
         return msg,2
       end,
-      {},Levels.TopAdders,"<number>\t\t\t\tShows the n top-release-adders (with no option, defaults to 5)."
+      {},Levels.TopAdders,"<number> // Shows the n top-release-adders (with no option, defaults to 5)."
     }
 end
 

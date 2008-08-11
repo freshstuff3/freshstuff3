@@ -29,7 +29,7 @@ do
           end
         end
       end,
-      {},Levels.Show,"<type> or <start#-end#>\t\t\t\t\tShows the releases of the given type, with no type specified, shows all. If you specify the start and end numbers, it will show the releases of that ID range (range must not exceed 100 releases)." 
+      {},Levels.Show,"<type> or <start#-end#> // tShows the releases of the given type, with no type specified, shows all. If you specify the start and end numbers, it will show the releases of that ID range (range must not exceed 100 releases)." 
     }
   Engine[Commands.Add]=
     {
@@ -74,7 +74,7 @@ do
           return "yea right, like i know what you got 2 add when you don't tell me!",1
         end
       end,
-      {},Levels.Add,"<type> <name>\t\t\t\tAdd release of given type."
+      {},Levels.Add,"<type> <name> // Add release of given type."
     }
   Engine[Commands.Change]=
     {
@@ -101,7 +101,7 @@ do
           return "yea right, like i know what i got 2 change when you don't tell me!.",1
         end
       end,
-      {},1,"<ID> <field ID> <new data>\t\t\tChanges a release. Field ID can be 1 for category and 2 for release name."
+      {},1,"<ID> <field ID> <new data> // Changes a release. Field ID can be 1 for category and 2 for release name."
     }
   Engine[Commands.Delete]=
     {
@@ -144,7 +144,7 @@ do
           return "yea right, like i know what i got 2 delete when you don't tell me!.",1
         end
       end,
-      {},1,"<ID>\t\t\t\t\tDeletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789"
+      {},1,"<ID> // Deletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789"
     }
   Engine[Commands.AddCatgry]=
     {
@@ -170,7 +170,7 @@ do
           return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 1
         end
       end,
-      {}, Levels.AddCatgry, "<new_cat> <displayed_name>\t\t\tAdds a new release category, displayed_name is shown when listed."
+      {}, Levels.AddCatgry, "<new_cat> <displayed_name> // Adds a new release category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
     {  
@@ -215,7 +215,7 @@ do
           return "Category should be deleted properly: +"..Commands.DelCatgry.." <category_name>",1
         end
       end,
-      {},Levels.DelCatgry,"<cat>\t\t\t\t\tDeletes the given release category.."
+      {},Levels.DelCatgry,"<cat> // Deletes the given release category.."
     }
   Engine[Commands.ShowCtgrs]=
     {
@@ -226,7 +226,7 @@ do
         end
         return msg,2
       end,
-      {},Levels.ShowCtgrs,"\t\t\t\t\tShows the available release categories."
+      {},Levels.ShowCtgrs," // Shows the available release categories."
     }
   Engine[Commands.Search]=
     {
@@ -254,7 +254,7 @@ do
           return "yea right, like i know what you got 2 search when you don't tell me!",1
         end
       end,
-      {},Levels.Search,"<string>\t\t\t\t\tSearches for release NAMES containing the given string."
+      {},Levels.Search,"<string> // Searches for release NAMES containing the given string."
     }
   Engine[Commands.ReLoad]=
     {
@@ -263,7 +263,7 @@ do
         ReloadRel()
         return "Releases reloaded, took "..os.clock()-x.." seconds.",1
       end,
-      {},Levels.ReLoad,"\t\t\t\t\t\tReloads the releases database, only needed if you modified the file by hand."
+      {},Levels.ReLoad," // Reloads the releases database, only needed if you modified the file by hand."
     }
   Engine[Commands.Help]=
     {
@@ -284,7 +284,7 @@ do
         " ! # + - ?\r\n=================================================================================================================================\r\n"..Bot.version
         return hlp,2
       end,
-      {},1,"\t\t\t\t\t\tShows the text you are looking at."
+      {},1," // Shows the text you are looking at."
     }
 end
 
