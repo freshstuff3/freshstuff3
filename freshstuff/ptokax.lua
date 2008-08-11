@@ -8,7 +8,7 @@ Distributed under the terms of the Common Development and Distribution License (
 
 -- Debug message sending
 SendOut = Core.SendToOps
--- SendOut(Core.GetPtokaXPath())
+function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
 ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
 local conf = ScriptsPath.."config/main.lua"
 local _,err = loadfile (conf)
@@ -71,7 +71,7 @@ function ChatArrival(user,data)
     return true
   end
   -- This event is only fired if the chat message is NOT a command.
-  HandleEvent ("ChatMsg",user.sNick,data)
+  HandleEvent ("ChatMsg", user.sNick, msg)
 end
 
 -- This is executed on a private message
@@ -118,13 +118,13 @@ function OnError(err)
   SendOut(err)
 end
 
-function parsecmds(user,msg,env,cmd,bot)
+function parsecmds(user,data,env,cmd,bot)
   bot = bot or Bot.name
   if commandtable[cmd] then -- if it exists
     local m = commandtable[cmd]
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
-        local ret1,ret2 = m["func"](user.sNick,msg,unpack(m["parms"])) -- user,data,env and more params afterwards
+        local ret1,ret2 = m["func"](user.sNick,data,unpack(m["parms"])) -- user,data and more params afterwards
         if ret1:len() > 128000 then ret1 =
           "The command's output would exceed 128,000 characters. Please report this issue "..
           "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
@@ -216,7 +216,6 @@ function HandleEvent (event, nick, ...)
     if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
       local txt, ret = moddy[event](nick, ...)
       if txt and ret then
---         local user  = Core.GetUser(nick)
         local parseret={{Core.SendToNick,{nick,"<"..Bot.name.."> "..txt.."|"}},{Core.SendPmToNick,{nick,Bot.name,txt.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..txt.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..txt.."|"}}}
         parseret[ret][1](unpack(parseret[ret][2]));
       end
