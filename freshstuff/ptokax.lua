@@ -27,6 +27,7 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 -- This is executed when the script starts.
 function OnStartup()
   Today = os.date("%m/%d/%Y")
+  GlobTimer = 0
   Core.RegBot(Bot.name, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email, true)
   if pcall (SetMan.GetBool, 55) then -- Log script errors.
     SetMan.SetBool(55, true)
@@ -58,7 +59,7 @@ function OnStartup()
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
     table.sort(arr) -- sort the array
   end
-  TmrMan.AddTimer(60000, "OnTimer")
+  TmrMan.AddTimer(1000, "OnTimer")
   HandleEvent ("Start")
 end
 
@@ -254,25 +255,28 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
 end
 
 function Timer()
-  if os.date("%m/%d/%Y") ~= Today then
-    Today = os.date("%m/%d/%Y")
-    Core.UnregBot(Bot.name)
-    Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
-  end
-  if #AllStuff > 0 then
-     -- to avoid sync errors and unnecessary function calls/tanle lookups
-     -- declare the local variable
-    local stuff = WhenAndWhatToShow[os.date("%H:%M")]
-    if stuff then
-      if Types[stuff] then
-        Core.SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
-      else
-        if stuff == "new" then
-          Core.SendToAll("<"..Bot.name.."> "..MsgNew)
-        elseif stuff == "all" then
-          Core.SendToAll("<"..Bot.name.."> "..MsgAll)
+  GlobTimer = GlobTimer +1
+  if GlobTimer == 60 then
+    if os.date("%m/%d/%Y") ~= Today then
+      Today = os.date("%m/%d/%Y")
+      Core.UnregBot(Bot.name)
+      Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
+    end
+    if #AllStuff > 0 then
+       -- to avoid sync errors and unnecessary function calls/tanle lookups
+       -- declare the local variable
+      local stuff = WhenAndWhatToShow[os.date("%H:%M")]
+      if stuff then
+        if Types[stuff] then
+          Core.SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
         else
-          Core.SendToOps("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
+          if stuff == "new" then
+            Core.SendToAll("<"..Bot.name.."> "..MsgNew)
+          elseif stuff == "all" then
+            Core.SendToAll("<"..Bot.name.."> "..MsgAll)
+          else
+            Core.SendToOps("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
+          end
         end
       end
     end

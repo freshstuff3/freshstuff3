@@ -20,3 +20,7 @@ Levels.SubscrReq = 1
 
 -- How many requests should be considered new?
 MaxNewReq = 15
+
+-- How many percent should be so two items are considered identical? 75 is a good
+-- estimate but your mileage may vary.
+MaxMatch = 75

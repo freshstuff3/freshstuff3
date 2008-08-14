@@ -17,7 +17,30 @@ local conf = ScriptsPath.."config/requester.lua"
 local _, err = loadfile (conf)
 if not err then dofile (conf) else error(err) end
 
-Requests ={Completed = {}, NonCompleted = {}, Subscribers = {}}
+Requests = {Completed = {}, NonCompleted = {}, Subscribers = {}, Coroutines = {},}
+
+function ComparisonHelper(tbl, cor_id)
+  local req, id = tbl.Request, tbl.CurrID
+  local PIC = 0 --  processed item counter (PIC)
+  local match = {}
+  while true do -- endless loop
+    id = id + 1 -- raise request ID by 1
+    if id == Request.Max + 1 then break end -- we have reached the last request, so stop this thread
+    if Requests.NonCompleted[id] then -- if we have this number (NonCompleted not an array!)
+      PIC = PIC + 1 -- raise the PIC by 1 only now!
+      local percent = 100*Levenshtein (Requests.NonCompleted[id][3], req) -- compare
+      if percent >= MaxMatch then -- if matches
+        match[id] = {Requests.NonCompleted[id][3], percent} -- there is a match, register it
+      end
+      if PIC >= 40 then -- we have processed 40 items
+        Requests.Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the item last processed
+        PIC = 0 -- reset the PIC
+        coroutine.yield()-- and go sleeping
+      end
+    end
+  end
+  return match -- here we return if there are matches
+end
 
 function SendReqTo (nick, bNew, msg)
   if bNew then
@@ -79,37 +102,34 @@ do
     {
       function(nick,data)
         if data~="" then
-          local cat,req = string.match (data,"(%S+)%s+(.+)")
+          local cat, req = string.match (data,"(%S+)%s+(.+)")
           if cat then
             if not Types[cat] then
-              return "The category "..cat.." does not exist.",1
+              return "The category "..cat.." does not exist.", 1
             else
               for _,word in ipairs(ForbiddenWords) do
-                if string.find(req,word,1,true) then
-                  return "The request name contains the following forbidden word (thus not added): "..word,1
+                if string.find(req, word, 1, true) then
+                  return "The request name contains the following forbidden word (thus not added): "..word, 1
                 end
               end
-              for nick, tbl in pairs(Requests.Completed) do
-                if req == tbl[2] then
-                  return req.." has already been requested by "..nick.." and has been fulfilled under category "..tbl[3].. " with name "..tbl[2].." by "..tbl[4],1
-                end
-              end
-              for id, tbl in pairs(Requests.NonCompleted) do
-                if tbl[3] == req then
-                  return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
-                end
-              end
+              if Requests.Coroutines[nick] then return "A request of yours is already being processed. Please wait a few seconds!", 1 end
+              if #Requests.NonCompleted == 0 then
                 Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
-                HandleEvent("OnReqAdded", nick, data, cat, req)
-                return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
+                HandleEvent("OnReqAdded", nick, _, cat, req)
+                return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 1
+              else
+                local cor = coroutine.create(ComparisonHelper)
+                Requests.Coroutines[nick] = {Coroutine = cor, Request = req, CurrID = 1, Category = cat}
+                return "Your request is being processed. You will be notified of the result.", 1
+              end
             end
           else return "yea right, like i know what i got 2 add when you don't tell me!.", 1 end
         else
           return "yea right, like i know what i got 2 add when you don't tell me!.", 1
         end
       end,
-      {},Levels.AddReq,"<type> <name> // Add a request for a particular release."
+      {},Levels.AddReq,"<type> <name>\t\t\t\tAdd a request for a particular release."
     }
     Engine[Commands.LinkReq] = 
     {
@@ -148,7 +168,7 @@ do
           return "Syntax should be: !"..Commands.LinkReq.." release_id request_id",1
         end
       end,
-      {},Levels.LinkReq,"<release_id> <request_id> // Link a release with a request, thus fulfilling it."
+      {},Levels.LinkReq,"<release_id> <request_id>\t\t\t\tLink a release with a request, thus fulfilling it."
     }
     Engine[Commands.ShowReqs]=
     {
@@ -156,7 +176,7 @@ do
         local trick = {["nope"] = "There are no requests now, everyone seems satisfied. :-)"}
         if string.find(data, "new", 1, true) then return trick[Request.NewReq] or Request.NewReq, 2 else return trick[Request.AllReq] or Request.AllReq, 2 end
       end,
-      {},Levels.ShowReqs,"<type> <name> // Show pending requests. If you add 'new' as an option, it will show the latest "..MaxNewReq.." ones."
+      {},Levels.ShowReqs,"<type> <name>\t\t\t\tShow pending requests. If you add 'new' as an option, it will show the latest "..MaxNewReq.." ones."
     }
     Engine[Commands.DelReq]=
     {
@@ -184,36 +204,28 @@ do
           return "yea right, like i know what i got 2 delete when you don't tell me!.", 1
         end
       end,
-      {}, 1,"<type> <name> // Delete a request from the non-completed ones."
+      {}, 1,"<type> <name>\t\t\t\tDelete a request from the non-completed ones."
     }
     Engine[Commands.SubscrReq]=
     {
       function (nick, data)
         local ret_neg = "Insufficient or incorrect parameters, please refer to the help."
-        if data ~="" then
-          what = tonumber(data)
+        if data ~="" and data:find("^%d+$") then
+          local what = data:match("^(%d+)$")
           if what then
+            what = tonumber(what)
             local repl_arr = 
             {
               "You will be notified of new requests and will get the latest "..MaxNewReq.." requests every time you connect the hub.",
-              "You will be notified of new requests only when they are added.",
-              "You will only get the latest "..MaxNewReq.." requests every time you connect the hub.",
+              "You will be notified of new requests.",
+              "You will get the latest "..MaxNewReq.." requests every time you connect the hub.",
             }
             if repl_arr[what] then
               Requests.Subscribers[nick] = what
-              local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
-              f:write(nick.."|"..what.."\n")
-              f:close()
               return repl_arr[what], 1
             else
               return ret_neg, 1
             end
-          elseif data:find("delete", 1, true) then
-            Requests.Subscribers[nick] = nil
-            local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
-            f:write(nick.."|a".."\n")
-            f:close()
-            return "You will no longer be notified of new requests.", 1
           else
             return ret_neg, 1
           end
@@ -221,7 +233,7 @@ do
           return ret_neg, 1
         end
       end,
-      {}, Levels.SubscrReq, "<option> // Subscribe for requests. Option can be: 1 for new requests and on-connect, 2 for new requests, 3 for on-connect. If you are already subscribed, your preference will be changed. If you specify 'delete' as option, you will unsubscribe."
+      {}, Levels.SubscrReq, "<option>\t\t\t\tSubscribe for requests. Option can be: 1 for new requests and on-connect, 2 for new requests, 3 for on-connect. If you are already subscribed, your preference will be changed.."
     }
 end
 
@@ -257,7 +269,7 @@ function Start()
       Requests.Completed = table.load (file_comp)
     else bErr = true; Requests.Completed = {} end
   else bErr = true; Requests.NonCompleted = {} end
-  e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1) end
+--     e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1)end
   for _, req in ipairs (Requests.Completed) do
     local cat = req[3]
     if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
@@ -285,18 +297,25 @@ function Start()
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
-  local f = io.open(ScriptsPath.."data/reqsubscr.dat","r")
+  local f = io.open(ScriptsPath.."data/reqsubscr.dat","r+")
   if not f then return end
   for line in f:lines() do
-    local name, opt = line:match("([^%|]+)%|([123a])")
-    Requests.Subscribers[name] = tonumber(opt)
+    local name, opt = line:find("([^%|]+)%|(.+)")
+    Requests.Subscribers[name] = opt
   end
   f:close()
   f = io.open(ScriptsPath.."data/reqsubscr.dat","w+")
   for name, opt in pairs (Requests.Subscribers) do
-    f:write(name.."|"..opt.."\n")
+    f:write(name.."|"..opt)
   end
-  f:close()
+  setmetatable(Requests.Subscribers,
+  {
+    __newindex = function(tbl, key, val)
+      local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
+      f:write(key.."|"..val)
+      f:close()
+    end
+  })
 end
 
 function OnCatDeleted (cat)
@@ -326,6 +345,44 @@ function OnReqAdded (nick, data, cat, req)
     if opt~=3 then SendReqTo (nick, true, msg) end
   end
 	return msg, 4
+end
+
+function Timer()
+  Max = table.maxn(Requests.NonCompleted)
+  for nick, tbl in pairs(Requests.Coroutines) do -- loop through coroutines
+    local co = tbl.Coroutine -- retrieve the coroutine
+    local status = coroutine.status(co)
+    if status == "suspended" then -- if it can be started/resumed
+      local bOK, match = coroutine.resume(co, tbl, nick) -- do it!
+      if bOK and match then -- the coroutine explicitly returned, aka finished
+        local cat, req = tbl.Category, tbl.Request
+        if table.maxn(match) > 0 then
+          for id, tbl in pairs(match) do
+            local msg = "Your request has been saved, you will have to wait until it gets fulfilled. However, it is similar to the following requests:"
+            if tbl[2] == 100 then
+              SendOut("Your request is identical to the following request: ID# "..id.." - Name: "..tbl[1]..". It has NOT been added.")
+              break
+            end
+            msg = msg.."\r\n"..id.." - "..tbl[1].." ("..tbl[2].."%)"
+            msg = msg.."\r\nPlease review! Thanks!"
+            Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+            table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+            HandleEvent("OnReqAdded", nick, _, cat, req)
+            SendOut(msg)
+          end
+        else
+          Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+          table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+          HandleEvent("OnReqAdded", nick, _, cat, req)
+          SendOut(nick.." Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")
+        end
+      elseif not bOK then
+        SendOut(match) -- forward errors to ops
+      end
+    elseif status == "dead" then -- it is finished
+      Requests.Coroutines[nick] = nil -- so wipe it
+    end
+  end
 end
 
 SendOut("*** "..Bot.version.." 'requester' module loaded.")

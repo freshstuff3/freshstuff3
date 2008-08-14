@@ -558,6 +558,37 @@ function GetNewRelNumForToday()
   return new_today
 end
 
+function Levenshtein (string1, string2)
+  string1 = string1:lower(); string2 = string2:lower()
+  local str1, str2, distance = {}, {}, {};
+  local str1len, str2len = string1:len(), string2:len();
+  for s in string.gmatch(string1, "(.)") do
+    table.insert(str1, s);
+  end
+  for s in string.gmatch(string2, "(.)") do
+    table.insert(str2, s)
+  end
+  for i = 0, str1len do
+    distance[i] = distance[i] or {}
+    distance[i][0] = i;
+  end
+  for i = 0, str2len do
+    distance[i] = distance[i] or {}
+    distance[0][i] = i;
+  end
+  for i = 1, str1len do
+    for j = 1, str2len do
+      local tmpdist = 1;
+      if(str1[i-1] == str2[j-1]) then
+        tmpdist = 0;
+      end
+      distance[i][j] = math.min( distance[i-1][j] + 1, distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
+    end
+  end
+--   return distance[str1len][str2len]
+  return 1-distance[str1len][str2len]/math.max(str1len, str2len)
+end
+
 ReloadRel()
 
 SendOut("*** "..Bot.version.." kernel loaded.")
