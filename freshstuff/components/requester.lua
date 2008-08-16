@@ -5,12 +5,14 @@ You can:
     - list requests
     - delete a request, if you have the right or you are the one who has added it
     - add releases with an extra option that tells the script you are fulfilling a request
+    - subscribe for requests
     - Note that you can only delete a request from the non-completed ones, completed requests get deleted
-    when the user who requested logs in. If this is a problem, future versions may contain comp. request pruning.
-    - It calls OnReqFulfilled when a request is fulfilled. that way, hostapp-specific modules take care of proper user
-    notification, which ensures portability.
+      when the user who requested logs in. If this is a problem, future versions may contain comp. request pruning.
+    - It calls OnReqFulfilled() and OnReqAdded() when a request is fulfilled. that way, hostapp-specific modules
+      take care of proper user notification, which ensures portability.
 
-Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0.
+See docs/license.txt for details.
 ]]
 
 local conf = ScriptsPath.."config/requester.lua"
@@ -31,9 +33,10 @@ function ComparisonHelper(tbl, cor_id)
       local percent = 100*Levenshtein (Requests.NonCompleted[id][3], req) -- compare
       if percent >= MaxMatch then -- if matches
         match[id] = {Requests.NonCompleted[id][3], percent} -- there is a match, register it
+        if percent == 100 then break end -- break when there is an exact match; why check all others, it will be rejected anyway
       end
-      if PIC >= 40 then -- we have processed 40 items
-        Requests.Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the item last processed
+      if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
+        Requests.Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the last processed item
         PIC = 0 -- reset the PIC
         coroutine.yield()-- and go sleeping
       end
@@ -53,7 +56,7 @@ function SendReqTo (nick, bNew, msg)
 end
 
 function GetReq()
-  if #Requests.NonCompleted == 0 then return "nope" end
+  if not next(Requests.NonCompleted) then return "nope" end
   local CatArray={}
   local Msg1, Msg2 = "\r\n", "\r\n"
   local cat, who, title
@@ -112,16 +115,16 @@ do
                   return "The request name contains the following forbidden word (thus not added): "..word, 1
                 end
               end
-              if Requests.Coroutines[nick] then return "A request of yours is already being processed. Please wait a few seconds!", 1 end
-              if #Requests.NonCompleted == 0 then
+              if Requests.Coroutines[nick] then return "A request of yours is already being processed. Please wait a few seconds!", 2 end
+              if not next(Requests.NonCompleted) then
                 Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 HandleEvent("OnReqAdded", nick, _, cat, req)
-                return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 1
+                return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 2
               else
                 local cor = coroutine.create(ComparisonHelper)
                 Requests.Coroutines[nick] = {Coroutine = cor, Request = req, CurrID = 1, Category = cat}
-                return "Your request is being processed. You will be notified of the result.", 1
+                return "Your request is being processed. You will be notified of the result.", 2
               end
             end
           else return "yea right, like i know what i got 2 add when you don't tell me!.", 1 end
@@ -140,7 +143,7 @@ do
           if rel then
             local req = Requests.NonCompleted[tonumber(reqid)]
             if req then
-              if Allowed(nick,Levels.DelReq) or rel[1] == nick or req[1] == nick then
+              if Allowed[{nick,Levels.DelReq}] or rel[1] == nick or req[1] == nick then
                 local cat, usernick, date, tune = unpack(rel)
                 if req[2] ~= cat then
                   return "This is not the same category as the request. The release's category is "..Types[cat].." while the request's category is "..Types[done[2]]
@@ -187,7 +190,7 @@ do
             req=tonumber(req)
             if Requests.NonCompleted[req] then
               local reqnick=Requests.NonCompleted[req][1]
-              if nick == reqnick or Allowed(nick,Levels.DelReq) then
+              if nick == reqnick or Allowed[{nick,Levels.DelReq}] then
                 Requests.NonCompleted[req] = nil
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
@@ -221,6 +224,7 @@ do
               "You will get the latest "..MaxNewReq.." requests every time you connect the hub.",
             }
             if repl_arr[what] then
+              Requests.Subscribers[nick] = nil
               Requests.Subscribers[nick] = what
               return repl_arr[what], 1
             else
@@ -284,7 +288,7 @@ function Start()
   end
   setmetatable(Requests.NonCompleted,
   {
-    __call = function(tbl)
+    __len = function(tbl)
       local c = 0
       for _, _ in pairs(tbl) do
         c = c+1
@@ -293,8 +297,8 @@ function Start()
     end
   })
   AllReq, NewReq = GetReq()
-  SendOut("*** Loaded "..Requests.NonCompleted().." requests in "..os.clock()-x.." seconds.")
-  for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
+  SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
+  for a,b in pairs(Types) do -- Add categories to rightclick.
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
   local f = io.open(ScriptsPath.."data/reqsubscr.dat","r+")
@@ -356,25 +360,31 @@ function Timer()
       local bOK, match = coroutine.resume(co, tbl, nick) -- do it!
       if bOK and match then -- the coroutine explicitly returned, aka finished
         local cat, req = tbl.Category, tbl.Request
-        if table.maxn(match) > 0 then
+        if next(match) then
+          local msg = "Your request has been saved, you will have to wait until it gets fulfilled."
+          .."However, it is quite similar to the following requests:"
+          local FoundSame
           for id, tbl in pairs(match) do
-            local msg = "Your request has been saved, you will have to wait until it gets fulfilled. However, it is similar to the following requests:"
             if tbl[2] == 100 then
-              SendOut("Your request is identical to the following request: ID# "..id.." - Name: "..tbl[1]..". It has NOT been added.")
+              PM(nick, "Your request is identical to the following request: \r\nID# "..id.." - Name: "..tbl[1]..".\r\n\r\nIt has NOT been added.")
+              FoundSame = true
               break
+            else
+              msg = msg.."\r\n"..id.." - "..tbl[1].." ("..tbl[2].."%)"
             end
-            msg = msg.."\r\n"..id.." - "..tbl[1].." ("..tbl[2].."%)"
-            msg = msg.."\r\nPlease review! Thanks!"
+          end
+          if not FoundSame then
+            msg = msg.."\r\n\r\nPlease review! Thanks!"
             Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
             table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
             HandleEvent("OnReqAdded", nick, _, cat, req)
-            SendOut(msg)
+            PM(nick, msg)
           end
         else
           Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
           table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
           HandleEvent("OnReqAdded", nick, _, cat, req)
-          SendOut(nick.." Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")
+          PM(nick, " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")
         end
       elseif not bOK then
         SendOut(match) -- forward errors to ops

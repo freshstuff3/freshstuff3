@@ -8,7 +8,7 @@ Distributed under the terms of the Common Development and Distribution License (
 
 -- Debug message sending
 SendOut = Core.SendToOps
-function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
+
 ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
 local conf = ScriptsPath.."config/main.lua"
 local _,err = loadfile (conf)
@@ -159,9 +159,14 @@ function SendTxt(user, env, bot, text) -- sends message according to environment
   end
 end
 
-function Allowed (nick, level) -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
-  if userlevels[Core.GetUser(nick).iProfile] >= level then return 1 end
-end
+setmetatable(Allowed, -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
+  {
+  __index = function(tbl, key) 
+    if userlevels[Core.GetUser(key[1]).iProfile] < key[2] then return false end
+  end
+  })
+
+function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
 
 -- Rightclick hadling.
 

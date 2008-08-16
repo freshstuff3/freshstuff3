@@ -84,7 +84,7 @@ do
           if id then
             id = tonumber (id); what = tonumber (what)
             if AllStuff[id] then
-              if Allowed(nick,Levels.Change) or AllStuff[id][2] == nick then
+              if Allowed[{nick,Levels.Change}] or AllStuff[id][2] == nick then
                 local what_tbl = {{1, "category"}, {4, "name"} }
                 AllStuff[id][what_tbl[what][1]] = new_data
                 table.save(AllStuff, ScriptsPath.."data/releases.dat")
@@ -112,7 +112,7 @@ do
           {
           __newindex = function (tbl, n, val)
             if AllStuff[n] then
-              if Allowed(nick,Levels.Delete) or AllStuff[n][2] == nick then
+              if Allowed[{nick,Levels.Delete}] or AllStuff[n][2] == nick then
                 HandleEvent ("OnRelDeleted", nick, n)
                 msg=msg..AllStuff[n][4].." is deleted from the releases.\r\n"
                 table.remove(AllStuff,n)
@@ -273,7 +273,7 @@ do
         local hlp="\r\nCommands available to you are:\r\n=================================================================================================================================\r\n"
         for a,b in pairs(commandtable) do
           if b["level"]~=0 then
-            if Allowed (nick, b["level"]) then
+            if Allowed [{nick, b["level"]}] then
               count=count+1
               table.insert(hlptbl,"!"..a.." "..b["help"])
             end
@@ -585,7 +585,6 @@ function Levenshtein (string1, string2)
       distance[i][j] = math.min( distance[i-1][j] + 1, distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
     end
   end
---   return distance[str1len][str2len]
   return 1-distance[str1len][str2len]/math.max(str1len, str2len)
 end
 
