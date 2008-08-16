@@ -21,84 +21,6 @@ if not err then dofile (conf) else error(err) end
 
 Requests = {Completed = {}, NonCompleted = {}, Subscribers = {}, Coroutines = {},}
 
-function ComparisonHelper(tbl, cor_id)
-  local req, id = tbl.Request, tbl.CurrID
-  local PIC = 0 --  processed item counter (PIC)
-  local match = {}
-  while true do -- endless loop
-    id = id + 1 -- raise request ID by 1
-    if id == Request.Max + 1 then break end -- we have reached the last request, so stop this thread
-    if Requests.NonCompleted[id] then -- if we have this number (NonCompleted not an array!)
-      PIC = PIC + 1 -- raise the PIC by 1 only now!
-      local percent = 100*Levenshtein (Requests.NonCompleted[id][3], req) -- compare
-      if percent >= MaxMatch then -- if matches
-        match[id] = {Requests.NonCompleted[id][3], percent} -- there is a match, register it
-        if percent == 100 then break end -- break when there is an exact match; why check all others, it will be rejected anyway
-      end
-      if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
-        Requests.Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the last processed item
-        PIC = 0 -- reset the PIC
-        coroutine.yield()-- and go sleeping
-      end
-    end
-  end
-  return match -- here we return if there are matches
-end
-
-function SendReqTo (nick, bNew, msg)
-  if bNew then
-    PM(nick, msg)
-  else
-    if NewReq ~="nope" then
-      PM(nick, Request.NewReq)
-    end
-  end
-end
-
-function GetReq()
-  if not next(Requests.NonCompleted) then return "nope" end
-  local CatArray={}
-  local Msg1, Msg2 = "\r\n", "\r\n"
-  local cat, who, title
-  local tmptbl={}
-  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
-  local cunt=0
-  for key, val in pairs(Requests.NonCompleted) do
-    who, cat, title = unpack(val)
-    if who then
-      tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-      table.insert(tmptbl[Types[cat]],Msg1.."ID: "..key.."\t"..title.." // (Added by "..who..")")
-    end
-  end
-  for _,a in ipairs (CatArray) do
-    local b=tmptbl[a]
-    if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-    Msg1 = Msg1.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
-  end
-  tmptbl = nil; tmptbl = {}
-  local biggest, counter = table.maxn(Requests.NonCompleted), 0
-  for n = biggest, 1, -1 do
-    if counter == MaxNewReq then break end
-    local val = Requests.NonCompleted[n]
-    if val then
-    counter = counter + 1
-      who, cat, title = unpack(val)
-      if who then
-        tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-        table.insert(tmptbl[Types[cat]],Msg2.."ID: "..n.."\t"..title.." // (Added by "..who..")")
-      end
-    end
-  end
-  for _,a in ipairs (CatArray) do
-    local b=tmptbl[a]
-    if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-    Msg2 = Msg2.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
-  end
-  local new; if counter < MaxNewReq then new = counter else new = MaxNewReq end
-  return "\r\n\r\r\n".." --------- All The Requests -------- "..Msg1.."\r\n --------- All The Requests --------",
-  "\r\n\r\r\n".." --------- The Latest "..new.." Requests -------- "..Msg2.."\r\n --------- The Latest "..new.." Requests --------"
-end
-
 do
   setmetatable(Engine,_Engine)
     Engine[Commands.AddReq]=
@@ -122,7 +44,7 @@ do
                 HandleEvent("OnReqAdded", nick, _, cat, req)
                 return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 2
               else
-                local cor = coroutine.create(ComparisonHelper)
+                local cor = coroutine.create(Request.ComparisonHelper)
                 Requests.Coroutines[nick] = {Coroutine = cor, Request = req, CurrID = 1, Category = cat}
                 return "Your request is being processed. You will be notified of the result.", 2
               end
@@ -151,7 +73,7 @@ do
                 else
                   local username, cat, reqdetails=unpack(req)
                   Requests.NonCompleted[tonumber(reqid)] = nil
-                  AllReq, NewReq = GetReq()
+                  AllReq, NewReq = Request.GetReq()
                   if req[1] ~= nick then -- When a requester links his/her own request, notification is redundant.
                     Requests.Completed[username]={reqdetails, tune, cat, nick}
                     table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
@@ -194,7 +116,7 @@ do
                 Requests.NonCompleted[req] = nil
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
-                AllReq, NewReq = GetReq()
+                AllReq, NewReq = Request.GetReq()
               else
                 return "You aren't allowed to delete requests that haven't bee submitted by you.", 1
               end
@@ -249,6 +171,8 @@ rightclick[{Levels.Add,"1 3","Requests\\Link a release with a request","!"..Comm
 
 module("Request",package.seeall)
 ModulesLoaded["Request"] = true
+
+-- Events
 
 function Connected (nick)
   if Requests.Completed[nick] then
@@ -391,6 +315,86 @@ function Timer()
       end
     elseif status == "dead" then -- it is finished
       Requests.Coroutines[nick] = nil -- so wipe it
+    end
+  end
+end
+
+-- Helper functions
+
+function ComparisonHelper(tbl, cor_id)
+  local req, id = tbl.Request, tbl.CurrID
+  local PIC = 0 --  processed item counter (PIC)
+  local match = {}
+  while true do -- endless loop
+    id = id + 1 -- raise request ID by 1
+    if id == Request.Max + 1 then break end -- we have reached the last request, so stop this thread
+    if Requests.NonCompleted[id] then -- if we have this number (NonCompleted not an array!)
+      PIC = PIC + 1 -- raise the PIC by 1 only now!
+      local percent = 100*Levenshtein (Requests.NonCompleted[id][3], req) -- compare
+      if percent >= MaxMatch then -- if matches
+        match[id] = {Requests.NonCompleted[id][3], percent} -- there is a match, register it
+        if percent == 100 then break end -- break when there is an exact match; why check all others, it will be rejected anyway
+      end
+      if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
+        Requests.Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the last processed item
+        PIC = 0 -- reset the PIC
+        coroutine.yield()-- and go sleeping
+      end
+    end
+  end
+  return match -- here we return if there are matches
+end
+
+function GetReq()
+  if not next(Requests.NonCompleted) then return "nope" end
+  local CatArray={}
+  local Msg1, Msg2 = "\r\n", "\r\n"
+  local cat, who, title
+  local tmptbl={}
+  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
+  local cunt=0
+  for key, val in pairs(Requests.NonCompleted) do
+    who, cat, title = unpack(val)
+    if who then
+      tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+      table.insert(tmptbl[Types[cat]],Msg1.."ID: "..key.."\t"..title.." // (Added by "..who..")")
+    end
+  end
+  for _,a in ipairs (CatArray) do
+    local b=tmptbl[a]
+    if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+    Msg1 = Msg1.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+  end
+  tmptbl = nil; tmptbl = {}
+  local biggest, counter = table.maxn(Requests.NonCompleted), 0
+  for n = biggest, 1, -1 do
+    if counter == MaxNewReq then break end
+    local val = Requests.NonCompleted[n]
+    if val then
+    counter = counter + 1
+      who, cat, title = unpack(val)
+      if who then
+        tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
+        table.insert(tmptbl[Types[cat]],Msg2.."ID: "..n.."\t"..title.." // (Added by "..who..")")
+      end
+    end
+  end
+  for _,a in ipairs (CatArray) do
+    local b=tmptbl[a]
+    if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+    Msg2 = Msg2.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+  end
+  local new; if counter < MaxNewReq then new = counter else new = MaxNewReq end
+  return "\r\n\r\r\n".." --------- All The Requests -------- "..Msg1.."\r\n --------- All The Requests --------",
+  "\r\n\r\r\n".." --------- The Latest "..new.." Requests -------- "..Msg2.."\r\n --------- The Latest "..new.." Requests --------"
+end
+
+function SendReqTo (nick, bNew, msg)
+  if bNew then
+    PM(nick, msg)
+  else
+    if NewReq ~="nope" then
+      PM(nick, Request.NewReq)
     end
   end
 end

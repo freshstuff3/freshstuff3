@@ -4,8 +4,8 @@ This is the common script that gets loaded by host apps, then takes care of ever
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0.
 See docs/license.txt for details.
 ]]
-AllStuff, NewestStuff, Engine, Bot, Commands, Levels, Allowed = {},{},{},{},{},{},{}
-Bot.version="FreshStuff3 5.5 alpha 1"
+AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed, Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
+Bot.version="FreshStuff3 5.5 alpha 2"
 ModulesLoaded = {}
 
 do -- detect the host app

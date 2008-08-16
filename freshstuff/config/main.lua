@@ -44,6 +44,17 @@ ForbiddenWords = {
 -- Otherwise they will be sorted by ID within a category.
 SortStuffByName = 0
 
+ReleaseApprovalPolicy = 2 -- (1: all queued, 2: only similar, 3: none)
+
+-- How many percent should be so two items are considered identical? 75 is a good
+-- estimate but your mileage may vary.
+MaxMatch = 75
+
+-- How many items should be checked at once? My tests show that 40 is a good value.
+-- You can raise this value, though, if you have a fast server but it may cause
+-- undesirable lags in the hub so change this only at your own risk!
+ItemsToCheckAtOnce = 40
+
 --[[
 -----------------------------------------------------------
 Commands and levels section. Enter the specific commands here, DO NOT INCLUDE THE PREFIX!

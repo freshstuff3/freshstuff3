@@ -64,7 +64,7 @@ function OnStartup()
 end
 
 -- This is executed on a chat message
-function ChatArrival(user,data)
+function ChatArrival(user, data)
   local cmd,msg=data:match("^%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   -- We are parsing the command here
   if commandtable[cmd] then
@@ -126,21 +126,20 @@ function parsecmds(user,data,env,cmd,bot)
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
         local ret1,ret2 = m["func"](user.sNick,data,unpack(m["parms"])) -- user,data and more params afterwards
-        if ret1:len() > 128000 then ret1 =
-          "The command's output would exceed 128,000 characters. Please report this issue "..
-          "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
-          "information you need."
+        if ret1 and ret1:len() > 128000 then ret1 =
+            "The command's output would exceed 128,000 characters. Please report this issue "..
+            "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
+            "information you need."
         end
-        if ret2 then
-          local parseret=
-            {
-              {SendTxt,{user, env, bot, ret1}},
-              {Core.SendPmToUser,{user, bot, ret1}},
-              {Core.SendToOps,{"<"..bot.."> "..ret1}},
-              {Core.SendToAll,{"<"..bot.."> "..ret1}},
-            }
+        ret2 = ret2 or 1
+        local parseret=
+          {
+            {SendTxt,{user, env, bot, ret1}},
+            {Core.SendPmToUser,{user, bot, ret1}},
+            {Core.SendToOps,{"<"..bot.."> "..ret1}},
+            {Core.SendToAll,{"<"..bot.."> "..ret1}},
+          }
           parseret[ret2][1](unpack(parseret[ret2][2])); return true
-        end
       else
         SendTxt(user,env,bot,"You are not allowed to use this command."); return true
       end
@@ -167,6 +166,8 @@ setmetatable(Allowed, -- This is hostapp-independent checking. All hostapp-modul
   })
 
 function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
+
+function PMOps (msg) Core.SendPmToOps (Bot.name, msg) end
 
 -- Rightclick hadling.
 
