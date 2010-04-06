@@ -68,7 +68,7 @@ do
             if count == 0 then
               if ReleaseApprovalPolicy ~= 1 then
                 AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-                HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
+                --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
                 return "\""..tune.."\" has been added to the releases in this category: \""..Types[cat].."\" with ID "..count + 1, 2
               else
                 PendingStuff(cat, nick, os.date("%m/%d/%Y"), tune)
@@ -685,14 +685,14 @@ function Timer()
         local cat, tune = tbl.Category, tbl.Release
         if next(match) then -- now we are depending upon the release approval policy 
           local msg
-          local msg_op = "A release has been added that is quite similar to the following release(s):"
+          local msg_op = "A release has been added by "..nick.. " that is quite similar to the following release(s):"
           local FoundSame
           local policy_msg = 
           {  
-            "Your release has successfully been submitted and will be reviewed. Note that it is"
-            .."quite similar to the following release(s):",
+            "Your release has successfully been submitted and has to be reviewed according to "
+            .."the hub's approval policy. Note that it is quite similar to the following release(s):",
             "Your release has been given pending status (it needs to be reviewed) since it is"
-            .."quite similar to the following request(s):",
+            .."quite similar to the following release(s):",
           }
           msg = policy_msg[ReleaseApprovalPolicy] or "\""..tune.."\" has been added to the releases in this category: \""
           ..Types[cat].."\" with ID "..(count + 1)..". Note that it is quite similar to the following release(s):"
