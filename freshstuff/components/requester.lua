@@ -242,6 +242,7 @@ function Start()
       local f = io.open(ScriptsPath.."data/reqsubscr.dat","a+")
       f:write(key.."|"..val)
       f:close()
+      rawset (tbl, key, val)
     end
   })
 end
