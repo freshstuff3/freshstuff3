@@ -356,7 +356,7 @@ function OpenRel()
     end
   end
   local removed
-  -- The code below  is destined to fix broken release tables but
+  --- The code below  is destined to fix broken release tables but
   -- not sure if this is an issue in a nontesting environment. Anyway,
   -- I do not care about script load times because they should not be
   -- interfering with normal hub operation since in a production environment
@@ -594,6 +594,13 @@ function GetNewRelNumForToday()
   return new_today
 end
 
+--- Levenshtein distance algorithm
+-- http://www.freemedialibrary.com/index.php/Levenshtein_distance#Lua
+-- The above page also links to the wikipedia entry.
+-- Here I use it  for comparing two strings. In my practice, 75% means they're
+-- nearly identical so further check is required.
+-- @return Is actually the ratio of the difference and the longer string, sub-
+-- @return tracted from 1.
 function Levenshtein (string1, string2)
   string1 = string1:lower(); string2 = string2:lower()
   local str1, str2, distance = {}, {}, {};
