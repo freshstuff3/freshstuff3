@@ -70,6 +70,7 @@ local hostloader =
             local filename, ext = line:match("([^%.]+)%.lua$")
             if filename then require (filename) end
           end
+          f:close()
         end
       end,
   }

@@ -531,4 +531,4 @@ end
 
 ReloadRel()
 
-SendOut("*** "..Bot.version.." kernel loaded.")
+SendOut("*** "..Bot.version.." kernel loaded.")
