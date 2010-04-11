@@ -5,24 +5,6 @@ Distributed under the terms of the Common Development and Distribution License (
 ]]
 
 do
-  setmetatable (PendingStuff, 
-    {
-      __call = function (tbl, ...)
-        local cat, who, when, title, match, msg, msg_op = unpack({...})
-        table.insert(PendingStuff, {cat, who, when, title}) -- set this in the original table
-        table.save(PendingStuff, ScriptsPath.."data/releases_pending.dat") -- save
-        if msg then PM(who, msg) end
-        if msg_op then PMOps(msg_op) end
-      end
-  })
-
-  setmetatable (Coroutines,
-    {
-      __call = function (tbl, nick, cor, tune, id, cat)
-        rawset(tbl, nick, {Coroutine = cor, Release = tune, CurrID = id, Category = cat})
-      end
-    })
-
   setmetatable (Engine,_Engine)
   
   Engine[Commands.Show]=
@@ -76,7 +58,13 @@ do
                 ..", please wait until someone reviews it.", 2
               end
             else
-              Coroutines(nick, coroutine.create(Main.ComparisonHelper), tune, 1, cat)
+              Coroutines[nick] =
+               {
+                  Coroutine = coroutine.create(Main.ComparisonHelper),
+                  Release = tune,
+                  CurrID = 0, -- to check rel #1 so avoid off-by-one errors
+                  Category = cat,                 
+               }
               return "Your release is being processed. You will be notified of the result.", 2
             end
           else
@@ -302,7 +290,7 @@ end
 
 function OpenRel()
   local x = os.clock()
-	AllStuff, NewestStuff, Types = nil, nil, nil, nil
+	AllStuff, NewestStuff, Types = nil, nil, nil
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
@@ -386,18 +374,29 @@ function OpenRel()
       if #AllStuff >= #NewestStuff then -- So We have more entries than the 'new' limit
         table.remove (NewestStuff, 1) -- so the last entry from the newest is deleted
       end
-      for k,v in ipairs({...}) do
-        SendOut(k..v)
-      end
-      local cat, who, when, title = unpack({...})
+      local cat, who, when, title, msg, msg_op = unpack({...})
       table.insert (NewestStuff, {cat, who, when, title, #tbl+1}) -- and the new entry gets added
       table.insert (AllStuff, {cat, who, when, title}) -- set this in the original table
       table.save(AllStuff, ScriptsPath.."data/releases.dat") -- save
       ShowRel(NewestStuff); ShowRel() -- rearrange the global texts
+      if msg then PM(who, msg) end
+      if msg_op then PMOps(msg_op) end
       HandleEvent("OnRelAdded", who, _, cat, title, #tbl + 1)
     end
   })
   SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  PendingStuff = table.load(ScriptsPath.."data/releases_pending.dat") or {}
+   setmetatable (PendingStuff, 
+   {
+      __call = function (tbl, ...)
+         local cat, who, when, title, msg, msg_op = unpack({...})
+         table.insert(PendingStuff, {cat, who, when, title}) -- set this in the original table
+         table.save(PendingStuff, ScriptsPath.."data/releases_pending.dat") -- save
+         if msg then PM(who, msg) end
+         if msg_op then PMOps(msg_op) end
+      end
+   })
+   SendOut("*** Loaded "..#PendingStuff.." pending releases in "..os.clock()-x.." seconds.")
 end
 
 function ShowRel(tab)
@@ -635,101 +634,153 @@ module ("Main", package.seeall)
 ModulesLoaded["Main"] = true
 
 function ComparisonHelper(tbl, nick)
-  local req, id = tbl.Release, tbl.CurrID
-  local PIC = 0 --  processed item counter (PIC)
-  local match = {}
-  local bExact
-  while true do -- endless loop
-    id = id + 1 -- raise release ID by 1
-    if id == #AllStuff + 1 then break end -- we have reached the last request, so stop this thread
-    PIC = PIC + 1 -- raise the PIC by 1 only now!
-    local percent = 100*Levenshtein (AllStuff[id][4], req) -- compare
-    if percent >= MaxMatch then -- if matches
-      match[id] = {AllStuff[id][4], percent, false} -- there is a match, register it
-      if percent == 100 then bExact = true; break; end -- break when there is an exact match; why check all others, it will be rejected anyway
-    end
-    if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
-      Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the last processed item
-      PIC = 0 -- reset the PIC
-      coroutine.yield()-- and go sleeping
-    end
-  end
-  id = 0
-  if bExact == true then return match end
-  while true do -- endless loop
-    id = id + 1 -- raise release ID by 1
-    if id == #PendingStuff + 1 then break end -- we have reached the last request, so stop this thread
-    PIC = PIC + 1 -- raise the PIC by 1 only now!
-    local percent = 100*Levenshtein (PendingStuff[id][4], req) -- compare
-    if percent == 100 then -- if matches
-      match[id] = {PendingStuff[id][4], percent, true} -- there is a match, register it
-      break -- break when there is an exact match; why check all others, it will be rejected anyway
-    end
-    if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
-      Coroutines[cor_id].CurrTblID = id -- update the global table with the ID of the last processed item
-      PIC = 0 -- reset the PIC
-      coroutine.yield()-- and go sleeping
-    end
-  end
-  return match -- here we return if there are matches
+   local PIC = 0
+   local req, id = tbl.Release, tbl.CurrID
+   local match = {}
+   local bExact
+   while true do -- endless loop
+      -- raise release ID by 1
+      id = id + 1
+      if id > #AllStuff then
+         -- we have reached the last release, so stop this thread
+         break
+      end
+      local percent = 100*Levenshtein (AllStuff[id][4], req) -- compare
+      PIC = PIC + 1
+      if percent >= MaxMatch then
+         table.insert(match, {id, req, percent}) -- there is a match, register
+         -- if 100% match found, further checking is futile
+         if percent == 100 then return PIC, match; end
+      end
+      if PIC >= ItemsToCheckAtOnce then -- no more for this session
+         Coroutines[nick].CurrID = id -- record the last processed ID
+         coroutine.yield(PIC)-- and go sleeping
+         PIC = 0
+         -- When we wake up, the loop resumes
+      end
+   end
+   id = 0
+   while true do -- endless loop
+      -- raise release ID by 1
+      -- we have reached the last pending release, so stop this thread
+      id = id + 1
+      if id > #PendingStuff then break end
+      local percent = 100*Levenshtein (PendingStuff[id][4], req) -- compare
+      PIC = PIC + 1
+      if percent == 100 then -- if matches
+         table.insert(match, {id, req, percent, true}) -- there is a match, register it
+         return PIC, match -- break when there is an exact match; why check all others, it will be rejected anyway
+      end
+      if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
+         Coroutines[nick].CurrID = id -- update the global table with the ID of the last processed item
+         coroutine.yield(PIC)-- and go sleeping
+         PIC = 0
+      end
+   end
+  return PIC, match -- here we return if there are matches, thus stopping the coroutine
 end
 
-function Timer()
-  Max = #AllStuff
-  for nick, tbl in pairs(Coroutines) do -- loop through coroutines
-    local co = tbl.Coroutine -- retrieve the coroutine
-    local status = coroutine.status(co)
-    if status == "suspended" then -- if it can be started/resumed
-      local bOK, match = coroutine.resume(co, tbl, nick) -- do it!
-      if bOK and match then -- the coroutine explicitly returned, aka finished
-        local cat, tune = tbl.Category, tbl.Release
-        if next(match) then -- now we are depending upon the release approval policy 
-          local msg
-          local msg_op = "A release has been added by "..nick.. " that is quite similar to the following release(s):"
-          local FoundSame
-          local policy_msg = 
-          {  
-            "Your release has successfully been submitted and has to be reviewed according to "
-            .."the hub's approval policy. Note that it is quite similar to the following release(s):",
-            "Your release has been given pending status (it needs to be reviewed) since it is"
-            .."quite similar to the following release(s):",
-          }
-          msg = policy_msg[ReleaseApprovalPolicy] or "\""..tune.."\" has been added to the releases in this category: \""
-          ..Types[cat].."\" with ID "..(count + 1)..". Note that it is quite similar to the following release(s):"
-          for id, tbl in pairs(match) do
-            if tbl[2] == 100 then
-              if tbl[3] then
-                PM(nick, "A release with the same name is already awaiting approval. Release has NOT been added.")
-              else
-                PM(nick, "Your release is identical to the following  release(s): \r\nID# "..id
-                .." - Name: "..tbl[1]..".\r\n\r\nRelease has NOT been added.")
-              end
-              FoundSame = true
-              break
-            else
-              msg = msg.."\r\n"..id.." - "..tbl[1].." ("..tbl[2].."%)"
-              msg_op = msg_op.."\r\n"..id.." - "..tbl[1].." ("..tbl[2].."%)"
-            end
-          end
-          if not FoundSame then
-            local t ={1, 2}
-            if t[ReleaseApprovalPolicy] then
-              msg = msg.."\r\n\r\nPlease review! Thanks!"
-              PendingStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg, msg_op)
-            else
-              AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-            end
-          end
-        else
-          AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-        end
-      elseif not bOK then -- there is a syntax error
-        SendOut(match) -- forward it to ops
+local function MainTableParser()
+   local bOK, rePIC, match, nick, tbl
+   while true do
+      nick, tbl = next (Coroutines, nick)
+      if nick then
+         if coroutine.status(tbl.Coroutine) ~= "dead" then
+            bOK, rePIC, match = coroutine.resume(tbl.Coroutine, tbl, nick)
+            -- syntax error
+            if not bOK then return nil, rePIC; end
+            -- the coroutine finished
+            if match then return match, tbl, nick end
+            -- reached the max number of items, sleep
+            if rePIC >= ItemsToCheckAtOnce then coroutine.yield() end
+         else
+            Coroutines[nick] = nil
+         end
+      else
+         -- If the table is empty, we just return an empty table plus 2 nil's.
+         -- If not, the gets returned with friends either non-nil.
+         -- See Timer() below.
+         return match or {}, tbl, nick
       end
-    elseif status == "dead" then -- it is finished for whatever reason
-      Coroutines[nick] = nil -- so wipe it
-    end
-  end
+   end
+end
+
+local MainTableHelper = coroutine.create (MainTableParser)
+
+function Timer()
+   if coroutine.status (MainTableHelper) == "dead" then
+      MainTableHelper = coroutine.create (MainTableParser)
+   end
+   local bOK, match, tbl, nick = coroutine.resume (MainTableHelper)
+   if nick then -- the coroutine explicitly returned = finished
+      local tune, cat = tbl.Release, tbl.Category
+      if next (match) then
+         -- Sort the table in reverse order for percentages.
+         -- This ensures that if a 100% is found nothing will get added
+         -- afterwards.
+         table.sort(match, function (el1, el2)
+            return el1[3] > el2[3]
+         end)
+         for k, v in ipairs (match) do
+            local id, rel, percent, bPending = unpack (v)
+            local msg = 
+            "\""..rel.."\" has been added to the to-be-reviewed releases "
+            .."in this category: \""..Types[cat].."\" with ID "
+            ..(#PendingStuff + 1)
+            ..". \r\nIt needs to be accepted by an authorized user before it"
+            .."appears on the list"
+            local msg_op = "A release has been added by "..nick.. " that is"
+            .." quite similar to the following release(s):\r\n"
+            local FoundSame -- boolean for 100% match
+            local policy_msg = 
+            {  
+               msg..". Note that it is quite similar to the followi"
+               .."ng release(s):",
+               msg.." BECAUSE it is quite similar to the followi"
+               .."ng release(s):",
+            }
+            msg = policy_msg[ReleaseApprovalPolicy] or "\""..tune
+            .."\" has been added to the releases in this category: \""
+            ..Types[cat].."\" with ID "..(#AllStuff + 1)..". Note that it is"
+            .." quite similar to the following release(s):"
+            if percent == 100 then
+               if bPending then
+                  PM(nick, "A release with the same name is already "
+                  .."awaiting  approval. Release has NOT been added.")
+               else
+                  PM(nick, "Your release is identical to the following "
+                  .."release(s): \r\nID# "..id.." - Name: "..tune
+                  ..".\r\n\r\nRelease has NOT been added.")
+               end
+               FoundSame = true
+               break
+            else
+               msg = msg.."\r\n"..id.." - "..tune.." ("..percent.."%)"
+               msg_op = msg_op.."\r\n"..id.." - "..tune.." ("..percent
+               .."%)"
+            end
+            if not FoundSame then
+               if ReleaseApprovalPolicy ~= 3 then
+                  msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
+                  PendingStuff(cat, nick, os.date("%m/%d/%Y"), 
+                  tune, msg, msg_op)
+                  SendOut("==="..tune.."===")
+               else
+                  AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg, msg_op)
+               end
+            end
+         end
+      else -- not even a single similar release found, add the stuff
+         if ReleaseApprovalPolicy ~= 1 then
+            msg = "\""..tbl.Release
+            .."\" has been added to the releases in this category: \""
+            ..Types[cat].."\" with ID "..(#AllStuff + 1).."."
+            AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg)
+         end
+      end
+   elseif not bOK then -- there is a syntax error
+      SendOut(match) -- forward it to ops
+   end    
 end
 
 ReloadRel()
