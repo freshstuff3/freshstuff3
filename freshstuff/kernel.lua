@@ -506,66 +506,90 @@ function ShowRelNum(what,num) -- to show numbers of categories
 end
 
 function ShowRelRange(range)
-  local MsgRange = "\r\n"
-  local tbl = {}
-  local tmptbl={}
-  local CatArray={}
-  local Msg = "\r\n"
-  local cat, who, when, title, oid
-  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
-  local s,e = range:match("^(%d+)%-(%d+)$")
-  if not s then return "Syntax error: it should be !"..Commands.Show.." start#-end#", 1 end
-  s = tonumber (s)
-  if s > #AllStuff then
-    return "There are only "..#AllStuff.." releases!", 1
-  end
-  e = tonumber (e)
-  if e > #AllStuff then e = #AllStuff; end
-  if e-s > 100 then return "You can only specify a range no larger than 100 releases.",1 end
-  for c = s, e do
-    local tbl = AllStuff[c]
-    if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end
-    if cat and title then
-      tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-      table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(c):len())
-      ..c.." - "..title.." // (Added by "..who.." at "..when..")")
-    end
-  end
-  table.sort(CatArray)
-  for _,a in ipairs (CatArray) do
-    local b = tmptbl[a]
-    if SortStuffByName == 1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-    MsgRange = MsgRange.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
-  end
-  MsgRange = "\r\n\r\n".." --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n"
-  ..MsgRange.."\r\n --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n\r\n"
-  return MsgRange
+   local MsgRange = "\r\n"
+   local tbl = {}
+   local tmptbl = {}
+   local CatArray = {}
+   local Msg = "\r\n"
+   local cat, who, when, title, oid
+   setmetatable(tmptbl,
+   {__newindex = function(tbl,k,v)
+      rawset(tbl,k,v)
+      table.insert(CatArray,k)
+   end})
+   local s,e = range:match("^(%d+)%-(%d+)$")
+   if not s then
+      return "Syntax error: it should be !"..Commands.Show.." start#-end#", 1
+   end
+   s = tonumber (s)
+   if s > #AllStuff then
+      return "There are only "..#AllStuff.." releases!", 1
+   end
+   e = tonumber (e)
+   if e > #AllStuff then e = #AllStuff; end
+   if e-s > 100 then return "You can only specify a range no larger than 100"
+   .."releases.",1 end
+   for c = s, e do
+      local tbl = AllStuff[c]
+      if type(tbl) == "table" then
+         cat, who, when, title = unpack(tbl)
+      else
+         cat, who, when, title = nil, nil, nil, nil
+      end
+      if cat and title then
+         tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
+         table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0",
+         tostring(#AllStuff):len()-tostring(c):len())
+         ..c.." - "..title.." // (Added by "..who.." at "..when..")")
+      end
+   end
+   table.sort(CatArray)
+   for _,a in ipairs (CatArray) do
+      local b = tmptbl[a]
+      if SortStuffByName == 1 then
+         table.sort(b, function(v1, v2) 
+            local c1=v1:match("ID:%s+%d+(.+)%/%/")
+            local c2=v2:match("ID:%s+%d+(.+)%/%/")
+            return c1:lower() < c2:lower()
+         end)
+      end
+      MsgRange = MsgRange.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..
+      table.concat(b).."\r\n"
+   end
+   MsgRange = "\r\n\r\n".." --------- Releases from "..s.."-"..e.." (out of "
+   ..#AllStuff..") -------- \r\n"..MsgRange.."\r\n --------- Releases from "..s
+   .."-"..e.." (out of "..#AllStuff..") -------- \r\n\r\n"
+   return MsgRange
 end
 
+--- Reloads releases and generates the required global tables.
 function ReloadRel()
-  OpenRel()
-  ShowRel(NewestStuff)
-  ShowRel()
+   OpenRel()
+   ShowRel(NewestStuff)
+   ShowRel()
 end
 
+--- Splits a time format to components, originally written by RabidWombat.
+-- Supported formats: MM/DD/YYYY HH:MM, YYYY. MM. DD. HH:MM, MM/DD/YY HH:MM
+-- and YY. MM. DD. HH:MM
 function SplitTimeString(TimeString)
-  -- Splits a time format to components, originally written by RabidWombat.
-  -- Supported formats: MM/DD/YYYY HH:MM, YYYY. MM. DD. HH:MM, MM/DD/YY HH:MM and YY. MM. DD. HH:MM
-  local D,M,Y,HR,MN,SC
-  if string.find(TimeString,"/") then
-    M,D,Y,HR,MN,SC=string.match(TimeString,"(%d+)/(%d+)/(%d+)%s+(%d+):(%d+):(%d+)")
-  else
-    Y,M,D,HR,MN,SC = string.match(TimeString, "([^.]+).([^.]+).([^.]+). ([^:]+).([^:]+).(%S+)")
-  end
-  assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
-  if Y:len()==2 then if Y:sub(1,1)=="0" then Y="20"..Y else Y="19"..Y end end
-  D = tonumber(D)
-  M = tonumber(M)
-  Y = tonumber(Y)
-  HR = tonumber(HR)
-  MN = tonumber(MN)
-  SC = tonumber(SC)
-  return {year=Y, month=M, day=D, hour=HR, min=MN, sec=SC}
+   local D,M,Y,HR,MN,SC
+   if string.find(TimeString,"/") then
+      M,D,Y,HR,MN,SC=string.match(TimeString,"(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)"
+      ..":(%d+)")
+   else
+      Y,M,D,HR,MN,SC = string.match(TimeString, "([^.]+).([^.]+).([^.]+)."
+      .."([^:]+).([^:]+).(%S+)")
+   end
+   assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
+   if Y:len()==2 then if Y:sub(1,1)=="0" then Y="20"..Y else Y="19"..Y end end
+   D = tonumber(D)
+   M = tonumber(M)
+   Y = tonumber(Y)
+   HR = tonumber(HR)
+   MN = tonumber(MN)
+   SC = tonumber(SC)
+   return {year=Y, month=M, day=D, hour=HR, min=MN, sec=SC}
 end
 
 -- The following 2 functions are
@@ -624,7 +648,8 @@ function Levenshtein (string1, string2)
       if(str1[i-1] == str2[j-1]) then
         tmpdist = 0;
       end
-      distance[i][j] = math.min( distance[i-1][j] + 1, distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
+      distance[i][j] = math.min( distance[i-1][j] + 1, 
+      distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
     end
   end
   return 1-distance[str1len][str2len]/math.max(str1len, str2len)
@@ -660,24 +685,22 @@ function ComparisonHelper(tbl, nick)
       end
    end
    id = 0
-   while true do -- endless loop
-      -- raise release ID by 1
-      -- we have reached the last pending release, so stop this thread
+   while true do
       id = id + 1
       if id > #PendingStuff then break end
-      local percent = 100*Levenshtein (PendingStuff[id][4], req) -- compare
+      local percent = 100*Levenshtein (PendingStuff[id][4], req)
       PIC = PIC + 1
       if percent == 100 then -- if matches
-         table.insert(match, {id, req, percent, true}) -- there is a match, register it
-         return PIC, match -- break when there is an exact match; why check all others, it will be rejected anyway
+         table.insert(match, {id, req, percent, true})
+         return PIC, match
       end
-      if PIC >= ItemsToCheckAtOnce then -- we have processed 40 items
-         Coroutines[nick].CurrID = id -- update the global table with the ID of the last processed item
-         coroutine.yield(PIC)-- and go sleeping
+      if PIC >= ItemsToCheckAtOnce then
+         Coroutines[nick].CurrID = id
+         coroutine.yield(PIC)
          PIC = 0
       end
    end
-  return PIC, match -- here we return if there are matches, thus stopping the coroutine
+  return PIC, match -- return if there are matches, stopping the coroutine
 end
 
 local function MainTableParser()
