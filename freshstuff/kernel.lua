@@ -6,7 +6,7 @@ Distributed under the terms of the Common Development and Distribution License (
 
 do
   setmetatable (Engine,_Engine)
-  
+
   Engine[Commands.Show]=
     {
       function (nick,data)
@@ -32,7 +32,7 @@ do
       end,
       {},Levels.Show,"<type> or <start#-end#> // Shows the releases of the given type, with"
       .."no type specified, shows all. If you specify the start and end numbers, it will show the "
-      .."releases of that ID range (range must not exceed 100 releases)." 
+      .."releases of that ID range (range must not exceed 100 releases)."
     }
   Engine[Commands.Add]=
     {
@@ -63,7 +63,7 @@ do
                   Coroutine = coroutine.create(Main.ComparisonHelper),
                   Release = tune,
                   CurrID = 0, -- to check rel #1 so avoid off-by-one errors
-                  Category = cat,                 
+                  Category = cat,
                }
               return "Your release is being processed. You will be notified of the result.", 2
             end
@@ -108,7 +108,7 @@ do
       function (nick,data)
         if data~="" then
           local cnt,x,tmp,msg=0,os.clock(),{},"\r\n"
-          setmetatable(tmp, 
+          setmetatable(tmp,
           {
           __newindex = function (tbl, n, val)
             if AllStuff[n] then
@@ -173,7 +173,7 @@ do
       {}, Levels.AddCatgry, "<new_cat> <displayed_name> // Adds a new release category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
-    {  
+    {
       function (nick,data)
         local what=string.match(data,"(%S+)")
         if what then
@@ -368,7 +368,7 @@ function OpenRel()
       table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
-  setmetatable (AllStuff, 
+  setmetatable (AllStuff,
   { -- This metatable handles adding stuff to NewestStuff as well.
     __call = function (tbl, ...)
       if #AllStuff >= #NewestStuff then -- So We have more entries than the 'new' limit
@@ -386,7 +386,7 @@ function OpenRel()
   })
   SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
   PendingStuff = table.load(ScriptsPath.."data/releases_pending.dat") or {}
-   setmetatable (PendingStuff, 
+   setmetatable (PendingStuff,
    {
       __call = function (tbl, ...)
          local cat, who, when, title, msg, msg_op = unpack({...})
@@ -547,7 +547,7 @@ function ShowRelRange(range)
    for _,a in ipairs (CatArray) do
       local b = tmptbl[a]
       if SortStuffByName == 1 then
-         table.sort(b, function(v1, v2) 
+         table.sort(b, function(v1, v2)
             local c1=v1:match("ID:%s+%d+(.+)%/%/")
             local c2=v2:match("ID:%s+%d+(.+)%/%/")
             return c1:lower() < c2:lower()
@@ -597,7 +597,7 @@ end
 -- All rights reserved.
 JulianDate = function(tTime)
   tTime = tTime or os.date("*t")
-  return os.time({year = tTime.year, month = tTime.month, day = tTime.day, 
+  return os.time({year = tTime.year, month = tTime.month, day = tTime.day,
     hour = tTime.hour, min = tTime.min, sec = tTime.sec}
   )
 end
@@ -648,7 +648,7 @@ function Levenshtein (string1, string2)
       if(str1[i-1] == str2[j-1]) then
         tmpdist = 0;
       end
-      distance[i][j] = math.min( distance[i-1][j] + 1, 
+      distance[i][j] = math.min( distance[i-1][j] + 1,
       distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
     end
   end
@@ -746,7 +746,7 @@ function Timer()
          end)
          for k, v in ipairs (match) do
             local id, rel, percent, bPending = unpack (v)
-            local msg = 
+            local msg =
             "\""..rel.."\" has been added to the to-be-reviewed releases "
             .."in this category: \""..Types[cat].."\" with ID "
             ..(#PendingStuff + 1)
@@ -755,8 +755,8 @@ function Timer()
             local msg_op = "A release has been added by "..nick.. " that is"
             .." quite similar to the following release(s):\r\n"
             local FoundSame -- boolean for 100% match
-            local policy_msg = 
-            {  
+            local policy_msg =
+            {
                msg..". Note that it is quite similar to the followi"
                .."ng release(s):",
                msg.." BECAUSE it is quite similar to the followi"
@@ -785,7 +785,7 @@ function Timer()
             if not FoundSame then
                if ReleaseApprovalPolicy ~= 3 then
                   msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
-                  PendingStuff(cat, nick, os.date("%m/%d/%Y"), 
+                  PendingStuff(cat, nick, os.date("%m/%d/%Y"),
                   tune, msg, msg_op)
                   SendOut("==="..tune.."===")
                else
@@ -803,7 +803,7 @@ function Timer()
       end
    elseif not bOK then -- there is a syntax error
       SendOut(match) -- forward it to ops
-   end    
+   end
 end
 
 ReloadRel()
