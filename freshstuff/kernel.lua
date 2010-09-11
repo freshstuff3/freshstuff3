@@ -793,7 +793,6 @@ function Timer()
                   msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
                   PendingStuff(cat, nick, os.date("%m/%d/%Y"),
                   tune, msg, msg_op)
-                  SendOut("==="..tune.."===")
                else
                   AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg, msg_op)
                end
