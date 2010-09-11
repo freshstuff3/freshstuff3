@@ -146,6 +146,13 @@ do
       end,
       {},1,"<ID> // Deletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789"
     }
+	-- TODO now:
+	-- Engine[Commands.Approve]
+	-- Engine[Commands.REject]
+	-- Approval/reject messages to users like in request fulfilling
+	-- (shameless copy/paste to be expected :-P)
+	-- OnRelAdded should be called
+	-- store messages for offline users
   Engine[Commands.AddCatgry]=
     {
       function (nick, data)

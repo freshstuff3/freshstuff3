@@ -24,7 +24,7 @@ ShowOnEntry = 2
 
 -- Max stuff shown to new users, or when getting new releases.
 -- This is the number of releases (backwards from the newest) that you consider new.
-MaxNew = 20 
+MaxNew = 20
 
 -- Timed release announcing. You can specify a category name, or "all" or "new"
 WhenAndWhatToShow = {
@@ -72,7 +72,7 @@ For levels (i. e. who are allowed to use the command) you give a number: 0-5. Th
 ]]
 
 -- Add a new release
-Commands.Add = "addrel" 
+Commands.Add = "addrel"
 Levels.Add = 2
 
 -- This command shows the stuff, syntax : +albums with options new/game/warez/music/movie
@@ -100,7 +100,7 @@ Commands.AddCatgry = "addcat"
 Levels.AddCatgry = 4
 
 -- For deleting a category
-Commands.DelCatgry = "delcat" 
+Commands.DelCatgry = "delcat"
 Levels.DelCatgry = 4
 
 -- For showing categories
@@ -110,3 +110,11 @@ Levels.ShowCtgrs = 1
 -- Guess what! :P
 Commands.Help = "relhelp"
 Levels.Help = 1
+
+-- Approve a pending release
+Commands.Approve = "approverel"
+Levels.Approve = 4
+
+-- Disapprove a pending release
+Commands.Reject = "rejecterel"
+Levels.Reject = 4
