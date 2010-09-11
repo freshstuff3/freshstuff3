@@ -371,17 +371,23 @@ function OpenRel()
   setmetatable (AllStuff,
   { -- This metatable handles adding stuff to NewestStuff as well.
     __call = function (tbl, ...)
-      if #AllStuff >= #NewestStuff then -- So We have more entries than the 'new' limit
-        table.remove (NewestStuff, 1) -- so the last entry from the newest is deleted
+       -- So We have more entries than the 'new' limit
+      if #AllStuff >= #NewestStuff then
+		-- so the earliest entry from the newest is deleted
+        table.remove (NewestStuff, 1)
       end
       local cat, who, when, title, msg, msg_op = unpack({...})
-      table.insert (NewestStuff, {cat, who, when, title, #tbl+1}) -- and the new entry gets added
-      table.insert (AllStuff, {cat, who, when, title}) -- set this in the original table
+	  -- and the new entry gets added to the latest
+      table.insert (NewestStuff, {cat, who, when, title, #tbl+1})
+	  -- set this in the original table, too
+      table.insert (AllStuff, {cat, who, when, title})
       table.save(AllStuff, ScriptsPath.."data/releases.dat") -- save
-      ShowRel(NewestStuff); ShowRel() -- rearrange the global texts
+      ShowRel(NewestStuff); ShowRel() -- refresh the global texts
+	  -- send message
       if msg then PM(who, msg) end
       if msg_op then PMOps(msg_op) end
-      HandleEvent("OnRelAdded", who, _, cat, title, #tbl + 1)
+	  -- and do something hostapp-specific
+      HandleEvent("OnRelAdded", who, _, cat, title, #tbl)
     end
   })
   SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
@@ -396,7 +402,8 @@ function OpenRel()
          if msg_op then PMOps(msg_op) end
       end
    })
-   SendOut("*** Loaded "..#PendingStuff.." pending releases in "..os.clock()-x.." seconds.")
+   SendOut("*** Loaded "..#PendingStuff.." pending releases in "..os.clock()-x..
+   " seconds.")
 end
 
 function ShowRel(tab)
@@ -617,10 +624,9 @@ function GetNewRelNumForToday()
   return new_today
 end
 
---- Levenshtein distance algorithm
--- http://www.freemedialibrary.com/index.php/Levenshtein_distance#Lua
+--- Levenshtein distance algorithm from http://bit.ly/bCGkiX
 -- The above page also links to the wikipedia entry.
--- Here I use it  for comparing two strings. In my practice, 75% means they're
+-- Here I use it for comparing two strings. In my practice, 75% means they're
 -- nearly identical so further check is required.
 -- @return Is actually the ratio of the difference and the longer string, sub-
 -- @return tracted from 1.
@@ -659,7 +665,7 @@ module ("Main", package.seeall)
 ModulesLoaded["Main"] = true
 
 function ComparisonHelper(tbl, nick)
-   local PIC = 0
+   local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
    local req, id = tbl.Release, tbl.CurrID
    local match = {}
    local bExact
@@ -751,7 +757,7 @@ function Timer()
             .."in this category: \""..Types[cat].."\" with ID "
             ..(#PendingStuff + 1)
             ..". \r\nIt needs to be accepted by an authorized user before it"
-            .."appears on the list"
+            .." appears on the list"
             local msg_op = "A release has been added by "..nick.. " that is"
             .." quite similar to the following release(s):\r\n"
             local FoundSame -- boolean for 100% match
@@ -766,7 +772,7 @@ function Timer()
             .."\" has been added to the releases in this category: \""
             ..Types[cat].."\" with ID "..(#AllStuff + 1)..". Note that it is"
             .." quite similar to the following release(s):"
-            if percent == 100 then
+            if percent == 100 then -- identical!
                if bPending then
                   PM(nick, "A release with the same name is already "
                   .."awaiting  approval. Release has NOT been added.")
@@ -776,7 +782,7 @@ function Timer()
                   ..".\r\n\r\nRelease has NOT been added.")
                end
                FoundSame = true
-               break
+               break -- break the loop, we already have this release
             else
                msg = msg.."\r\n"..id.." - "..tune.." ("..percent.."%)"
                msg_op = msg_op.."\r\n"..id.." - "..tune.." ("..percent
