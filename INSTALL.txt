@@ -1,0 +1,8 @@
+Just extract the contents of this archive into the scripts folder.
+NEVER CHANGE THE NAME OF ANY FILES OR FOLDERS, IT MAY RENDER
+THE SCRIPT UNUSABLE!
+
+Config files are located in the 'config' folder.
+
+The script should start under all platforms PtokaX runs on with no
+user intervention.

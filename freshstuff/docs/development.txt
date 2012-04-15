@@ -1,0 +1,77 @@
+Hostapp-specific modules
+========================
+In general, they shoud take care of the following:
+  - They should be the only place for hostapp-specific stuff (events, methods, objects, calls)
+  - They should take care of command parsing and rightclick (if any)
+  - Declaration of _Engine (see below)
+  - Environment-specific replies (if possible)
+  - Declare the SendOut() function. This function sends debug information and takes the message to be sent as its only argument.
+
+Creating a new module
+=====================
+
+Note that you have to do the following:
+
+----------------------- code start ---------------------------
+module("Extras",package.seeall)
+ModulesLoaded["Extras"] = true
+----------------------- code end ---------------------------
+
+You know where to put this and what these mean. Otherwise stop reading the document. This is needed because the event handler iterates through the ModulesLoaded table. Iterating thorugh _G is expensive.
+
+
+Declaring new commands within your module
+=========================================
+
+Typically looks like this:
+
+----------------------- code start ---------------------------
+do
+  setmetatable(Engine,_Engine)
+  Engine[Commands.CmdName]=
+    {
+      function (user,data,extra_param_1,extra_param_2)
+      -- blahblah
+      end,
+      {extra_param_1,extra_param_2},Levels.Search,"<string>\t\t\t\t\tSearches for release NAMES containing the given string."
+    }
+  Engine[Commands.Cmd2_Name]= -- etc.
+end
+----------------------- code end ---------------------------
+
+Yeah you are right, the value is an array with 4 items:
+  1) The 1st item is the so-called command function. It _always_ gets the user and data values. user is the user nick, data is the pure message from the user, excluding the <nick> and the space(s) after. You can get info based on usernick in every lua/dc tool.
+  2) The second item is a list with all the extra parameters the function gets _after_ user and data. This is required for command registration. I don't know if varag would be easier, probably not, because the script does not know by itself the list of args to be sent.
+  3) The third item value is the command level, there is info on this elsewhere. If you would like to introduce custom level parsing within the function, simply return 1 here.
+  4) The last item is the help text returned.
+  
+_Engine is a metatable of Engine. Its __newindex takes care of the above array, and the whole metatable gets declared in hostapp-modules. If you don't know what this means, you should probably not be reading this document at all.
+
+
+
+Messaging
+=========
+
+You shouldn't use hostapp-specific messaging within command functions. Instead, you should use 2 return values if you would like to send a message, as hostapp-pecific modules should take care of these values when parsing commands.
+
+The first return value of command functions is a string that gets sent back to the user in some way. The second one is a number between 1 and 4. Here is the meaning of values in the PtokaX module:
+    1: The bot replies in mainchat
+    2: The bot replies where he command was written (PM or main)
+    3: Reply goes back in PM in PX
+    4: Reply goes to ops in PX
+    5: Reply goes to all
+
+Please keep this in mind when you write a hostapp-specific module that parses these return values of command functions, and also when you are writing command functions.
+
+Events
+======
+
+The following events are available as of 3 Feb 2008:
+OnRelAdded (nick, data, cat, tune)
+OnRelDeleted (nick, ID) - note that while this is done the release still exists
+OnCatDeleted (nick,cat)
+OnReqFulfilled (nick,data,cat,tune,reqcomp,username,reqdetails) <-- requires the requester module. In this, nick means the fulfiller's nick, username is the nick of who added the request. reqcomp is the request number that is being fulfilled, while reqdetails is the request text.
+Connected (nick)
+
+
+The function names are self-explanatory. You have to declare these in the modules where you want to do something on a specific event, e. g. you might want to update a static HTML page or an RSS feed when a new release gets added. Module declaration should go before, because it needs to get into the package.loaded table. Hostapp-specific modules take care of the appropriate calling.
