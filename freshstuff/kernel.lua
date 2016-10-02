@@ -522,8 +522,8 @@ function SplitTimeString(TimeString)
   else
     Y,M,D,HR,MN,SC = string.match(TimeString, "([^.]+).([^.]+).([^.]+). ([^:]+).([^:]+).(%S+)")
   end
-  assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
-  if Y:len()==2 then if Y:sub(1,1)=="0" then Y="20"..Y else Y="19"..Y end end
+--  assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
+  if Y:len()==2 then if tonumber(Y:sub(1,1))<7 then Y="20"..Y else Y="19"..Y end end
   D = tonumber(D)
   M = tonumber(M)
   Y = tonumber(Y)
