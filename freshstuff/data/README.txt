@@ -1,0 +1,1 @@
+This directory contains the data saved by your FreshStuff3 installation.

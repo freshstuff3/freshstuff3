@@ -8,11 +8,8 @@ Distributed under the terms of the Common Development and Distribution License (
 
 -- Debug message sending
 SendOut = Core.SendToOps
--- SendOut(Core.GetPtokaXPath())
-ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
-local conf = ScriptsPath.."config/main.lua"
-local _,err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+ScriptsPath = Core.GetPtokaXPath().."/scripts/freshstuff/"
+LoadCfg(ScriptsPath, "main.lua")
 
 -- We need the application path
 GetPath = Core.GetPtokaXPath
@@ -89,7 +86,7 @@ end
 function UserConnected(user)
   if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
     Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
-    Core.SendToUser(user, (table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+    Core.SendToUser(user, (#rctosend[user.iProfile]).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -225,7 +222,7 @@ end
   
 -- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
-module("ptokax", package.seeall)
+--module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
   
@@ -279,4 +276,4 @@ function Timer()
   end
 end
 
-SendOut("*** "..Bot.version.." detected PtokaX "..Core.Version.." as host app.")
+SendOut(Bot.version.." detected PtokaX "..Core.Version.." as host app.")

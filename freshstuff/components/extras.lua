@@ -4,9 +4,7 @@ Release pruning and top adders
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
-local conf = ScriptsPath.."config/extras.lua"
-local _,err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+LoadCfg(ScriptsPath, "extras.lua")
 
 function CountTopAdders()
   local TopAdders, TA = {}, {}
@@ -85,7 +83,7 @@ end
 rightclick[{Levels.Prune,"1 3","Releases\\Delete old releases","!"..Commands.Prune.." %[line:Max. age in days (Enter=defaults to "..MaxItemAge.."):]"}]=0
 rightclick[{Levels.TopAdders,"1 3","Releases\\Show top release-adders","!"..Commands.TopAdders.." %[line:Number of top-adders (Enter defaults to 5):]"}]=0
 
-module ("Extras",package.seeall)
+--module ("Extras",package.seeall)
 ModulesLoaded["Extras"] = true
 
-SendOut("*** "..Bot.version.." 'extras' module loaded.")
+SendOut(Bot.version.." 'extras' module loaded.")

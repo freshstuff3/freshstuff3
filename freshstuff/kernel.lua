@@ -307,7 +307,7 @@ function OpenRel()
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
-        SendOut("*** New category detected: "..cat..
+        SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
         " everything is alright."); table.save(Types, ScriptsPath.."data/categories.dat")
       end
@@ -338,7 +338,7 @@ function OpenRel()
       table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
-  SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
 end
 
 function ShowRel(tab)
@@ -368,10 +368,12 @@ function ShowRel(tab)
       Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
     end
     local new=MaxNew if cunt < MaxNew then new=cunt end
-    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n\ --------- The Latest "..new.."  Releases -------- \r\n\r\n"
+    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg..
+    "\r\n --------- The Latest "..new.."  Releases -------- \r\n\r\n"
   else
     if #AllStuff == 0 then
-      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
+      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  "..
+      "No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
     else
       MsgHelp  = "  use "..Commands.Show.." <new>"
       for a,b in pairs(Types) do
@@ -531,4 +533,4 @@ end
 
 ReloadRel()
 
-SendOut("*** "..Bot.version.." kernel loaded.")
+SendOut(Bot.version.." kernel loaded.")

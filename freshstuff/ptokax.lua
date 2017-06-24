@@ -91,7 +91,7 @@ end
 function NewUserConnected(user)
   if  user.bUserCommand then -- if login is successful, and usercommands can be sent
     user:SendData(table.concat(rctosend[user.iProfile],"|")) -- This may be faster than sending one by one.
-    user:SendData(Bot.name,(table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+    user:SendData(Bot.name,(#rctosend[user.iProfile]).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -275,4 +275,4 @@ function Timer()
 end
 
 local x,y=getHubVersion()
-SendOut("*** "..Bot.version.." detected "..x.." "..y.." as host app.")
+SendOut(Bot.version.." detected "..x.." "..y.." as host app.")

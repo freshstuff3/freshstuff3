@@ -13,9 +13,7 @@ You can:
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
-local conf = ScriptsPath.."config/requester.lua"
-local _, err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+LoadCfg(ScriptsPath, "requester.lua")
 
 Requests ={Completed = {}, NonCompleted = {}}
 
@@ -114,7 +112,7 @@ do
                   return req.." has already been requested by "..tbl[1].." in category "..tbl[2].." (ID: "..id..").",1
                 end
               end
-                Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+                Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 HandleEvent("OnReqAdded", nick, data, cat, req)
                 return "Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!",1
@@ -190,7 +188,7 @@ end
 rightclick[{Levels.DelReq,"1 3","Requests\\Delete a request","!"..Commands.DelReq.." %[line:ID number(s):]"}]=0
 rightclick[{Levels.ShowReqs,"1 3","Requests\\Show requests","!"..Commands.ShowReqs}]=0
 
-module("Request",package.seeall)
+--module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
 function Connected (nick)
@@ -237,7 +235,7 @@ function Start()
       return c
     end
   })
-  SendOut("*** Loaded "..Requests.NonCompleted().." requests in "..os.clock()-x.." seconds.")
+  SendOut("Loaded "..Requests.NonCompleted().." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick. This MIGHT be possible on-the-fly, just get the DC ÜB3RH4XX0R!!!11one1~~~ guys to fucking document $UserCommand
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
     rightclick[{Levels.Add,"1 3","Requests\\Fulfill an item in the\\"..b,"!"..Commands.Add.." %[line:Request number to be fulfilled (Enter if none):] "..a.." %[line:Name:]"}]=0
@@ -264,4 +262,4 @@ function OnCatDeleted (cat)
   return "Note that incomplete requests have been backed up to "..filename.." in case you have made a mistake.", 1
 end
 
-SendOut("*** "..Bot.version.." 'requester' module loaded.")
+SendOut(Bot.version.." 'requester' module loaded.")
