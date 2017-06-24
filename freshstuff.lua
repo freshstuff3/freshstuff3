@@ -10,6 +10,30 @@ AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
    Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
 Bot.version="FreshStuff3 5.5 alpha 2"
 ModulesLoaded = {}
+unpack = unpack or table.unpack -- Lua 5.1 compatibility
+
+function LoadCfg(dir, fn)
+  file = dir.."config/"..fn
+  local f=io.open(file,"r")
+  local str
+  if not f then
+    SendOut (dir.."config/"..fn.." is missing, creating a new one.")
+    f = io.open(dir.."config/original/"..fn)
+    assert(f, "FATAL: "..dir.."config/original/"..fn..
+      " is missing! Please redownload it!")
+    local g = io.open(dir.."config/"..fn, "w")
+    str = f:read("*a")
+    g:write(str)
+    f:close(); g:close()
+  else
+    SendOut ("Found"..dir.."config/"..fn)
+    str = f:read("*a")
+    f:close()
+  end
+  local run = loadstring or load
+  local chunk, err = run (str)
+  if not err then chunk() else error(err) end
+end
 
 do -- detect the host app
 -- This is done by detecting global tables that are specific to the host app.
@@ -50,7 +74,7 @@ local hostloader =
         "scripts/freshstuff/components/?.lua"
         if os.getenv("windir") then -- we are running on Windows
           package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
-          require "pxlfs"
+          require "lfs"
           for entry in lfs.dir( Core.GetPtokaXPath()..
           "scripts/freshstuff/components" ) do
             local filename, ext = entry:match("([^%.]+)%.lua$")

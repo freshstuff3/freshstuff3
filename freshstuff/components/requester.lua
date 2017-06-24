@@ -15,9 +15,7 @@ Distributed under the terms of the Common Development and Distribution License (
 See docs/license.txt for details.
 ]]
 
-local conf = ScriptsPath.."config/requester.lua"
-local _, err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+LoadCfg (ScriptsPath, "requester.lua")
 
 Requests = {Completed = {}, NonCompleted = {}, Subscribers = {}, Coroutines = {},}
 
@@ -39,7 +37,7 @@ do
               end
               if Requests.Coroutines[nick] then return "A request of yours is already being processed. Please wait a few seconds!", 2 end
               if not next(Requests.NonCompleted) then
-                Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+                Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
                 table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                 HandleEvent("OnReqAdded", nick, _, cat, req)
                 return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 2
@@ -169,7 +167,7 @@ rightclick[{Levels.ShowReqs,"1 3","Requests\\Show latest "..MaxNewReq.."requests
 rightclick[{Levels.ShowReqs,"1 3","Requests\\Subscribe to new requests","!"..Commands.SubscrReq.."%[line:Option (1: on new/onjoin, 2: on new, 3 onjoin):]"}]=0
 rightclick[{Levels.Add,"1 3","Requests\\Link a release with a request","!"..Commands.LinkReq.." %[line:Release ID:] %[line:Request ID:]"}]=0
 
-module("Request",package.seeall)
+--module("Request",package.seeall)
 ModulesLoaded["Request"] = true
 
 -- Events
@@ -221,7 +219,7 @@ function Start()
     end
   })
   AllReq, NewReq = GetReq()
-  SendOut("*** Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
+  SendOut("Loaded "..#Requests.NonCompleted.." requests in "..os.clock()-x.." seconds.")
   for a,b in pairs(Types) do -- Add categories to rightclick.
     rightclick[{Levels.AddReq,"1 3","Requests\\Add an item to the\\"..b,"!"..Commands.AddReq.." "..a.." %[line:Name:]"}]=0
   end
@@ -277,7 +275,7 @@ function OnReqAdded (nick, data, cat, req)
 end
 
 function Timer()
-  Max = table.maxn(Requests.NonCompleted)
+  Max = #Requests.NonCompleted
   for nick, tbl in pairs(Requests.Coroutines) do -- loop through coroutines
     local co = tbl.Coroutine -- retrieve the coroutine
     local status = coroutine.status(co)
@@ -300,13 +298,13 @@ function Timer()
           end
           if not FoundSame then
             msg = msg.."\r\n\r\nPlease review! Thanks!"
-            Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+            Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
             table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
             HandleEvent("OnReqAdded", nick, _, cat, req)
             PM(nick, msg)
           end
         else
-          Requests.NonCompleted[table.maxn(Requests.NonCompleted) + 1] = {nick, cat, req}
+          Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
           table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
           HandleEvent("OnReqAdded", nick, _, cat, req)
           PM(nick, " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")
@@ -367,7 +365,7 @@ function GetReq()
     Msg1 = Msg1.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
   end
   tmptbl = nil; tmptbl = {}
-  local biggest, counter = table.maxn(Requests.NonCompleted), 0
+  local biggest, counter = #Requests.NonCompleted, 0
   for n = biggest, 1, -1 do
     if counter == MaxNewReq then break end
     local val = Requests.NonCompleted[n]
@@ -400,4 +398,4 @@ function SendReqTo (nick, bNew, msg)
   end
 end
 
-SendOut("*** "..Bot.version.." 'requester' module loaded.")
+SendOut(Bot.version.." 'requester' module loaded.")

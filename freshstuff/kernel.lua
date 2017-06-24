@@ -4,6 +4,8 @@ This module contains functions that generate the required messages, save/load re
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
+
+
 do
   setmetatable (Engine,_Engine)
 
@@ -344,7 +346,7 @@ function OpenRel()
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
-        SendOut("*** New category detected: "..cat..
+        SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
         " everything is alright."); table.save(Types, ScriptsPath.."data/categories.dat")
       end
@@ -397,7 +399,7 @@ function OpenRel()
       HandleEvent("OnRelAdded", who, _, cat, title, #tbl)
     end
   })
-  SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
   PendingStuff = table.load(ScriptsPath.."data/releases_pending.dat") or {}
    setmetatable (PendingStuff,
    {
@@ -409,7 +411,7 @@ function OpenRel()
          if msg_op then PMOps(msg_op) end
       end
    })
-   SendOut("*** Loaded "..#PendingStuff.." pending releases in "..os.clock()-x..
+   SendOut("Loaded "..#PendingStuff.." pending releases in "..os.clock()-x..
    " seconds.")
 end
 
@@ -440,7 +442,7 @@ function ShowRel(tab)
       Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
     end
     local new=MaxNew if cunt < MaxNew then new=cunt end
-    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n\ --------- The Latest "..new.."  Releases -------- \r\n\r\n"
+    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n --------- The Latest "..new.."  Releases -------- \r\n\r\n"
   else
     if #AllStuff == 0 then
       MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
@@ -668,7 +670,7 @@ function Levenshtein (string1, string2)
   return 1-distance[str1len][str2len]/math.max(str1len, str2len)
 end
 
-module ("Main", package.seeall)
+--module ("Main", package.seeall)
 ModulesLoaded["Main"] = true
 
 function ComparisonHelper(tbl, nick)
@@ -820,4 +822,4 @@ end
 
 ReloadRel()
 
-SendOut("*** "..Bot.version.." kernel loaded.")
+SendOut(Bot.version.." kernel loaded.")

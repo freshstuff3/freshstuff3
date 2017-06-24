@@ -10,9 +10,10 @@ Distributed under the terms of the Common Development and Distribution License (
 SendOut = Core.SendToOps
 
 ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
-local conf = ScriptsPath.."config/main.lua"
-local _,err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+LoadCfg (ScriptsPath, "main.lua")
+--local conf = ScriptsPath.."config/main.lua"
+--local _,err = loadfile (conf)
+--if not err then dofile (conf) else error(err) end
 
 -- We need the application path
 GetPath = Core.GetPtokaXPath
@@ -90,7 +91,7 @@ end
 function UserConnected(user)
   if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
     Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
-    Core.SendToUser(user, (table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+    Core.SendToUser(user, (#rctosend[user.iProfile]).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -220,7 +221,7 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
 -- This is our event handler.
 function HandleEvent (event, nick, ...)
   for pkg, moddy in pairs(package.loaded) do
-    if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+    if ModulesLoaded[pkg] and type(moddy) == "table" and type(moddy[event]) == "function" then
       local txt, ret = moddy[event](nick, ...)
       if txt and ret then
         local parseret={{Core.SendToNick,{nick,"<"..Bot.name.."> "..txt.."|"}},{Core.SendPmToNick,{nick,Bot.name,txt.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..txt.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..txt.."|"}}}
@@ -232,7 +233,7 @@ end
 
 -- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
-module("ptokax", package.seeall)
+--module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
 
@@ -289,4 +290,4 @@ function Timer()
   end
 end
 
-SendOut("*** "..Bot.version.." detected PtokaX "..Core.Version.." as host app.")
+SendOut(Bot.version.." detected PtokaX "..Core.Version.." as host app.")
