@@ -8,7 +8,7 @@ See docs/license.txt for details.
 ]]
 AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
    Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
-Bot.version="FreshStuff3 5.5 alpha 2"
+Bot.version="FreshStuff3 5.5 alpha 3"
 ModulesLoaded = {}
 unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
