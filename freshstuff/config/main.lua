@@ -24,7 +24,7 @@ ShowOnEntry = 2
 
 -- Max stuff shown to new users, or when getting new releases.
 -- This is the number of releases (backwards from the newest) that you consider new.
-MaxNew = 20 
+MaxNew = 20
 
 -- Timed release announcing. You can specify a category name, or "all" or "new"
 WhenAndWhatToShow = {
@@ -44,6 +44,17 @@ ForbiddenWords = {
 -- Otherwise they will be sorted by ID within a category.
 SortStuffByName = 0
 
+ReleaseApprovalPolicy = 2 -- (1: all queued, 2: only similar, 3: none)
+
+-- How many percent should be so two items are considered identical? 75 is a good
+-- estimate but your mileage may vary.
+MaxMatch = 75
+
+-- How many items should be checked at once? My tests show that 40 is a good value.
+-- You can raise this value, though, if you have a fast server but it may cause
+-- undesirable lags in the hub so change this only at your own risk!
+ItemsToCheckAtOnce = 40
+
 --[[
 -----------------------------------------------------------
 Commands and levels section. Enter the specific commands here, DO NOT INCLUDE THE PREFIX!
@@ -61,7 +72,7 @@ For levels (i. e. who are allowed to use the command) you give a number: 0-5. Th
 ]]
 
 -- Add a new release
-Commands.Add = "addrel" 
+Commands.Add = "addrel"
 Levels.Add = 2
 
 -- This command shows the stuff, syntax : +albums with options new/game/warez/music/movie
@@ -89,7 +100,7 @@ Commands.AddCatgry = "addcat"
 Levels.AddCatgry = 4
 
 -- For deleting a category
-Commands.DelCatgry = "delcat" 
+Commands.DelCatgry = "delcat"
 Levels.DelCatgry = 4
 
 -- For showing categories
@@ -99,3 +110,11 @@ Levels.ShowCtgrs = 1
 -- Guess what! :P
 Commands.Help = "relhelp"
 Levels.Help = 1
+
+-- Approve a pending release
+Commands.Approve = "approverel"
+Levels.Approve = 4
+
+-- Disapprove a pending release
+Commands.Reject = "rejecterel"
+Levels.Reject = 4

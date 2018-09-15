@@ -1,9 +1,16 @@
-Document stuff for module developers -- ALMOST DONE
-Multilanguage. *shrugs*
+Document stuff for module developers -- POST-5.5, ALMOST DONE
+Multilanguage. *shrugs* -- POST-5.5
 More bot descriptions (array), changing every X minute. -- ON-DEMAND
-Make the BCDC module -- POSTPONED
+Make the BCDC module -- POST-5.5
 Maybe create a +releases today -- ALTERNATIVE SOLUTION ADDED, MORE ON-DEMAND
-  
-Release rating plugin (reworked metatable for AllStuff, rating goes by indices of course, stored by nicks) - POST-5.0
-RSS plugin (generate a static page, any webserver should be able to serve that, content type rss etc. etc.) - POST-5.0
-Add a prune function for completed requests (low priority, since they get autodeleted upon the requester's joining.) - POST-5.0 OR ON-DEMAND
+Release rating plugin (reworked metatable for AllStuff, rating goes by indices 
+   of course, stored by nicks) - POST-5.5
+RSS plugin (generate a static page, any webserver should be able to serve that,
+   content type rss etc. etc.) - 5.5
+Release review/approval system, matching against current releases - 5.5, 
+  HALF-WAY DONE, approval needs to be coded and messaging tweaked if possible
+Request voting (requests with most frequent votes first) - 5.5
+Add a prune function for completed requests (low priority, since they get
+   autodeleted upon the requester's joining.) - ON-DEMAND
+Make the code only 80-column wide, easier on console editors like vim - 5.5
+LuaDoc-style code documentation - 5.5, if possible
