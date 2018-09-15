@@ -4,8 +4,11 @@ This module contains functions that generate the required messages, save/load re
 Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
 ]]
 
+
+
 do
   setmetatable (Engine,_Engine)
+
   Engine[Commands.Show]=
     {
       function (nick,data)
@@ -29,7 +32,9 @@ do
           end
         end
       end,
-      {},Levels.Show,"<type> or <start#-end#> // tShows the releases of the given type, with no type specified, shows all. If you specify the start and end numbers, it will show the releases of that ID range (range must not exceed 100 releases)." 
+      {},Levels.Show,"<type> or <start#-end#> // Shows the releases of the given type, with"
+      .."no type specified, shows all. If you specify the start and end numbers, it will show the "
+      .."releases of that ID range (range must not exceed 100 releases)."
     }
   Engine[Commands.Add]=
     {
@@ -42,31 +47,28 @@ do
                 return "The release name contains the following forbidden word (thus not added): "..word, 1
               end
             end
-            if #AllStuff > 0 then
-              for i,v in ipairs(AllStuff) do
-                if string.lower(v[4]) == string.lower(tune) then
-                  return "The release is already added under category "..v[1].." by "..v[2]..".", 1
-                end
-              end
-            end
-            setmetatable (AllStuff, 
-            { -- This metatable handles adding stuff to NewestStuff as well.
-              __newindex=function (tbl, key, value)
-              if #tbl >= #NewestStuff then -- So We have more entries than the 'new' limit
-                  table.remove (NewestStuff,1) -- so the last entry from the newest is deleted
-                end
-                local cat, nick, date, tune = unpack(value)
-                table.insert (NewestStuff,{cat, nick, date, tune,key}) -- and the new entry gets added
-                rawset(tbl, key, value) -- set this in the original table
-                table.save(tbl,ScriptsPath.."data/releases.dat") -- save
-                ShowRel(NewestStuff); ShowRel() -- rearrange the global texts
-              end
-            })
+            if Coroutines[nick] then return "A release of yours is already being processed. Please wait a few seconds!", 2 end
             local count = #AllStuff
-            -- No table.insert (__newindex does not get called!!!)
-            AllStuff[count + 1] = {cat,nick,os.date("%m/%d/%Y"),tune}
-            HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
-            return "\""..tune.."\" has been added to the releases in this category: \""..Types[cat].."\" with ID "..count + 1, 1
+            if count == 0 then
+              if ReleaseApprovalPolicy ~= 1 then
+                AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
+                --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
+                return "\""..tune.."\" has been added to the releases in this category: \""..Types[cat].."\" with ID "..count + 1, 2
+              else
+                PendingStuff(cat, nick, os.date("%m/%d/%Y"), tune)
+                return "\""..tune.."\" has been added to the pending releases in this category: \""..Types[cat].."\" with ID "..count + 1
+                ..", please wait until someone reviews it.", 2
+              end
+            else
+              Coroutines[nick] =
+               {
+                  Coroutine = coroutine.create(Main.ComparisonHelper),
+                  Release = tune,
+                  CurrID = 0, -- to check rel #1 so avoid off-by-one errors
+                  Category = cat,
+               }
+              return "Your release is being processed. You will be notified of the result.", 2
+            end
           else
             return "Unknown category: "..cat, 1
           end
@@ -84,7 +86,7 @@ do
           if id then
             id = tonumber (id); what = tonumber (what)
             if AllStuff[id] then
-              if Allowed(nick,Levels.Change) or AllStuff[id][2] == nick then
+              if Allowed[{nick,Levels.Change}] or AllStuff[id][2] == nick then
                 local what_tbl = {{1, "category"}, {4, "name"} }
                 AllStuff[id][what_tbl[what][1]] = new_data
                 table.save(AllStuff, ScriptsPath.."data/releases.dat")
@@ -108,11 +110,11 @@ do
       function (nick,data)
         if data~="" then
           local cnt,x,tmp,msg=0,os.clock(),{},"\r\n"
-          setmetatable(tmp, 
+          setmetatable(tmp,
           {
           __newindex = function (tbl, n, val)
             if AllStuff[n] then
-              if Allowed(nick,Levels.Delete) or AllStuff[n][2] == nick then
+              if Allowed[{nick,Levels.Delete}] or AllStuff[n][2] == nick then
                 HandleEvent ("OnRelDeleted", nick, n)
                 msg=msg..AllStuff[n][4].." is deleted from the releases.\r\n"
                 table.remove(AllStuff,n)
@@ -146,6 +148,13 @@ do
       end,
       {},1,"<ID> // Deletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789"
     }
+	-- TODO now:
+	-- Engine[Commands.Approve]
+	-- Engine[Commands.REject]
+	-- Approval/reject messages to users like in request fulfilling
+	-- (shameless copy/paste to be expected :-P)
+	-- OnRelAdded should be called
+	-- store messages for offline users
   Engine[Commands.AddCatgry]=
     {
       function (nick, data)
@@ -173,7 +182,7 @@ do
       {}, Levels.AddCatgry, "<new_cat> <displayed_name> // Adds a new release category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
-    {  
+    {
       function (nick,data)
         local what=string.match(data,"(%S+)")
         if what then
@@ -193,10 +202,10 @@ do
                     end
                   end
                   HandleEvent("OnRelDeleted", nick, key)
---                   AllStuff[key] = nil
                   table.remove (AllStuff, key)
                   bRemoved = true
-                  ret = "The category "..what.." has successfully been deleted. Note that the old releases have been backed up to "..filename.." in case you have made a mistake."
+                  ret = "The category "..what.." has successfully been deleted. Note that the old releases"
+                  .."have been backed up to "..filename.." in case you have made a mistake."
                 end
               end
             end
@@ -273,7 +282,7 @@ do
         local hlp="\r\nCommands available to you are:\r\n=================================================================================================================================\r\n"
         for a,b in pairs(commandtable) do
           if b["level"]~=0 then
-            if Allowed (nick, b["level"]) then
+            if Allowed [{nick, b["level"]}] then
               count=count+1
               table.insert(hlptbl,"!"..a.." "..b["help"])
             end
@@ -290,7 +299,7 @@ end
 
 function OpenRel()
   local x = os.clock()
-	AllStuff, NewestStuff, Types = nil, nil, nil, nil
+	AllStuff, NewestStuff, Types = nil, nil, nil
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
@@ -304,7 +313,8 @@ function OpenRel()
       ["movie"]="Movies",
     }
     SendOut("The categories file is corrupt or missing! Created a new one.")
-    SendOut("If this is the first time you run this script, or newly installed it, please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
+    SendOut("If this is the first time you run this script, or newly installed it,"
+    .."please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
     table.save(Types,ScriptsPath.."data/categories.dat")
   end
   if not loadfile(ScriptsPath.."data/releases.dat") then
@@ -336,14 +346,14 @@ function OpenRel()
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
-        SendOut("*** New category detected: "..cat..
+        SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
         " everything is alright."); table.save(Types, ScriptsPath.."data/categories.dat")
       end
     end
   end
   local removed
-  -- The code below  is destined to fix broken release tables but
+  --- The code below  is destined to fix broken release tables but
   -- not sure if this is an issue in a nontesting environment. Anyway,
   -- I do not care about script load times because they should not be
   -- interfering with normal hub operation since in a production environment
@@ -367,7 +377,42 @@ function OpenRel()
       table.insert(NewestStuff, {a, b, c, d, id})
     end
 	end
-  SendOut("*** Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  setmetatable (AllStuff,
+  { -- This metatable handles adding stuff to NewestStuff as well.
+    __call = function (tbl, ...)
+       -- So We have more entries than the 'new' limit
+      if #AllStuff >= #NewestStuff then
+		-- so the earliest entry from the newest is deleted
+        table.remove (NewestStuff, 1)
+      end
+      local cat, who, when, title, msg, msg_op = unpack({...})
+	  -- and the new entry gets added to the latest
+      table.insert (NewestStuff, {cat, who, when, title, #tbl+1})
+	  -- set this in the original table, too
+      table.insert (AllStuff, {cat, who, when, title})
+      table.save(AllStuff, ScriptsPath.."data/releases.dat") -- save
+      ShowRel(NewestStuff); ShowRel() -- refresh the global texts
+	  -- send message
+      if msg then PM(who, msg) end
+      if msg_op then PMOps(msg_op) end
+	  -- and do something hostapp-specific
+      HandleEvent("OnRelAdded", who, _, cat, title, #tbl)
+    end
+  })
+  SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
+  PendingStuff = table.load(ScriptsPath.."data/releases_pending.dat") or {}
+   setmetatable (PendingStuff,
+   {
+      __call = function (tbl, ...)
+         local cat, who, when, title, msg, msg_op = unpack({...})
+         table.insert(PendingStuff, {cat, who, when, title}) -- set this in the original table
+         table.save(PendingStuff, ScriptsPath.."data/releases_pending.dat") -- save
+         if msg then PM(who, msg) end
+         if msg_op then PMOps(msg_op) end
+      end
+   })
+   SendOut("Loaded "..#PendingStuff.." pending releases in "..os.clock()-x..
+   " seconds.")
 end
 
 function ShowRel(tab)
@@ -397,7 +442,7 @@ function ShowRel(tab)
       Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
     end
     local new=MaxNew if cunt < MaxNew then new=cunt end
-    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n\ --------- The Latest "..new.."  Releases -------- \r\n\r\n"
+    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n --------- The Latest "..new.."  Releases -------- \r\n\r\n"
   else
     if #AllStuff == 0 then
       MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
@@ -429,7 +474,8 @@ function ShowRelType(what)
   local cat,who,when,title
   local Msg,MsgType,tmp,tbl = "\r\n",nil,0,{}
   if #AllStuff == 0 then
-    MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+    MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "
+    ..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
   else
     for id, rel in ipairs(AllStuff) do
       cat,who,when,title=unpack(rel)
@@ -440,9 +486,11 @@ function ShowRelType(what)
     end
     if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
     if tmp == 0 then
-      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "..(Types[what]):lower().." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "
+      ..(Types[what]):lower().." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
     else
-      MsgType= "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n"..table.concat(tbl,"\r\n").."\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      MsgType= "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n"
+      ..table.concat(tbl,"\r\n").."\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
     end
   end
   return MsgType
@@ -468,69 +516,96 @@ function ShowRelNum(what,num) -- to show numbers of categories
     end
   end
   if cunt < num then num=cunt end
-  local MsgType = "\r\n\r\n".." --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"..Msg.."\r\n\r\n --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"
+  local MsgType = "\r\n\r\n".." --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"
+  ..Msg.."\r\n\r\n --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"
   return MsgType
 end
 
 function ShowRelRange(range)
-  local MsgRange = "\r\n"
-  local tbl = {}
-  local tmptbl={}
-  local CatArray={}
-  local Msg = "\r\n"
-  local cat, who, when, title, oid
-  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
-  local s,e = range:match("^(%d+)%-(%d+)$")
-  if not s then return "Syntax error: it should be !"..Commands.Show.." start#-end#", 1 end
-  s = tonumber (s)
-  if s > #AllStuff then
-    return "There are only "..#AllStuff.." releases!", 1
-  end
-  e = tonumber (e)
-  if e > #AllStuff then e = #AllStuff; end
-  if e-s > 100 then return "You can only specify a range no larger than 100 releases.",1 end
-  for c = s, e do
-    local tbl = AllStuff[c]
-    if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end
-    if cat and title then
-      tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-      table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(c):len())..c.." - "..title.." // (Added by "..who.." at "..when..")")
-    end
-  end
-  table.sort(CatArray)
-  for _,a in ipairs (CatArray) do
-    local b = tmptbl[a]
-    if SortStuffByName == 1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-    MsgRange = MsgRange.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
-  end
-  MsgRange = "\r\n\r\n".." --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n"..MsgRange.."\r\n --------- Releases from "..s.."-"..e.." (out of "..#AllStuff..") -------- \r\n\r\n"
-  return MsgRange
+   local MsgRange = "\r\n"
+   local tbl = {}
+   local tmptbl = {}
+   local CatArray = {}
+   local Msg = "\r\n"
+   local cat, who, when, title, oid
+   setmetatable(tmptbl,
+   {__newindex = function(tbl,k,v)
+      rawset(tbl,k,v)
+      table.insert(CatArray,k)
+   end})
+   local s,e = range:match("^(%d+)%-(%d+)$")
+   if not s then
+      return "Syntax error: it should be !"..Commands.Show.." start#-end#", 1
+   end
+   s = tonumber (s)
+   if s > #AllStuff then
+      return "There are only "..#AllStuff.." releases!", 1
+   end
+   e = tonumber (e)
+   if e > #AllStuff then e = #AllStuff; end
+   if e-s > 100 then return "You can only specify a range no larger than 100"
+   .."releases.",1 end
+   for c = s, e do
+      local tbl = AllStuff[c]
+      if type(tbl) == "table" then
+         cat, who, when, title = unpack(tbl)
+      else
+         cat, who, when, title = nil, nil, nil, nil
+      end
+      if cat and title then
+         tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
+         table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0",
+         tostring(#AllStuff):len()-tostring(c):len())
+         ..c.." - "..title.." // (Added by "..who.." at "..when..")")
+      end
+   end
+   table.sort(CatArray)
+   for _,a in ipairs (CatArray) do
+      local b = tmptbl[a]
+      if SortStuffByName == 1 then
+         table.sort(b, function(v1, v2)
+            local c1=v1:match("ID:%s+%d+(.+)%/%/")
+            local c2=v2:match("ID:%s+%d+(.+)%/%/")
+            return c1:lower() < c2:lower()
+         end)
+      end
+      MsgRange = MsgRange.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..
+      table.concat(b).."\r\n"
+   end
+   MsgRange = "\r\n\r\n".." --------- Releases from "..s.."-"..e.." (out of "
+   ..#AllStuff..") -------- \r\n"..MsgRange.."\r\n --------- Releases from "..s
+   .."-"..e.." (out of "..#AllStuff..") -------- \r\n\r\n"
+   return MsgRange
 end
 
+--- Reloads releases and generates the required global tables.
 function ReloadRel()
-  OpenRel()
-  ShowRel(NewestStuff)
-  ShowRel()
+   OpenRel()
+   ShowRel(NewestStuff)
+   ShowRel()
 end
 
+--- Splits a time format to components, originally written by RabidWombat.
+-- Supported formats: MM/DD/YYYY HH:MM, YYYY. MM. DD. HH:MM, MM/DD/YY HH:MM
+-- and YY. MM. DD. HH:MM
 function SplitTimeString(TimeString)
-  -- Splits a time format to components, originally written by RabidWombat.
-  -- Supported formats: MM/DD/YYYY HH:MM, YYYY. MM. DD. HH:MM, MM/DD/YY HH:MM and YY. MM. DD. HH:MM
-  local D,M,Y,HR,MN,SC
-  if string.find(TimeString,"/") then
-    M,D,Y,HR,MN,SC=string.match(TimeString,"(%d+)/(%d+)/(%d+)%s+(%d+):(%d+):(%d+)")
-  else
-    Y,M,D,HR,MN,SC = string.match(TimeString, "([^.]+).([^.]+).([^.]+). ([^:]+).([^:]+).(%S+)")
-  end
---  assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
-  if Y:len()==2 then if tonumber(Y:sub(1,1))<7 then Y="20"..Y else Y="19"..Y end end
-  D = tonumber(D)
-  M = tonumber(M)
-  Y = tonumber(Y)
-  HR = tonumber(HR)
-  MN = tonumber(MN)
-  SC = tonumber(SC)
-  return {year=Y,month=M,day=D,hour=HR,min=MN,sec=SC}
+   local D,M,Y,HR,MN,SC
+   if string.find(TimeString,"/") then
+      M,D,Y,HR,MN,SC=string.match(TimeString,"(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)"
+      ..":(%d+)")
+   else
+      Y,M,D,HR,MN,SC = string.match(TimeString, "([^.]+).([^.]+).([^.]+)."
+      .."([^:]+).([^:]+).(%S+)")
+   end
+   assert(Y:len()==2 or Y:len()==4,"Year must be 4 or 2 digits!")
+   if Y:len()==2 then if Y:sub(1,1)=="0" then Y="20"..Y else Y="19"..Y end end
+   D = tonumber(D)
+   M = tonumber(M)
+   Y = tonumber(Y)
+   HR = tonumber(HR)
+   MN = tonumber(MN)
+   SC = tonumber(SC)
+   return {year=Y, month=M, day=D, hour=HR, min=MN, sec=SC}
 end
 
 -- The following 2 functions are
@@ -538,7 +613,7 @@ end
 -- All rights reserved.
 JulianDate = function(tTime)
   tTime = tTime or os.date("*t")
-  return os.time({year = tTime.year, month = tTime.month, day = tTime.day, 
+  return os.time({year = tTime.year, month = tTime.month, day = tTime.day,
     hour = tTime.hour, min = tTime.min, sec = tTime.sec}
   )
 end
@@ -558,6 +633,193 @@ function GetNewRelNumForToday()
   return new_today
 end
 
+--- Levenshtein distance algorithm from http://bit.ly/bCGkiX
+-- The above page also links to the wikipedia entry.
+-- Here I use it for comparing two strings. In my practice, 75% means they're
+-- nearly identical so further check is required.
+-- @return Is actually the ratio of the difference and the longer string, sub-
+-- @return tracted from 1.
+function Levenshtein (string1, string2)
+  string1 = string1:lower(); string2 = string2:lower()
+  local str1, str2, distance = {}, {}, {};
+  local str1len, str2len = string1:len(), string2:len();
+  for s in string.gmatch(string1, "(.)") do
+    table.insert(str1, s);
+  end
+  for s in string.gmatch(string2, "(.)") do
+    table.insert(str2, s)
+  end
+  for i = 0, str1len do
+    distance[i] = distance[i] or {}
+    distance[i][0] = i;
+  end
+  for i = 0, str2len do
+    distance[i] = distance[i] or {}
+    distance[0][i] = i;
+  end
+  for i = 1, str1len do
+    for j = 1, str2len do
+      local tmpdist = 1;
+      if(str1[i-1] == str2[j-1]) then
+        tmpdist = 0;
+      end
+      distance[i][j] = math.min( distance[i-1][j] + 1,
+      distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
+    end
+  end
+  return 1-distance[str1len][str2len]/math.max(str1len, str2len)
+end
+
+--module ("Main", package.seeall)
+ModulesLoaded["Main"] = true
+
+function ComparisonHelper(tbl, nick)
+   local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
+   local req, id = tbl.Release, tbl.CurrID
+   local match = {}
+   local bExact
+   while true do -- endless loop
+      -- raise release ID by 1
+      id = id + 1
+      if id > #AllStuff then
+         -- we have reached the last release, so stop this thread
+         break
+      end
+      local percent = 100*Levenshtein (AllStuff[id][4], req) -- compare
+      PIC = PIC + 1
+      if percent >= MaxMatch then
+         table.insert(match, {id, req, percent}) -- there is a match, register
+         -- if 100% match found, further checking is futile
+         if percent == 100 then return PIC, match; end
+      end
+      if PIC >= ItemsToCheckAtOnce then -- no more for this session
+         Coroutines[nick].CurrID = id -- record the last processed ID
+         coroutine.yield(PIC)-- and go sleeping
+         PIC = 0
+         -- When we wake up, the loop resumes
+      end
+   end
+   id = 0
+   while true do
+      id = id + 1
+      if id > #PendingStuff then break end
+      local percent = 100*Levenshtein (PendingStuff[id][4], req)
+      PIC = PIC + 1
+      if percent == 100 then -- if matches
+         table.insert(match, {id, req, percent, true})
+         return PIC, match
+      end
+      if PIC >= ItemsToCheckAtOnce then
+         Coroutines[nick].CurrID = id
+         coroutine.yield(PIC)
+         PIC = 0
+      end
+   end
+  return PIC, match -- return if there are matches, stopping the coroutine
+end
+
+local function MainTableParser()
+   local bOK, rePIC, match, nick, tbl
+   while true do
+      nick, tbl = next (Coroutines, nick)
+      if nick then
+         if coroutine.status(tbl.Coroutine) ~= "dead" then
+            bOK, rePIC, match = coroutine.resume(tbl.Coroutine, tbl, nick)
+            -- syntax error
+            if not bOK then return nil, rePIC; end
+            -- the coroutine finished
+            if match then return match, tbl, nick end
+            -- reached the max number of items, sleep
+            if rePIC >= ItemsToCheckAtOnce then coroutine.yield() end
+         else
+            Coroutines[nick] = nil
+         end
+      else
+         -- If the table is empty, we just return an empty table plus 2 nil's.
+         -- If not, the gets returned with friends either non-nil.
+         -- See Timer() below.
+         return match or {}, tbl, nick
+      end
+   end
+end
+
+local MainTableHelper = coroutine.create (MainTableParser)
+
+function Timer()
+   if coroutine.status (MainTableHelper) == "dead" then
+      MainTableHelper = coroutine.create (MainTableParser)
+   end
+   local bOK, match, tbl, nick = coroutine.resume (MainTableHelper)
+   if nick then -- the coroutine explicitly returned = finished
+      local tune, cat = tbl.Release, tbl.Category
+      if next (match) then
+         -- Sort the table in reverse order for percentages.
+         -- This ensures that if a 100% is found nothing will get added
+         -- afterwards.
+         table.sort(match, function (el1, el2)
+            return el1[3] > el2[3]
+         end)
+         for k, v in ipairs (match) do
+            local id, rel, percent, bPending = unpack (v)
+            local msg =
+            "\""..rel.."\" has been added to the to-be-reviewed releases "
+            .."in this category: \""..Types[cat].."\" with ID "
+            ..(#PendingStuff + 1)
+            ..". \r\nIt needs to be accepted by an authorized user before it"
+            .." appears on the list"
+            local msg_op = "A release has been added by "..nick.. " that is"
+            .." quite similar to the following release(s):\r\n"
+            local FoundSame -- boolean for 100% match
+            local policy_msg =
+            {
+               msg..". Note that it is quite similar to the followi"
+               .."ng release(s):",
+               msg.." BECAUSE it is quite similar to the followi"
+               .."ng release(s):",
+            }
+            msg = policy_msg[ReleaseApprovalPolicy] or "\""..tune
+            .."\" has been added to the releases in this category: \""
+            ..Types[cat].."\" with ID "..(#AllStuff + 1)..". Note that it is"
+            .." quite similar to the following release(s):"
+            if percent == 100 then -- identical!
+               if bPending then
+                  PM(nick, "A release with the same name is already "
+                  .."awaiting  approval. Release has NOT been added.")
+               else
+                  PM(nick, "Your release is identical to the following "
+                  .."release(s): \r\nID# "..id.." - Name: "..tune
+                  ..".\r\n\r\nRelease has NOT been added.")
+               end
+               FoundSame = true
+               break -- break the loop, we already have this release
+            else
+               msg = msg.."\r\n"..id.." - "..tune.." ("..percent.."%)"
+               msg_op = msg_op.."\r\n"..id.." - "..tune.." ("..percent
+               .."%)"
+            end
+            if not FoundSame then
+               if ReleaseApprovalPolicy ~= 3 then
+                  msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
+                  PendingStuff(cat, nick, os.date("%m/%d/%Y"),
+                  tune, msg, msg_op)
+               else
+                  AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg, msg_op)
+               end
+            end
+         end
+      else -- not even a single similar release found, add the stuff
+         if ReleaseApprovalPolicy ~= 1 then
+            msg = "\""..tbl.Release
+            .."\" has been added to the releases in this category: \""
+            ..Types[cat].."\" with ID "..(#AllStuff + 1).."."
+            AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg)
+         end
+      end
+   elseif not bOK then -- there is a syntax error
+      SendOut(match) -- forward it to ops
+   end
+end
+
 ReloadRel()
 
-SendOut("*** "..Bot.version.." kernel loaded.")
+SendOut(Bot.version.." kernel loaded.")

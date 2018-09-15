@@ -8,11 +8,12 @@ Distributed under the terms of the Common Development and Distribution License (
 
 -- Debug message sending
 SendOut = Core.SendToOps
-function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
+
 ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
-local conf = ScriptsPath.."config/main.lua"
-local _,err = loadfile (conf)
-if not err then dofile (conf) else error(err) end
+LoadCfg (ScriptsPath, "main.lua")
+--local conf = ScriptsPath.."config/main.lua"
+--local _,err = loadfile (conf)
+--if not err then dofile (conf) else error(err) end
 
 -- We need the application path
 GetPath = Core.GetPtokaXPath
@@ -27,6 +28,7 @@ userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 -- This is executed when the script starts.
 function OnStartup()
   Today = os.date("%m/%d/%Y")
+  GlobTimer = 0
   Core.RegBot(Bot.name, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email, true)
   if pcall (SetMan.GetBool, 55) then -- Log script errors.
     SetMan.SetBool(55, true)
@@ -58,12 +60,12 @@ function OnStartup()
   for _,arr in pairs(rctosend) do -- and we alphabetize (sometimes eyecandy is also necessary)
     table.sort(arr) -- sort the array
   end
-  TmrMan.AddTimer(60000, "OnTimer")
+  TmrMan.AddTimer(1000, "OnTimer")
   HandleEvent ("Start")
 end
 
 -- This is executed on a chat message
-function ChatArrival(user,data)
+function ChatArrival(user, data)
   local cmd,msg=data:match("^%b<>%s+[%!%+%#%?%-](%S+)%s*(.*)%|$")
   -- We are parsing the command here
   if commandtable[cmd] then
@@ -89,7 +91,7 @@ end
 function UserConnected(user)
   if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
     Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
-    Core.SendToUser(user, (table.getn(rctosend[user.iProfile])).." rightclick commands sent to you by "..Bot.version)
+    Core.SendToUser(user, (#rctosend[user.iProfile]).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
@@ -125,21 +127,20 @@ function parsecmds(user,data,env,cmd,bot)
     if m["level"]~=0 then -- and enabled
       if userlevels[user.iProfile] >= m["level"] then -- and user has enough rights
         local ret1,ret2 = m["func"](user.sNick,data,unpack(m["parms"])) -- user,data and more params afterwards
-        if ret1:len() > 128000 then ret1 =
-          "The command's output would exceed 128,000 characters. Please report this issue "..
-          "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
-          "information you need."
+        if ret1 and ret1:len() > 128000 then ret1 =
+            "The command's output would exceed 128,000 characters. Please report this issue "..
+            "to the hubowner, (s)he will be able to help as the bot contains alternative methods with which you can retrieve the "..
+            "information you need."
         end
-        if ret2 then
-          local parseret=
-            {
-              {SendTxt,{user, env, bot, ret1}},
-              {Core.SendPmToUser,{user, bot, ret1}},
-              {Core.SendToOps,{"<"..bot.."> "..ret1}},
-              {Core.SendToAll,{"<"..bot.."> "..ret1}},
-            }
+        ret2 = ret2 or 1
+        local parseret=
+          {
+            {SendTxt,{user, env, bot, ret1}},
+            {Core.SendPmToUser,{user, bot, ret1}},
+            {Core.SendToOps,{"<"..bot.."> "..ret1}},
+            {Core.SendToAll,{"<"..bot.."> "..ret1}},
+          }
           parseret[ret2][1](unpack(parseret[ret2][2])); return true
-        end
       else
         SendTxt(user,env,bot,"You are not allowed to use this command."); return true
       end
@@ -158,9 +159,16 @@ function SendTxt(user, env, bot, text) -- sends message according to environment
   end
 end
 
-function Allowed (nick, level) -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
-  if userlevels[Core.GetUser(nick).iProfile] >= level then return 1 end
-end
+setmetatable(Allowed, -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
+  {
+  __index = function(tbl, key) 
+    if userlevels[Core.GetUser(key[1]).iProfile] < key[2] then return false end
+  end
+  })
+
+function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end
+
+function PMOps (msg) Core.SendPmToOps (Bot.name, msg) end
 
 -- Rightclick hadling.
 
@@ -213,7 +221,7 @@ _Engine= -- The metatable for commands engine. I thought it should be hostapp-sp
 -- This is our event handler.
 function HandleEvent (event, nick, ...)
   for pkg, moddy in pairs(package.loaded) do
-    if ModulesLoaded[pkg] and type(moddy[event]) == "function" then
+    if ModulesLoaded[pkg] and type(moddy) == "table" and type(moddy[event]) == "function" then
       local txt, ret = moddy[event](nick, ...)
       if txt and ret then
         local parseret={{Core.SendToNick,{nick,"<"..Bot.name.."> "..txt.."|"}},{Core.SendPmToNick,{nick,Bot.name,txt.."|"}},{Core.SendToOps,{"<"..Bot.name.."> "..txt.."|"}},{Core.SendToAll,{"<"..Bot.name.."> "..txt.."|"}}}
@@ -225,7 +233,7 @@ end
 
 -- Many thanks to Luiz Henrique de Figueiredo and Jérôme Vuarand for hints on module handling
 
-module("ptokax", package.seeall)
+--module("ptokax", package.seeall)
 -- We track modules to avoid overflows
 ModulesLoaded["ptokax"] = 1
 
@@ -254,29 +262,32 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
 end
 
 function Timer()
-  if os.date("%m/%d/%Y") ~= Today then
-    Today = os.date("%m/%d/%Y")
-    Core.UnregBot(Bot.name)
-    Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
-  end
-  if #AllStuff > 0 then
-     -- to avoid sync errors and unnecessary function calls/tanle lookups
-     -- declare the local variable
-    local stuff = WhenAndWhatToShow[os.date("%H:%M")]
-    if stuff then
-      if Types[stuff] then
-        Core.SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
-      else
-        if stuff == "new" then
-          Core.SendToAll("<"..Bot.name.."> "..MsgNew)
-        elseif stuff == "all" then
-          Core.SendToAll("<"..Bot.name.."> "..MsgAll)
+  GlobTimer = GlobTimer +1
+  if GlobTimer == 60 then
+    if os.date("%m/%d/%Y") ~= Today then
+      Today = os.date("%m/%d/%Y")
+      Core.UnregBot(Bot.name)
+      Core.RegBot(Bot.name,"["..GetNewRelNumForToday().." new releases today] "..Bot.desc,Bot.email, true)
+    end
+    if #AllStuff > 0 then
+       -- to avoid sync errors and unnecessary function calls/tanle lookups
+       -- declare the local variable
+      local stuff = WhenAndWhatToShow[os.date("%H:%M")]
+      if stuff then
+        if Types[stuff] then
+          Core.SendToAll("<"..Bot.name.."> "..ShowRelType(stuff))
         else
-          Core.SendToOps("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
+          if stuff == "new" then
+            Core.SendToAll("<"..Bot.name.."> "..MsgNew)
+          elseif stuff == "all" then
+            Core.SendToAll("<"..Bot.name.."> "..MsgAll)
+          else
+            Core.SendToOps("<"..Bot.name.."> Some fool added something to my timed ad list that I have never heard of. :-)")
+          end
         end
       end
     end
   end
 end
 
-SendOut("*** "..Bot.version.." detected PtokaX "..Core.Version.." as host app.")
+SendOut(Bot.version.." detected PtokaX "..Core.Version.." as host app.")
