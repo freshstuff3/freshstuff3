@@ -190,11 +190,9 @@ function Start()
   local _, e2 = loadfile (file_comp)
   local bErr
   if not e1 then
---      Requests.NonCompleted = table.load (file_non)
-    Requests.NonCompleted = persistence.load (file_non)
+    Requests.NonCompleted = persistence.load (file_non) or table.load (file_non)
     if not e2 then
---      Requests.Completed = table.load (file_comp)
-      Requests.Completed = persistence.load (file_comp)
+      Requests.Completed = persistence.load (file_comp) or table.load (file_comp)
     else bErr = true; Requests.Completed = {} end
   else bErr = true; Requests.NonCompleted = {} end
 --     e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1)end
@@ -307,7 +305,7 @@ function Timer()
           end
         else
           Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
---          table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+
           persistence.store(ScriptsPath.."data/requests_non_comp.dat", Requests.NonCompleted)
           HandleEvent("OnReqAdded", nick, _, cat, req)
           PM(nick, " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")

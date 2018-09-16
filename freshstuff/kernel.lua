@@ -89,7 +89,7 @@ do
               if Allowed[{nick,Levels.Change}] or AllStuff[id][2] == nick then
                 local what_tbl = {{1, "category"}, {4, "name"} }
                 AllStuff[id][what_tbl[what][1]] = new_data
---                table.save(AllStuff, ScriptsPath.."data/releases.dat")
+
                 persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
                 ReloadRel()
                 return "Release #"..id.." is changed: its "..what_tbl[what][2].." is now "..new_data..".",1
@@ -304,11 +304,10 @@ function OpenRel()
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
-  if loadfile(ScriptsPath.."data/categories.dat") then
---    Types = table.load(ScriptsPath.."data/categories.dat")
-    Types = persistence.load(ScriptsPath.."data/categories.dat")
-  else
-    Types={
+  Types = persistence.load(ScriptsPath.."data/categories.dat") or table.load(ScriptsPath.."data/categories.dat")
+  if not Types then 
+    Types =
+    {
       ["warez"]="Warez",
       ["game"]="Games",
       ["music"]="Music",
@@ -344,8 +343,7 @@ function OpenRel()
     end
     -- End of old file format converter
   else
---    AllStuff = table.load(ScriptsPath.."data/releases.dat")
-    AllStuff = persistence.load(ScriptsPath.."data/releases.dat")
+    AllStuff = persistence.load(ScriptsPath.."data/releases.dat") or table.load(ScriptsPath.."data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
