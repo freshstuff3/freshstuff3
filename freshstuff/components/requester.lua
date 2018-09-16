@@ -38,7 +38,7 @@ do
               if Requests.Coroutines[nick] then return "A request of yours is already being processed. Please wait a few seconds!", 2 end
               if not next(Requests.NonCompleted) then
                 Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
-                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                persistence.store(ScriptsPath.."data/requests_non_comp.dat", Requests.NonCompleted)
                 HandleEvent("OnReqAdded", nick, _, cat, req)
                 return " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!", 2
               else
@@ -74,9 +74,9 @@ do
                   AllReq, NewReq = Request.GetReq()
                   if req[1] ~= nick then -- When a requester links his/her own request, notification is redundant.
                     Requests.Completed[username]={reqdetails, tune, cat, nick}
-                    table.save(Requests.Completed,ScriptsPath.."data/requests_comp.dat")
+                    persistence.store(ScriptsPath.."data/requests_comp.dat", Requests.Completed)
                   end
-                  table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                  persistence.store(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
                   HandleEvent("OnReqFulfilled", usernick, data, cat, tune, reqid, username, reqdetails)
                   return "Release "..tune.." in category "..cat.." has fulfilled request #"..reqid..". Thank you.", 1
                 end
@@ -112,7 +112,7 @@ do
               local reqnick=Requests.NonCompleted[req][1]
               if nick == reqnick or Allowed[{nick,Levels.DelReq}] then
                 Requests.NonCompleted[req] = nil
-                table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+                persistence.store(ScriptsPath.."data/requests_non_comp.dat",Requests.NonCompleted)
                 msg=msg.."\r\nRequest #"..req.." has been deleted."
                 AllReq, NewReq = Request.GetReq()
               else
@@ -176,7 +176,7 @@ function Connected (nick)
   if Requests.Completed[nick] then
     local reqdetails,tune,cat,goodguy=unpack(Requests.Completed[nick])
     Requests.Completed[nick]=nil
-    table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
+    persistence.store(ScriptsPath.."data/requests_comp.dat", Requests.Completed)
     return "Your request (\""..reqdetails.."\") has been completed! It is named "..tune.." under category "..cat..". Has been addded by "..goodguy,2
   end
   local opt = Requests.Subscribers[nick]
@@ -190,9 +190,11 @@ function Start()
   local _, e2 = loadfile (file_comp)
   local bErr
   if not e1 then
-      Requests.NonCompleted = table.load (file_non)
+--      Requests.NonCompleted = table.load (file_non)
+    Requests.NonCompleted = persistence.load (file_non)
     if not e2 then
-      Requests.Completed = table.load (file_comp)
+--      Requests.Completed = table.load (file_comp)
+      Requests.Completed = persistence.load (file_comp)
     else bErr = true; Requests.Completed = {} end
   else bErr = true; Requests.NonCompleted = {} end
 --     e1 = e1 or e2; if e1 then SendOut ("Warning: "..e1)end
@@ -200,13 +202,13 @@ function Start()
     local cat = req[3]
     if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
-          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+          " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types); end
   end
   for _,req in pairs (Requests.NonCompleted) do
     local cat = req[2]
     if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
-          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+          " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types); end
   end
   setmetatable(Requests.NonCompleted,
   {
@@ -247,7 +249,7 @@ end
 
 function OnCatDeleted (cat)
   local filename = ScriptsPath.."data/requests_non_comp"..os.date("%Y%m%d%H%M%S")..".dat"
-  table.save(Requests.NonCompleted, filename)
+  persistence.store(filename, Requests.NonCompleted)
   local bRemoved
   for key, value in pairs (Requests.NonCompleted) do
     if value[2] == cat then
@@ -256,7 +258,7 @@ function OnCatDeleted (cat)
     end
   end
   if bRemoved then
-    table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+    persistence.store(ScriptsPath.."data/requests_non_comp.dat", Requests.NonCompleted)
   else
     os.remove (filename)
   end
@@ -299,13 +301,14 @@ function Timer()
           if not FoundSame then
             msg = msg.."\r\n\r\nPlease review! Thanks!"
             Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
-            table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+            persistence.store(ScriptsPath.."data/requests_non_comp.dat", Requests.NonCompleted)
             HandleEvent("OnReqAdded", nick, _, cat, req)
             PM(nick, msg)
           end
         else
           Requests.NonCompleted[#Requests.NonCompleted + 1] = {nick, cat, req}
-          table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+--          table.save(Requests.NonCompleted,ScriptsPath.."data/requests_non_comp.dat")
+          persistence.store(ScriptsPath.."data/requests_non_comp.dat", Requests.NonCompleted)
           HandleEvent("OnReqAdded", nick, _, cat, req)
           PM(nick, " Your request has been saved, you will have to wait until it gets fulfilled. Thanks for your patience!")
         end

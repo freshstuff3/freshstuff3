@@ -256,7 +256,7 @@ function OnReqFulfilled(nick, data, cat, tune, reqcomp, username, reqdetails)
     .."has been added by "..nick.." on your request. It is named \""..tune.."\" under category "..cat..".")
     -- Since we 've notified the user, the table entry can be removed.
     Requests.Completed[usr.sNick]=nil
-    table.save(Requests.Completed, ScriptsPath.."data/requests_comp.dat")
+    persistence.store(ScriptsPath.."data/requests_comp.dat", Requests.Completed)
   end
   Core.SendToAll("<"..Bot.name.."> Request #"..reqcomp.." has successfully been fulfilled thanks to "..nick..".")
 end

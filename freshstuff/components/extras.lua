@@ -41,7 +41,7 @@ do
         local x=os.clock()
         local oldest=days*1440*60
         local filename = ScriptsPath.."data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
-        if #AllStuff > 0 then table.save(AllStuff, filename) end
+        if #AllStuff > 0 then persistence.store(filename, AllStuff) end
         for i=#AllStuff,1,-1 do
           local diff=JulianDiff(JulianDate(SplitTimeString(AllStuff[i][3].." 00:00:00")))
           if diff > oldest then
@@ -51,7 +51,7 @@ do
           end
         end
         if cnt ~=0 then
-          table.save(AllStuff,ScriptsPath.."data/releases.dat")
+          persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
           ReloadRel()
         else
           os.remove (filename)

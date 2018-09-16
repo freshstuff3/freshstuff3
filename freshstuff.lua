@@ -63,8 +63,9 @@ local c
   assert(c,"FATAL: This script does not support your host application. :-(")
 end
 
-require "tables"
+-- require "tables"
 require "kernel"
+require "persistence"
 
 local hostloader =
   {

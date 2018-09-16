@@ -89,7 +89,8 @@ do
               if Allowed[{nick,Levels.Change}] or AllStuff[id][2] == nick then
                 local what_tbl = {{1, "category"}, {4, "name"} }
                 AllStuff[id][what_tbl[what][1]] = new_data
-                table.save(AllStuff, ScriptsPath.."data/releases.dat")
+--                table.save(AllStuff, ScriptsPath.."data/releases.dat")
+                persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
                 ReloadRel()
                 return "Release #"..id.." is changed: its "..what_tbl[what][2].." is now "..new_data..".",1
               else
@@ -137,7 +138,7 @@ do
             tmp[tonumber(w)]=true
           end
           if cnt > 0 then
-            table.save(AllStuff,ScriptsPath.."data/releases.dat")
+            persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
             ReloadRel()
             msg=msg.."\r\n\r\nDeletion of "..cnt.." item(s) took "..os.clock()-x.." seconds."
           end
@@ -163,14 +164,14 @@ do
           if string.find(what1, "$", 1, true) then return "The dollar sign is not allowed.", 1 end
           if not Types[what1] then
             Types[what1]=what2
-            table.save(Types,ScriptsPath.."data/categories.dat")
+            persistence.store(ScriptsPath.."data/categories.dat", Types)
             return "The category "..what1.." has successfully been added.", 1
           else
             if Types[what1] == what2 then
               return "Already having the type "..what1.."with name "..what2, 1
             else
               Types[what1] = what2
-              table.save(Types,ScriptsPath.."data/categories.dat")
+              persistence.store(ScriptsPath.."data/categories.dat", Types)
               return "The category "..what1.." has successfully been changed.", 1
             end
           end
@@ -193,7 +194,7 @@ do
             local bRemoved
             local ret = "The category "..what.." has successfully been deleted."
             if #AllStuff > 0 then
-              table.save(AllStuff, filename)
+              persistence.store(filename, AllStuff)
               for key, value in ipairs (AllStuff) do
                 if value[1] == what then
                   for k, v in ipairs(NewestStuff) do
@@ -210,13 +211,13 @@ do
               end
             end
             if bRemoved then
-              table.save(AllStuff,ScriptsPath.."data/releases.dat")
+              persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
               ReloadRel()
             else
               os.remove (filename)
             end
             Types[what]=nil
-            table.save(Types,ScriptsPath.."data/categories.dat")
+            persistence.store(ScriptsPath.."data/categories.dat", Types)
             HandleEvent("OnCatDeleted", nick, what)
             return ret,1
           end
@@ -304,7 +305,8 @@ function OpenRel()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
   if loadfile(ScriptsPath.."data/categories.dat") then
-    Types = table.load(ScriptsPath.."data/categories.dat")
+--    Types = table.load(ScriptsPath.."data/categories.dat")
+    Types = persistence.load(ScriptsPath.."data/categories.dat")
   else
     Types={
       ["warez"]="Warez",
@@ -315,7 +317,7 @@ function OpenRel()
     SendOut("The categories file is corrupt or missing! Created a new one.")
     SendOut("If this is the first time you run this script, or newly installed it,"
     .."please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
-    table.save(Types,ScriptsPath.."data/categories.dat")
+    persistence.store(ScriptsPath.."data/categories.dat", Types)
   end
   if not loadfile(ScriptsPath.."data/releases.dat") then
     -- Old file format converter
@@ -326,7 +328,7 @@ function OpenRel()
         if cat then
           if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
           ". It has been automatically added to the categories, however you ought to check if"..
-          " everything is alright."); table.save(Types,ScriptsPath.."data/categories.dat"); end
+          " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types); end
           if when:find("%d+/%d+/0%d") then -- compatibility with old file format
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
@@ -338,17 +340,18 @@ function OpenRel()
         end
       end
       f:close()
-      table.save(AllStuff,ScriptsPath.."data/releases.dat")
+      persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
     end
     -- End of old file format converter
   else
-    AllStuff = table.load(ScriptsPath.."data/releases.dat")
+--    AllStuff = table.load(ScriptsPath.."data/releases.dat")
+    AllStuff = persistence.load(ScriptsPath.."data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
       if not Types[cat] then Types[cat] = cat
         SendOut("New category detected: "..cat..
         ". It has been automatically added to the categories, however you ought to check if"..
-        " everything is alright."); table.save(Types, ScriptsPath.."data/categories.dat")
+        " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types)
       end
     end
   end
@@ -361,7 +364,7 @@ function OpenRel()
   for id = 1, #AllStuff do
     if AllStuff[id] == nil then table.remove (AllStuff, id) removed = true end
   end
-  if removed then table.save(AllStuff,ScriptsPath.."data/releases.dat") end
+  if removed then persistence.store(ScriptsPath.."data/releases.dat", AllStuff) end
 	if #AllStuff > MaxNew then
 		local c1, c2 = 0, #AllStuff
 		while c1 ~= MaxNew do
@@ -390,7 +393,7 @@ function OpenRel()
       table.insert (NewestStuff, {cat, who, when, title, #tbl+1})
 	  -- set this in the original table, too
       table.insert (AllStuff, {cat, who, when, title})
-      table.save(AllStuff, ScriptsPath.."data/releases.dat") -- save
+      persistence.store(ScriptsPath.."data/releases.dat", AllStuff) -- save
       ShowRel(NewestStuff); ShowRel() -- refresh the global texts
 	  -- send message
       if msg then PM(who, msg) end
@@ -400,13 +403,13 @@ function OpenRel()
     end
   })
   SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
-  PendingStuff = table.load(ScriptsPath.."data/releases_pending.dat") or {}
+  PendingStuff = persistence.load (ScriptsPath.."data/releases_pending.dat") or {}
    setmetatable (PendingStuff,
    {
       __call = function (tbl, ...)
          local cat, who, when, title, msg, msg_op = unpack({...})
          table.insert(PendingStuff, {cat, who, when, title}) -- set this in the original table
-         table.save(PendingStuff, ScriptsPath.."data/releases_pending.dat") -- save
+         persistence.store(ScriptsPath.."data/releases_pending.dat", PendingStuff) -- save
          if msg then PM(who, msg) end
          if msg_op then PMOps(msg_op) end
       end
