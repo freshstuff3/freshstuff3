@@ -12,7 +12,9 @@ do
   Engine[Commands.Show]=
     {
       function (nick,data)
-        if #AllStuff < 1 then return "There are no releases yet, please check back soon.",1 end
+        if #AllStuff < 1 then
+          return "There are no releases yet, please check back soon.",1 
+        end
         local cat,latest= data:match("(%S+)%s*(%d*)")
         if not cat then
           return MsgAll,2
@@ -32,9 +34,10 @@ do
           end
         end
       end,
-      {},Levels.Show,"<type> or <start#-end#> // Shows the releases of the given type, with"
-      .."no type specified, shows all. If you specify the start and end numbers, it will show the "
-      .."releases of that ID range (range must not exceed 100 releases)."
+      {},Levels.Show,"<type> or <start#-end#> // Shows the releases of the"
+      .."given type, with no type specified, shows all. If you specify the"
+      .." start and end numbers, it will show the releases of that ID range"
+      .." (range must not exceed 100 releases)."
     }
   Engine[Commands.Add]=
     {
@@ -44,19 +47,23 @@ do
           if Types[cat] then
             for _,word in pairs(ForbiddenWords) do
               if string.find(tune,word,1,true) then
-                return "The release name contains the following forbidden word (thus not added): "..word, 1
+                return "The release name contains the following forbidden"
+                .." word (thus not added): "..word, 1
               end
             end
-            if Coroutines[nick] then return "A release of yours is already being processed. Please wait a few seconds!", 2 end
+            if Coroutines[nick] then return "A release of yours is already "
+              .."being processed. Please wait a few seconds!", 2 end
             local count = #AllStuff
             if count == 0 then
               if ReleaseApprovalPolicy ~= 1 then
                 AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
                 --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
-                return "\""..tune.."\" has been added to the releases in this category: \""..Types[cat].."\" with ID "..count + 1, 2
+                return "\""..tune.."\" has been added to the releases in this "
+                .."category: \""..Types[cat].."\" with ID "..count + 1, 2
               else
                 PendingStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-                return "\""..tune.."\" has been added to the pending releases in this category: \""..Types[cat].."\" with ID "..count + 1
+                return "\""..tune.."\" has been added to the pending releases "
+                .."in this category: \""..Types[cat].."\" with ID "..count + 1
                 ..", please wait until someone reviews it.", 2
               end
             else
@@ -67,13 +74,15 @@ do
                   CurrID = 0, -- to check rel #1 so avoid off-by-one errors
                   Category = cat,
                }
-              return "Your release is being processed. You will be notified of the result.", 2
+              return "Your release is being processed. You will be notified of"
+              .." the result.", 2
             end
           else
             return "Unknown category: "..cat, 1
           end
         else
-          return "yea right, like i know what you got 2 add when you don't tell me!",1
+          return "yea right, like i know what you got 2 add when you don't tell"
+          .."me!",1
         end
       end,
       {},Levels.Add,"<type> <name> // Add release of given type."
@@ -92,19 +101,24 @@ do
 
                 persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
                 ReloadRel()
-                return "Release #"..id.." is changed: its "..what_tbl[what][2].." is now "..new_data..".",1
+                return "Release #"..id.." is changed: its "..what_tbl[what][2]
+                .." is now "..new_data..".",1
               else
                 return "You are not allowed to use this command.",1
               end
             else
-              return "\r\nRelease numbered "..id.." wasn't found in the database.",1
+              return "\r\nRelease numbered "..id.." wasn't found in the "
+              .."database.",1
             end
-          else return "yea right, like i know what i got 2 change when you don't tell me!.",1 end
+          else return "yea right, like i know what i got 2 change when "
+            .."you don't tell me!.",1 end
         else
-          return "yea right, like i know what i got 2 change when you don't tell me!.",1
+          return "yea right, like i know what i got 2 change when you don't"
+          .."tell me!.",1
         end
       end,
-      {},1,"<ID> <field ID> <new data> // Changes a release. Field ID can be 1 for category and 2 for release name."
+      {},1,"<ID> <field ID> <new data> // Changes a release. Field ID can be"
+      .."1 for category and 2 for release name."
     }
   Engine[Commands.Delete]=
     {
@@ -130,7 +144,8 @@ do
                 return "You are not allowed to use this command.",1
               end
             else
-              msg=msg.."Release numbered "..n.." wasn't found in the database.\r\n"
+              msg=msg.."Release numbered "..n.." wasn't found in the database."
+              .."\r\n"
             end
           end
           })
@@ -140,14 +155,17 @@ do
           if cnt > 0 then
             persistence.store(ScriptsPath.."data/releases.dat", AllStuff)
             ReloadRel()
-            msg=msg.."\r\n\r\nDeletion of "..cnt.." item(s) took "..os.clock()-x.." seconds."
+            msg=msg.."\r\n\r\nDeletion of "..cnt.." item(s) took "
+            ..os.clock()-x.." seconds."
           end
           return msg,1
         else
-          return "yea right, like i know what i got 2 delete when you don't tell me!.",1
+          return "yea right, like i know what i got 2 delete when you don't "
+          .."tell me!.",1
         end
       end,
-      {},1,"<ID> // Deletes the releases of the given ID, or deletes multiple ones if given like: 1,5,33,6789"
+      {},1,"<ID> // Deletes the release of the given ID, or deletes multiple"
+      .."ones if given like: 1,5,33,6789"
     }
 	-- TODO now:
 	-- Engine[Commands.Approve]
@@ -161,7 +179,8 @@ do
       function (nick, data)
         local what1,what2=string.match(data, "(%S+)%s+(.+)")
         if what1 then
-          if string.find(what1, "$", 1, true) then return "The dollar sign is not allowed.", 1 end
+          if string.find(what1, "$", 1, true) then return "The dollar sign $"
+            .." is not allowed.", 1 end
           if not Types[what1] then
             Types[what1]=what2
             persistence.store(ScriptsPath.."data/categories.dat", Types)
@@ -172,15 +191,20 @@ do
             else
               Types[what1] = what2
               persistence.store(ScriptsPath.."data/categories.dat", Types)
-              return "The category "..what1.." has successfully been changed.", 1
+              return "The category "..what1.." has successfully been changed."
+              , 1
             end
           end
-          for k in pairs(Types) do table.insert(CatArray,k) table.sort(CatArray) end
+          for k in pairs(Types) do
+            table.insert(CatArray,k) table.sort(CatArray)
+            end
         else
-          return "Category should be added properly: +"..Commands.AddCatgry.." <category_name> <displayed_name>", 1
+          return "Category should be added properly: +"..Commands.AddCatgry
+          .." <category_name> <displayed_name>", 1
         end
       end,
-      {}, Levels.AddCatgry, "<new_cat> <displayed_name> // Adds a new release category, displayed_name is shown when listed."
+      {}, Levels.AddCatgry, "<new_cat> <displayed_name> // Adds a new release"
+      .."category, displayed_name is shown when listed."
     }
   Engine[Commands.DelCatgry]=
     {
@@ -190,9 +214,11 @@ do
           if not Types[what] then
             return "The category "..what.." does not exist.",1
           else
-            local filename = ScriptsPath.."data/releases"..os.date("%Y%m%d%H%M%S")..".dat"
+            local filename = ScriptsPath.."data/releases"
+            ..os.date("%Y%m%d%H%M%S")..".dat"
             local bRemoved
-            local ret = "The category "..what.." has successfully been deleted."
+            local ret = "The category "..what.." has successfully been "
+            .."deleted."
             if #AllStuff > 0 then
               persistence.store(filename, AllStuff)
               for key, value in ipairs (AllStuff) do
@@ -205,8 +231,10 @@ do
                   HandleEvent("OnRelDeleted", nick, key)
                   table.remove (AllStuff, key)
                   bRemoved = true
-                  ret = "The category "..what.." has successfully been deleted. Note that the old releases"
-                  .."have been backed up to "..filename.." in case you have made a mistake."
+                  ret = "The category "..what.." has successfully been deleted."
+                  .."Note that the old releases"
+                  .."have been backed up to "..filename.." in case you have "
+                  .."made a mistake."
                 end
               end
             end
@@ -222,7 +250,8 @@ do
             return ret,1
           end
         else
-          return "Category should be deleted properly: +"..Commands.DelCatgry.." <category_name>",1
+          return "Category should be deleted properly: +"..Commands.DelCatgry
+          .." <category_name>",1
         end
       end,
       {},Levels.DelCatgry,"<cat> // Deletes the given release category.."
@@ -230,7 +259,8 @@ do
   Engine[Commands.ShowCtgrs]=
     {
       function (nick,data)
-        local msg="\r\n======================\r\nAvailable categories:\r\n======================\r\n"
+        local msg="\r\n======================\r\nAvailable categories:\r\n"
+        .."======================\r\n"
         for a,b in pairs(Types) do
           msg=msg.."\r\n"..a.."\t\t"..b
         end
@@ -243,9 +273,11 @@ do
       function (nick,data)
         if data~="" then
           local res,rest=0,{}
-          local msg="\r\n---------- You searched for keyword \""..data.."\". The results: ----------\r\n\r\n"
+          local msg="\r\n---------- You searched for keyword \""..data.."\". "
+          .."The results: ----------\r\n\r\n"
           for a,b in ipairs(AllStuff) do
-            if string.find(string.lower(b[4]),string.lower(data),1,true) or string.find(string.lower(b[2]),string.lower(data),1,true) then
+            if string.find(string.lower(b[4]),string.lower(data),1,true)
+            or string.find(string.lower(b[2]),string.lower(data),1,true) then
               table.insert(rest,{b[1],b[2],b[3],b[4],a})
             end
           end
@@ -253,18 +285,23 @@ do
             for idx,tab in ipairs(rest) do
             local _type,who,when,title,id=unpack(tab)
             res= res + 1
-            msg = msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
+            msg = msg.."ID: "..string.rep("0", 
+            tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title
+            .." // (Added by "..who.." at "..when..")\r\n"
             end
             msg=msg.."\r\n"..string.rep("-",20).."\r\n"..res.." results."
           else
-            msg=msg.."\r\nSearch string "..data.." was not found in releases database."
+            msg=msg.."\r\nSearch string "..data.." was not found in releases "
+            .."database."
           end
           return msg,1
         else
-          return "yea right, like i know what you got 2 search when you don't tell me!",1
+          return "yea right, like i know what you got 2 search when you don't"
+          .."tell me!",1
         end
       end,
-      {},Levels.Search,"<string> // Searches for release NAMES containing the given string."
+      {},Levels.Search,"<string> // Searches for release NAMES containing the "
+      .."given string."
     }
   Engine[Commands.ReLoad]=
     {
@@ -273,14 +310,17 @@ do
         ReloadRel()
         return "Releases reloaded, took "..os.clock()-x.." seconds.",1
       end,
-      {},Levels.ReLoad," // Reloads the releases database, only needed if you modified the file by hand."
+      {},Levels.ReLoad," // Reloads the releases database, only needed if you "
+      .."modified the file by hand."
     }
   Engine[Commands.Help]=
     {
       function (nick)
         local count=0
         local hlptbl={}
-        local hlp="\r\nCommands available to you are:\r\n=================================================================================================================================\r\n"
+        local hlp="\r\nCommands available to you are:\r\n====================="
+        .."======        ====================================================="
+        .."=================================================\r\n"
         for a,b in pairs(commandtable) do
           if b["level"]~=0 then
             if Allowed [{nick, b["level"]}] then
@@ -290,8 +330,12 @@ do
           end
         end
         table.sort(hlptbl)
-        hlp=hlp..table.concat(hlptbl,"\r\n").."\r\n\r\nAll the "..count.." commands you can use can be typed in main or in PM session with anyone, and the available prefixes are:"..
-        " ! # + - ?\r\n=================================================================================================================================\r\n"..Bot.version
+        hlp=hlp..table.concat(hlptbl,"\r\n").."\r\n\r\nAll the "..count
+        .." commands you can use can be typed in main or in PM session with "
+        .."anyone, and the available prefixes are:"..
+        " ! # + - ?\r\n======================================================="
+        .."==================================================================="
+        .."=======\r\n"..Bot.version
         return hlp,2
       end,
       {},1," // Shows the text you are looking at."
@@ -304,7 +348,8 @@ function OpenRel()
 	collectgarbage ("collect"); io.flush()
 	AllStuff, NewestStuff, Types = {}, {}, {}, {}
   setmetatable (AllStuff, nil)
-  Types = persistence.load(ScriptsPath.."data/categories.dat") or table.load(ScriptsPath.."data/categories.dat")
+  Types = persistence.load(ScriptsPath.."data/categories.dat") or 
+    table.load(ScriptsPath.."data/categories.dat")
   if not Types then 
     Types =
     {
@@ -314,8 +359,9 @@ function OpenRel()
       ["movie"]="Movies",
     }
     SendOut("The categories file is corrupt or missing! Created a new one.")
-    SendOut("If this is the first time you run this script, or newly installed it,"
-    .."please copy your old releases.dat (if any) to freshstuff/data and restart the script. Thank you!")
+    SendOut("If this is the first time you run this script, or newly "..
+      "installed it, please copy your old releases.dat (if any) to "
+      .."freshstuff/data and restart the script. Thank you!")
     persistence.store(ScriptsPath.."data/categories.dat", Types)
   end
   if not loadfile(ScriptsPath.."data/releases.dat") then
@@ -325,10 +371,14 @@ function OpenRel()
       for line in f:lines() do
         local cat,who,when,title=line:match("^(.-)%$(.-)%$(.-)%$(.-)$")
         if cat then
-          if not Types[cat] then Types[cat] = cat; SendOut("New category detected: "..cat..
-          ". It has been automatically added to the categories, however you ought to check if"..
-          " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types); end
-          if when:find("%d+/%d+/0%d") then -- compatibility with old file format
+          if not Types[cat] then
+            Types[cat] = cat; SendOut("New category "
+            .."detected: "..cat..". It has been automatically added to the "
+            .."categories, however you ought to check if everything is "
+            .."alright.")
+            persistence.store(ScriptsPath.."data/categories.dat", Types)
+          end
+          if when:find("%d+/%d+/0%d") then -- very old format compat
             local m,d,y=when:match("(%d+)/(%d+)/(0%d)")
             when=m.."/"..d.."/".."20"..y
           end
@@ -343,13 +393,17 @@ function OpenRel()
     end
     -- End of old file format converter
   else
-    AllStuff = persistence.load(ScriptsPath.."data/releases.dat") or table.load(ScriptsPath.."data/releases.dat")
+    AllStuff = persistence.load(ScriptsPath.."data/releases.dat") or 
+      table.load(ScriptsPath.."data/releases.dat")
     for id, rel in ipairs (AllStuff) do
       local cat = rel[1]
-      if not Types[cat] then Types[cat] = cat
-        SendOut("New category detected: "..cat..
-        ". It has been automatically added to the categories, however you ought to check if"..
-        " everything is alright."); persistence.store(ScriptsPath.."data/categories.dat", Types)
+      if not Types[cat] then
+        Types[cat] = cat
+        SendOut("New category "
+        .."detected: "..cat..". It has been automatically added to the "
+        .."categories, however you ought to check if everything is "
+        .."alright.")
+        persistence.store(ScriptsPath.."data/categories.dat", Types)
       end
     end
   end
@@ -362,7 +416,9 @@ function OpenRel()
   for id = 1, #AllStuff do
     if AllStuff[id] == nil then table.remove (AllStuff, id) removed = true end
   end
-  if removed then persistence.store(ScriptsPath.."data/releases.dat", AllStuff) end
+  if removed then
+    persistence.store(ScriptsPath.."data/releases.dat", AllStuff) 
+  end
 	if #AllStuff > MaxNew then
 		local c1, c2 = 0, #AllStuff
 		while c1 ~= MaxNew do
@@ -401,13 +457,15 @@ function OpenRel()
     end
   })
   SendOut("Loaded "..#AllStuff.." releases in "..os.clock()-x.." seconds.")
-  PendingStuff = persistence.load (ScriptsPath.."data/releases_pending.dat") or {}
+  PendingStuff = persistence.load (ScriptsPath.."data/releases_pending.dat") 
+  or {}
    setmetatable (PendingStuff,
    {
       __call = function (tbl, ...)
          local cat, who, when, title, msg, msg_op = unpack({...})
-         table.insert(PendingStuff, {cat, who, when, title}) -- set this in the original table
-         persistence.store(ScriptsPath.."data/releases_pending.dat", PendingStuff) -- save
+         table.insert(PendingStuff, {cat, who, when, title})
+         persistence.store(ScriptsPath.."data/releases_pending.dat"
+           , PendingStuff) -- save
          if msg then PM(who, msg) end
          if msg_op then PMOps(msg_op) end
       end
@@ -421,17 +479,22 @@ function ShowRel(tab)
   local Msg = "\r\n"
   local cat, who, when, title, oid
   local tmptbl={}
-  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v); table.insert(CatArray,k); end})
+  setmetatable(tmptbl,{__newindex=function(tbl,k,v) rawset(tbl,k,v)
+  table.insert(CatArray,k); end})
   local cunt=0
   if tab == NewestStuff then
     if #AllStuff == 0 then
-      MsgNew = "\r\n\r\n".." --------- The Latest Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- The Latest Releases -------- \r\n\r\n"
+      MsgNew = "\r\n\r\n".." --------- The Latest Releases -------- \r\n\r\n  "
+      .."No releases on the list yet\r\n\r\n --------- The Latest Releases ------"
+      .."-- \r\n\r\n"
     else
       for k, v in ipairs(NewestStuff) do
         cat, who, when, title, oid = unpack(v)
         if title then
           tmptbl[Types[cat]]=tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]],Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(oid):len())..oid.." - "..title.." // (Added by "..who.." at "..when..")")
+          table.insert(tmptbl[Types[cat]],Msg.."ID: "..string.rep("0", 
+          tostring(#AllStuff):len()-tostring(oid):len())..oid.." - "
+          ..title.." // (Added by "..who.." at "..when..")")
           cunt=cunt+1
         end
       end
@@ -439,14 +502,24 @@ function ShowRel(tab)
     table.sort(CatArray)
     for _,a in ipairs (CatArray) do
       local b=tmptbl[a]
-      if SortStuffByName==1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-      Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+      if SortStuffByName==1 then
+        table.sort(b,function(v1,v2) 
+            local c1=v1:match("ID:%s+%d+(.+)%/%/") 
+            local c2=v2:match("ID:%s+%d+(.+)%/%/") 
+            return c1:lower() < c2:lower() 
+          end) 
+      end
+      Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"
+      ..table.concat(b).."\r\n"
     end
     local new=MaxNew if cunt < MaxNew then new=cunt end
-    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "..Msg.."\r\n --------- The Latest "..new.."  Releases -------- \r\n\r\n"
+    MsgNew = "\r\n\r\n".." --------- The Latest "..new.." Releases -------- "
+    ..Msg.."\r\n --------- The Latest "..new.."  Releases -------- \r\n\r\n"
   else
     if #AllStuff == 0 then
-      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  No releases on the list yet\r\n\r\n --------- All The Releases -------- \r\n\r\n"
+      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- \r\n\r\n  "
+      .."No releases on the list yet\r\n\r\n --------- All The Releases ------"
+      .."-- \r\n\r\n"
     else
       MsgHelp  = "  use "..Commands.Show.." <new>"
       for a,b in pairs(Types) do
@@ -457,16 +530,26 @@ function ShowRel(tab)
         cat,who,when,title = unpack(rel)
         if cat and title then
           tmptbl[Types[cat]] = tmptbl[Types[cat]] or {}
-          table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when..")")
+          table.insert(tmptbl[Types[cat]], Msg.."ID: "..string.rep("0", 
+          tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title
+          .." // (Added by "..who.." at "..when..")")
         end
       end
       table.sort(CatArray)
       for _,a in ipairs (CatArray) do
         local b = tmptbl[a]
-        if SortStuffByName == 1 then table.sort(b,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
-        Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"..table.concat(b).."\r\n"
+        if SortStuffByName == 1 then
+          table.sort(b,function(v1,v2)
+            local c1=v1:match("ID:%s+%d+(.+)%/%/") 
+            local c2=v2:match("ID:%s+%d+(.+)%/%/")
+            return c1:lower() < c2:lower() 
+          end) 
+        end
+        Msg=Msg.."\r\n"..a.."\r\n"..string.rep("-",33).."\r\n"
+        ..table.concat(b).."\r\n"
       end
-      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- "..Msg.."\r\n --------- All The Releases -------- \r\n"..MsgHelp .."\r\n"
+      MsgAll = "\r\n\r\r\n".." --------- All The Releases -------- "..Msg
+      .."\r\n --------- All The Releases -------- \r\n"..MsgHelp .."\r\n"
     end
   end
 end
@@ -475,23 +558,34 @@ function ShowRelType(what)
   local cat,who,when,title
   local Msg,MsgType,tmp,tbl = "\r\n",nil,0,{}
   if #AllStuff == 0 then
-    MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "
-    ..string.lower(Types[what]).." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+    MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- "
+    .."\r\n\r\n  No "..string.lower(Types[what]).." yet\r\n\r\n --------- "
+    .."All The "..Types[what].." -------- \r\n\r\n"
   else
     for id, rel in ipairs(AllStuff) do
       cat,who,when,title=unpack(rel)
       if cat == what then
         tmp = tmp + 1
-        table.insert(tbl,"ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(id):len())..id.." - "..title.." // (Added by "..who.." at "..when)
+        table.insert(tbl,"ID: "..string.rep("0", 
+        tostring(#AllStuff):len()-tostring(id):len())..id
+        .." - "..title.." // (Added by "..who.." at "..when)
       end
     end
-    if SortStuffByName==1 then table.sort(tbl,function(v1,v2) local c1=v1:match("ID:%s+%d+(.+)%/%/") local c2=v2:match("ID:%s+%d+(.+)%/%/") return c1:lower() < c2:lower() end) end
+    if SortStuffByName==1 then 
+      table.sort(tbl,function(v1,v2) 
+        local c1=v1:match("ID:%s+%d+(.+)%/%/") 
+        local c2=v2:match("ID:%s+%d+(.+)%/%/") 
+        return c1:lower() < c2:lower() 
+      end)
+    end
     if tmp == 0 then
-      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n\r\n  No "
-      ..(Types[what]):lower().." yet\r\n\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      MsgType = "\r\n\r\n".." --------- All The "..Types[what].." -------- "
+      .."\r\n\r\n  No "..(Types[what]):lower().." yet\r\n\r\n --------- All "
+      .."The "..Types[what].." -------- \r\n\r\n"
     else
       MsgType= "\r\n\r\n".." --------- All The "..Types[what].." -------- \r\n"
-      ..table.concat(tbl,"\r\n").."\r\n --------- All The "..Types[what].." -------- \r\n\r\n"
+      ..table.concat(tbl,"\r\n").."\r\n --------- All The "..Types[what]..
+      " -------- \r\n\r\n"
     end
   end
   return MsgType
@@ -508,17 +602,24 @@ function ShowRelNum(what,num) -- to show numbers of categories
   for t = #AllStuff+1, 1, -1 do
 -- 		target = target-1
     local tbl = AllStuff[t]
-    if type(tbl) == "table" then cat, who, when, title = unpack(tbl) else cat, who, when, title = nil, nil, nil, nil end -- I do not get why I get nil errors.
+    if type(tbl) == "table" then 
+      cat, who, when, title = unpack(tbl) 
+    else 
+      cat, who, when, title = nil, nil, nil, nil 
+    end -- I do not get why I get nil errors.
     if num ~= cunt then
       if cat == what then
-        Msg = Msg.."ID: "..string.rep("0", tostring(#AllStuff):len()-tostring(t):len())..t.." - "..title.." // (Added by "..who.." at "..when..")\r\n"
+        Msg = Msg.."ID: "..string.rep("0", 
+          tostring(#AllStuff):len()-tostring(t):len())..t.." - "..title
+        .." // (Added by "..who.." at "..when..")\r\n"
         cunt=cunt+1
       end
     end
   end
   if cunt < num then num=cunt end
-  local MsgType = "\r\n\r\n".." --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"
-  ..Msg.."\r\n\r\n --------- The Latest "..num.." "..Types[what].." -------- \r\n\r\n"
+  local MsgType = "\r\n\r\n".." --------- The Latest "..num.." "..Types[what]
+  .." -------- \r\n\r\n"..Msg.."\r\n\r\n --------- The Latest "..num.." "
+  ..Types[what].." -------- \r\n\r\n"
   return MsgType
 end
 

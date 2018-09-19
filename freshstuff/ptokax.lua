@@ -1,9 +1,12 @@
 --[[
 PtokaX module for FreshStuff3 v5 by bastya_elvtars
 This is for the new PtokaX API (beta)
-This module declares the events on PtokaX and contains other PtokaX-specific stuff.
-Gets loaded only if the script detects PtokaX as host app
-Distributed under the terms of the Common Development and Distribution License (CDDL) Version 1.0. See docs/license.txt for details.
+This module declares the events on PtokaX and contains other 
+PtokaX-specific stuff.
+Gets loaded only if the script detects PtokaX as host app.
+Distributed under the terms of the Common Development and 
+Distribution License (CDDL) Version 1.0. 
+See docs/license.txt for details.
 ]]
 
 -- Debug message sending
@@ -23,7 +26,8 @@ commandtable,rightclick,rctosend={},{},{}
 -- This table is for deciding between RoboCop, Leviathan and others. These are unmaintained so I really dunno if
 -- this type of support for them should be kept at all.
 local tbl={[0]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 },[1]={[5]=7, [0]=6, [4]=5, [1]=4, [2]=3, [3]=2, [-1]=1},[2]={ [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 ,[4] = 6, [5] = 7}}
-userlevels=tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
+userlevels = { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
+-- was tbl[ProfilesUsed] or { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 
 -- This is executed when the script starts.
 function OnStartup()
