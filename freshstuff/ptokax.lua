@@ -11,16 +11,10 @@ See docs/license.txt for details.
 
 -- Debug message sending
 SendOut = Core.SendToOps
-
-ScriptsPath = Core.GetPtokaXPath().."scripts/freshstuff/"
-LoadCfg (ScriptsPath, "main.lua")
---local conf = ScriptsPath.."config/main.lua"
---local _,err = loadfile (conf)
---if not err then dofile (conf) else error(err) end
-
 -- We need the application path
 GetPath = Core.GetPtokaXPath
-
+ScriptsPath = GetPath.."scripts/freshstuff/"
+LoadCfg (ScriptsPath, "main.lua")
 -- Declare table for commands and rightclick.
 commandtable,rightclick,rctosend={},{},{}
 -- This table is for deciding between RoboCop, Leviathan and others. These are unmaintained so I really dunno if
@@ -33,6 +27,7 @@ userlevels = { [-1] = 1, [0] = 5, [1] = 4, [2] = 3, [3] = 2 }
 function OnStartup()
   Today = os.date("%m/%d/%Y")
   GlobTimer = 0
+  -- this should be timered below
   Core.RegBot(Bot.name, "["..GetNewRelNumForToday().." new releases today] "..Bot.desc, Bot.email, true)
   if pcall (SetMan.GetBool, 55) then -- Log script errors.
     SetMan.SetBool(55, true)
@@ -93,13 +88,13 @@ end
 -- This is executed when a new user connects.
 -- Covers regs and operators as well.
 function UserConnected(user)
-  if  Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
+  if Core.GetUserValue(user, 12) then -- if login is successful, and usercommands can be sent
     Core.SendToUser(user, table.concat(rctosend[user.iProfile], "|")) -- This may be faster than sending one by one.
     Core.SendToUser(user, (#rctosend[user.iProfile]).." rightclick commands sent to you by "..Bot.version)
   end
   if #AllStuff > 0 then
     if ShowOnEntry ~=0 then
-      if ShowOnEntry==1 then
+      if ShowOnEntry == 1 then
         SendTxt(user,"PM",Bot.name, MsgNew)
       else
         SendTxt(user,"MAIN",Bot.name, MsgNew)
@@ -165,9 +160,9 @@ end
 
 setmetatable(Allowed, -- This is hostapp-independent checking. All hostapp-modules MUST declare it.
   {
-  __index = function(tbl, key) 
-    if userlevels[Core.GetUser(key[1]).iProfile] < key[2] then return false end
-  end
+    __index = function(tbl, key) 
+      if userlevels[Core.GetUser(key[1]).iProfile] < key[2] then return false end
+    end
   })
 
 function PM(nick, msg) Core.SendPmToNick (nick, Bot.name, msg) end

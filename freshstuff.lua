@@ -11,7 +11,7 @@ AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
 Bot.version="FreshStuff3 5.5 alpha 3"
 ModulesLoaded = {}
 unpack = unpack or table.unpack -- Lua 5.1 compatibility
-
+error("fuck")
 function LoadCfg(dir, fn)
   file = dir.."config/"..fn
   local f=io.open(file,"r")
@@ -75,18 +75,21 @@ local hostloader =
         "scripts/freshstuff/components/?.lua"
         if os.getenv("windir") then -- we are running on Windows
           package.cpath = Core.GetPtokaXPath().."scripts/freshstuff/lib/?.dll"
-          require "lfs"
-          for entry in lfs.dir( Core.GetPtokaXPath()..
-          "scripts/freshstuff/components" ) do
+          local modpath = Core.GetPtokaXPath().."scripts/freshstuff/components"
+--          require "lfs"
+--          for entry in lfs.dir( Core.GetPtokaXPath()..
+--          "scripts/freshstuff/components" ) do
+          local f = io.popen("dir "..modpath.."/b")
+          for line in f:lines() do
             local filename, ext = entry:match("([^%.]+)%.lua$")
-            if filename then require (filename) end
+            if filename then error (filename) require (filename) end
           end
+ --       end
         else
-          local f = io.popen("which ls")
-          local ls = f:read("*l")
-          f:close()
-          f = io.popen(ls.." -1 "..Core.GetPtokaXPath()..
-          "scripts/freshstuff/components/")
+  --        local f = io.popen("which ls")
+  --        local ls = f:read("*l")
+  --        f:close()
+          local f = io.popen(ls.." -1 "..modpath)
           for line in f:lines() do
             local filename, ext = line:match("([^%.]+)%.lua$")
             if filename then require (filename) end
