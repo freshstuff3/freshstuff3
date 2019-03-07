@@ -1,12 +1,11 @@
 if not Host then 
   package.path = "C:/Users/szaka/Desktop/Linux/devel/"
-  .."freshstuff3/freshstuff/components/?.lua" 
+  .."freshstuff3/freshstuff3/?.lua" 
 end
 local persistence = require "persistence"
 local t = {}
-
-t.AllStuff = persistence.load (string.sub(package.path, 1, -6).."../data/releases.lua") or {}
-t.Commands, t.Meta = {}, {}
+t.AllStuff = persistence.load (string.sub(package.path, 1, -6).."data/releases.lua") or {}
+t.Commands, t.Meta, t.JournalTbl = {}, {}, {}
 
 t.Meta.__len = function (tbl)
   local number = 0
@@ -20,9 +19,9 @@ t.Meta.__len = function (tbl)
   return number
 end
 
-t.Meta.__newindex = function (tbl, key, value) 
-    rawset (tbl, key, value)
-    Event("CategoryAdded", key)
+t.AddCat = function (self, cat) 
+    self.AllStuff[cat] = {}
+    Event("CategoryAdded", cat, self)
 end
 
 t.Add = function (self, cat, rel)-- Releases:AddNew(...)
@@ -36,9 +35,12 @@ t.Add = function (self, cat, rel)-- Releases:AddNew(...)
   end
 end
 
--- t.Delete = function with OnRelDeleted() returning a list of deletions
-
--- t.Move = function with OnRelMoved() returning a list of moved
+-- t.Edit(cat, id[, rel])
+-- if rel is unspecified then it deletes and id can be multiple, 
+-- looking like {ps2 = {1,2,3,7,31}, music = {1,999}}
+-- "music/1-99" and things will be processed in Commands table
+-- RelEdited(), RelDeleted()
+-- t.Move (id, newCat) with RelMoved() returning a list of moved
 
 t.Get = function (self, Y, M, D)
 --  local td, YY, MM, DD; if Y == "today" then td = os.date ("%d/%m/%Y") else td = os.date (
@@ -59,12 +61,22 @@ t.Get = function (self, Y, M, D)
   end
 end
 
-t.CategoryAdded = function (ev, cat)
+-- Events, you call these from the event handler
+
+t.CategoryAdded = function (ev, cat, self)
   SendDebug ("added a new category: "..cat)
+  self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
 end
 
 t.RelAdded = function (ev, cat, rel, self)
+  self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title.."\", when = os.date (\"*t\")})")
   SendDebug ("added "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#self.AllStuff[cat])
+end
+
+t.Journal = function (self, filename, transaction)
+  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "a+")
+  f:write (transaction.."\n")
+  f:close()
 end
 
 t.FakeStuff = function (self, num)
@@ -78,6 +90,21 @@ t.FakeStuff = function (self, num)
   end
 end
 
+t.OpenJournal = function (self, filename)
+  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "r+")
+  if f then
+    for line in f:lines() do
+      local func = load (line)
+      if func then table.insert (self.JournalTbl, func) print "huhu" end
+    end
+    f:close ()
+  end
+  os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
+  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua")
+end
+
 setmetatable (t.AllStuff, t.Meta)
+
+t:OpenJournal ("releases.lua")
 
 return t

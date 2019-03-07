@@ -1,11 +1,6 @@
---[[
-FreshStuff3 v5
-This is the common script that gets loaded by host apps, then takes care of
-   everything else :-D
-Distributed under the terms of the Common Development and Distribution License
-   (CDDL) Version 1.0.
-See docs/license.txt for details.
-]]
+-- FreshStuff3 6.0
+-- Distributed under the MIT license.
+
 --AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
 --   Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
 local Version="FreshStuff3 6.0 alpha 1"
@@ -43,40 +38,52 @@ local Host= {
   pxlua = function ()
     if Core then 
       return Core.GetPtokaXPath().."scripts/freshstuff3/?.lua", true; end
-  end,
-}
+    end,
+  }
 
-local ok, t
-for modname, loader in pairs(Host) do
-  package.path, ok = loader ()
-  if ok then 
-    local t = require (modname)
-    SendOut = t.SendOut or print
-    SendDebug = t.SendDebug or print
-    break
+  local ok, t
+  for modname, loader in pairs(Host) do
+    package.path, ok = loader ()
+    if ok then 
+      local t = require (modname)
+      SendOut = t.SendOut or print
+      SendDebug = t.SendDebug or print
+      break
+    end
+    if not ok then 
+      package.path = luapath 
+      SendOut = SendOut or print
+      SendDebug = SendDebug or print
+    end
   end
-  if not ok then 
-    package.path = luapath 
-    SendOut = SendOut or print
-    SendDebug = SendDebug or print
-  end
-end
 --SendOut (...) and SendDebug(...) send the appropriate messages. 
 -- Hostapp-specific mods MUST declare these with the desired behaviour.
 -- If either is nil, code above falls back to stdout.
 
-
-Event = Event or function (...)
-  local x, event = {...}; event = x[1]
-  local therewas
-  for _, mod in pairs (_G) do
-    if type (mod) =="table" and mod[event] then mod[event](...); therewas = true; end
+-- Event handler
+  Event = Event or function (...)
+    local x, event = {...}; event = x[1]
+    local therewas
+    for _, mod in pairs (_G) do
+      if type (mod) =="table" and mod[event] then mod[event](...); therewas = true; end
+    end
+    if not therewas then print (...) end
   end
-  if not therewas then print (...) end
-end
 
+-- Load the module(s)
 Releases = require "releases"
 
-Releases.AllStuff.PS2 = {}
-Releases:Add ("PS2", {nick = "deaddy", title = "lovin' it", when = os.date ("*t")})
-Releases:FakeStuff (50)
+
+--Releases:AddCat ("PS2")
+
+--  Releases:FakeStuff (50)
+--  Releases:LogTransaction ("Releases:Add (\"PS2\", {nick = \"deaddy\", title = \"lovin' it\", when = os.date (\"*t\")})")
+--  Releases:LogTransaction ("Releases:Add (\"PS2\", {nick = \"deaddy\", title = \"still fucking lovin' it\", when = os.date (\"*t\")})")
+  local c = 0
+  for k, v in pairs (_G) do
+    if type (v) == "table" and v.JournalTbl then
+      for _, func in ipairs (v.JournalTbl) do func() c = c + 1 end
+    end
+  end
+  
+  SendDebug ("Loaded "..c.." items from journal.")
