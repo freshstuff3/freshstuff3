@@ -4,7 +4,7 @@
 --AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
 --   Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
 local Version="FreshStuff3 6.0 alpha 1"
---ModulesLoaded = {}
+local Modules = {}
 unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
 -- Desired package.path for lua/stdout fallback if you are using standalone Lua.
@@ -64,8 +64,8 @@ local Host= {
   Event = Event or function (...)
     local x, event = {...}; event = x[1]
     local therewas
-    for _, mod in pairs (_G) do
-      if type (mod) =="table" and mod[event] then mod[event](...); therewas = true; end
+    for n, mod in pairs (_G) do
+      if type(mod) == "table" and mod[event] then mod[event](...); therewas = true; end
     end
     if not therewas then print (...) end
   end
@@ -74,16 +74,16 @@ local Host= {
 Releases = require "releases"
 
 
---Releases:AddCat ("PS2")
+--local t = Releases
+--t:AddCat("music")
+--t:AddCat("movie")
+--t:AddCat("game")
+--t:AddCat("warez")
 
---  Releases:FakeStuff (50)
---  Releases:LogTransaction ("Releases:Add (\"PS2\", {nick = \"deaddy\", title = \"lovin' it\", when = os.date (\"*t\")})")
---  Releases:LogTransaction ("Releases:Add (\"PS2\", {nick = \"deaddy\", title = \"still fucking lovin' it\", when = os.date (\"*t\")})")
-  local c = 0
-  for k, v in pairs (_G) do
-    if type (v) == "table" and v.JournalTbl then
-      for _, func in ipairs (v.JournalTbl) do func() c = c + 1 end
-    end
-  end
-  
-  SendDebug ("Loaded "..c.." items from journal.")
+--t:FakeStuff(50)
+
+--t:OpenJournal ("releases.lua")
+
+-- Releases:AddCat ("PS2")
+--Releases:FakeStuff (50)
+print(#Releases.AllStuff)

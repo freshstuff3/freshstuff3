@@ -4,8 +4,21 @@ if not Host then
 end
 local persistence = require "persistence"
 local t = {}
+print (string.sub(package.path, 1, -6).."data/releases.lua")
 t.AllStuff = persistence.load (string.sub(package.path, 1, -6).."data/releases.lua") or {}
 t.Commands, t.Meta, t.JournalTbl = {}, {}, {}
+
+-- Events, you call these from the event handler
+
+t.CategoryAdded = function (ev, cat, self)
+  SendDebug ("added a new category: "..cat)
+  self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
+end
+
+t.RelAdded = function (ev, cat, rel, self)
+  self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title.."\", when = os.date (\"*t\")})")
+  SendDebug ("added "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#self.AllStuff[cat])
+end
 
 t.Meta.__len = function (tbl)
   local number = 0
@@ -20,8 +33,8 @@ t.Meta.__len = function (tbl)
 end
 
 t.AddCat = function (self, cat) 
-    self.AllStuff[cat] = {}
-    Event("CategoryAdded", cat, self)
+  self.AllStuff[cat] = {}
+  Event("CategoryAdded", cat, self)
 end
 
 t.Add = function (self, cat, rel)-- Releases:AddNew(...)
@@ -61,23 +74,31 @@ t.Get = function (self, Y, M, D)
   end
 end
 
--- Events, you call these from the event handler
-
-t.CategoryAdded = function (ev, cat, self)
-  SendDebug ("added a new category: "..cat)
-  self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
-end
-
-t.RelAdded = function (ev, cat, rel, self)
-  self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title.."\", when = os.date (\"*t\")})")
-  SendDebug ("added "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#self.AllStuff[cat])
-end
+-- Journaling functionality.
 
 t.Journal = function (self, filename, transaction)
   local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "a+")
   f:write (transaction.."\n")
   f:close()
 end
+
+t.OpenJournal = function (self, filename)
+  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "r+")
+  if f then
+    for line in f:lines() do
+      local func = load (line)
+      if func then table.insert (self.JournalTbl, func) print (line) end
+    end
+    f:close ()
+  end
+  local c = 0
+  for _, func in ipairs (self.JournalTbl) do func() c = c + 1 end
+  SendDebug ("Loaded "..c.." items from journal.")
+  os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
+  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua", self.AllStuff)
+end
+
+-- fake release generator
 
 t.FakeStuff = function (self, num)
   local randomtype = {}
@@ -86,25 +107,10 @@ t.FakeStuff = function (self, num)
   end
   for k = 1, num do
     local no = math.random(#randomtype)
-    self:Add (randomtype[no], {nick = "bastya_elvtars"..no^3,  title = os.tmpname ()}) 
+    self:Add (randomtype[no], {nick = "bastya_elvtars"..no^3, title = string.sub(os.tmpname (),2,-1)}) 
   end
-end
-
-t.OpenJournal = function (self, filename)
-  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "r+")
-  if f then
-    for line in f:lines() do
-      local func = load (line)
-      if func then table.insert (self.JournalTbl, func) print "huhu" end
-    end
-    f:close ()
-  end
-  os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
-  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua")
 end
 
 setmetatable (t.AllStuff, t.Meta)
-
-t:OpenJournal ("releases.lua")
 
 return t
