@@ -33,57 +33,54 @@ function LoadCfg(dir, fn)
   if not err then chunk() else error(err) end
 end
 
--- This is done by detecting global tables that are specific to the host app.
-local Host= {
+-- Host app detection
+local Host = {
   pxlua = function ()
     if Core then 
       return Core.GetPtokaXPath().."scripts/freshstuff3/?.lua", true; end
     end,
   }
-
-  local ok, t
-  for modname, loader in pairs(Host) do
-    package.path, ok = loader ()
-    if ok then 
-      local t = require (modname)
-      SendOut = t.SendOut or print
-      SendDebug = t.SendDebug or print
-      break
-    end
-    if not ok then 
-      package.path = luapath 
-      SendOut = SendOut or print
-      SendDebug = SendDebug or print
-    end
+local ok, t
+for modname, loader in pairs(Host) do
+  package.path, ok = loader ()
+  if ok then 
+    local t = require (modname)
+    SendOut = t.SendOut or print
+    SendDebug = t.SendDebug or print
+    break
   end
+  if not ok then 
+    package.path = luapath 
+    SendOut = SendOut or print
+    SendDebug = SendDebug or print
+  end
+end
 --SendOut (...) and SendDebug(...) send the appropriate messages. 
 -- Hostapp-specific mods MUST declare these with the desired behaviour.
 -- If either is nil, code above falls back to stdout.
 
 -- Event handler
-  Event = Event or function (...)
-    local x, event = {...}; event = x[1]
-    local therewas
-    for n, mod in pairs (_G) do
-      if type(mod) == "table" and mod[event] then mod[event](...); therewas = true; end
-    end
-    if not therewas then print (...) end
+Event = Event or function (...)
+  local x, event = {...}; event = x[1]
+  local therewas
+  for n, mod in pairs (_G) do
+    if type(mod) == "table" and mod[event] then mod[event](...); therewas = true; end
   end
+  if not therewas then print (...) end
+end
 
 -- Load the module(s)
 Releases = require "releases"
 
 
---local t = Releases
---t:AddCat("music")
---t:AddCat("movie")
---t:AddCat("game")
---t:AddCat("warez")
+--Releases:AddCat("warez")
 
---t:FakeStuff(50)
+--Releases:FakeStuff(50)
 
---t:OpenJournal ("releases.lua")
+Releases:OpenJournal ("releases.lua")
+Releases:OnExit()
 
 -- Releases:AddCat ("PS2")
 --Releases:FakeStuff (50)
 print(#Releases.AllStuff)
+print(#Releases.AllStuff.warez)
