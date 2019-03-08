@@ -38,6 +38,7 @@ do
       .."given type, with no type specified, shows all. If you specify the"
       .." start and end numbers, it will show the releases of that ID range"
       .." (range must not exceed 100 releases)."
+      
     }
   Engine[Commands.Add]=
     {
@@ -411,7 +412,7 @@ function OpenRel()
   --- The code below  is destined to fix broken release tables but
   -- not sure if this is an issue in a nontesting environment. Anyway,
   -- I do not care about script load times because they should not be
-  -- interfering with normal hub operation since in a production environment
+  -- interfering with normal hub operation since in a 'production' environment
   -- there are very few script restarts.
   for id = 1, #AllStuff do
     if AllStuff[id] == nil then table.remove (AllStuff, id) removed = true end

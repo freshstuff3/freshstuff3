@@ -4,8 +4,7 @@
 --AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
 --   Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
 local Version="FreshStuff3 6.0 alpha 1"
-local Modules = {}
-unpack = unpack or table.unpack -- Lua 5.1 compatibility
+--unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
 -- Desired package.path for lua/stdout fallback if you are using standalone Lua.
 local luapath = "C:/Users/szaka/Desktop/Linux/devel/freshstuff3/freshstuff3/?.lua"
@@ -72,15 +71,10 @@ end
 -- Load the module(s)
 Releases = require "releases"
 
-
---Releases:AddCat("warez")
-
---Releases:FakeStuff(50)
+Releases:FakeStuff(50)
 
 Releases:OpenJournal ("releases.lua")
 Releases:OnExit()
 
--- Releases:AddCat ("PS2")
---Releases:FakeStuff (50)
 print(#Releases.AllStuff)
 print(#Releases.AllStuff.warez)
