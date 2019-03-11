@@ -71,10 +71,17 @@ end
 -- Load the module(s)
 Releases = require "releases"
 
+Releases:AddCat ("music")
+Releases:AddCat ("movie")
+Releases:AddCat ("software")
+Releases:AddCat ("game")
+
+
 Releases:FakeStuff(50)
 
 Releases:OpenJournal ("releases.lua")
-Releases:OnExit()
+for k, v in pairs (Releases) do print (k, v) end
+
 
 print(#Releases.AllStuff)
-print(#Releases.AllStuff.warez)
+print(#Releases.AllStuff.game)

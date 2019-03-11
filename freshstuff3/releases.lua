@@ -14,9 +14,11 @@ if not Host then
   .."freshstuff3/freshstuff3/?.lua" 
 end
 local persistence = require "persistence"
-local t = {}
-print (string.sub(package.path, 1, -6).."data/releases.lua")
-t.AllStuff = persistence.load (string.sub(package.path, 1, -6).."data/releases.lua") or {}
+local t = { Commands = {}, Coroutines = {} }
+t.AllStuff = persistence.load (string.sub(package.path, 1, -6)
+  .."data/releases.lua") or {}
+t.PendingStuff  = persistence.load (string.sub(package.path, 1, -6)
+  .."data/releases_pending.lua") or {}
 setmetatable (t.AllStuff, {
 __len = function (tbl)
   local number = 0
@@ -29,7 +31,6 @@ __len = function (tbl)
   end
   return number
 end})
-t.Commands, t.Coroutines, t.JournalTbl = {}, {}, {}
 
 -- Events: you call these from the event handler Event()
 t.CategoryAdded = function (ev, cat, self)
@@ -62,56 +63,67 @@ t.Add = function (self, cat, rel)
     end
   end
 end
-t.Add2 = function (self, nick, data)
-  local cat, tune=string.match(data,"(%S+)%s+(.+)")
+
+t.Add2 = function (self, cat, rel)
+  local tune = rel.title
+  local nick = os.tmpname()
   if cat then
     if Types[cat] then
-      for _,word in pairs(ForbiddenWords) do
-      if string.find(tune,word,1,true) then
-        return "The release name contains the following forbidden"
-        .." word (thus not added): "..word, 1
+      for _, word in pairs(ForbiddenWords) do
+      if string.find(tune, word, 1, true) then
+        SendDebug("The release name contains the following forbidden"
+        .." word (thus not added): "..word)
+        break
       end
     end
-    if Coroutines[nick] then return "A release of yours is already "
-      .."being processed. Please wait a few seconds!", 2 end
-      local count = #AllStuff
+    -- Coroutines below should be like an array with a limit of 5; neater and who knows? :}
+    if self.Coroutines[nick] then SendDebug ("A release of yours is already "
+      .."being processed. Please wait a few seconds!") return end
+      local count = #self.AllStuff
       if count == 0 then
         if ReleaseApprovalPolicy ~= 1 then
-          AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-            --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
-            return "\""..tune.."\" has been added to the releases in this "
-            .."category: \""..Types[cat].."\" with ID "..count + 1, 2
-          else
-            PendingStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-            return "\""..tune.."\" has been added to the pending releases "
-            .."in this category: \""..Types[cat].."\" with ID "..count + 1
-            ..", please wait until someone reviews it.", 2
-          end
+--          AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
+          table.insert (self.AllStuff[cat], {nick = nick, title = title, 
+          when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
+          self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
+          ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+          .."\", when = os.date (\"*t\")})")
+          --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
+          return "\""..tune.."\" has been added to the releases in this "
+          .."category: \""..Types[cat].."\" with ID "..count + 1, 2
         else
-          Releases.Coroutines[nick] = {
-            Coroutine = coroutine.create(Main.ComparisonHelper),
-            Release = tune,
-            CurrID = 0, -- to check rel #1 so avoid off-by-one errors
-            Category = cat,
-            }
-          return "Your release is being processed. You will be notified of"
-          .." the result.", 2
+          -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          table.insert (self.PendingStuff[cat], {nick = nick, title = title, 
+          when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
+          return "\""..tune.."\" has been added to the pending releases "
+          .."in this category: \""..Types[cat].."\" with ID "..count + 1
+          ..", please wait until someone reviews it.", 2
         end
       else
-        return "Unknown category: "..cat, 1
+        self.Coroutines[nick] = {
+          Coroutine = coroutine.create(self.ComparisonHelper),
+          Release = tune,
+          CurrID = 0, -- to check rel #1 so avoid off-by-one errors
+          Category = cat,
+          }
+        return "Your release is being processed. You will be notified of"
+        .." the result.", 2
       end
     else
-      return "yea right, like i know what you got 2 add when you don't tell"
-      .."me!",1
+      return "Unknown category: "..cat, 1
     end
-  end --    ,{},Levels.Add,"<type> <name> // Add release of given type."
+  else
+    return "yea right, like i know what you got 2 add when you don't tell"
+    .."me!",1
+  end
+end --    ,{},Levels.Add,"<type> <name> // Add release of given type."
 
--- t.Edit(cat, id[, rel])
+-- t.ChangeDel(cat, id[, rel])
 -- if rel is unspecified then it deletes and id can be multiple, 
 -- looking like {ps2 = {1,2,3,7,31}, music = {1,999}}
 -- "music/1-99" and things will be processed in Commands table
 -- RelEdited(), RelDeleted()
--- t.Move (id, newCat) with RelMoved() returning a list of moved
+-- t.Move (id, newCat) with RelMoved() returning a list of moved 
 
 t.Get = function (self, Y, M, D)
 --  local td, YY, MM, DD; if Y == "today" then td = os.date ("%d/%m/%Y") else td = os.date (
@@ -135,7 +147,8 @@ end
 -- Journaling functionality. This one adds a new entry to the journal.
 -- We just append so it's fast.
 t.Journal = function (self, filename, transaction)
-  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "a+")
+  local f = io.open (string.sub(package.path, 1, -6).."journal/"
+  ..filename, "a+")
   f:write (transaction.."\n")
   f:close()
 end
@@ -150,8 +163,8 @@ end
 -- SSD owners will love this.
 t.OpenJournal = function (self, filename)
   local JournalTbl = {}
-  local f = io.open (string.sub(package.path, 1, -6).."journal/"..filename, "r+")
-  local c = 0
+  local f = io.open (string.sub(package.path, 1, -6).."journal/"
+  ..filename, "r+")
   if f then
     for line in f:lines() do
       local func = load (line)
@@ -159,15 +172,11 @@ t.OpenJournal = function (self, filename)
     end
     f:close ()
   end
-  for _, func in ipairs (JournalTbl) do func() c = c + 1 end
-  self:DelJournal (filename)
-  if c == 0 then SendDebug ("Journal empty.") return end
-  SendDebug ("Recovered "..c.." items from journal.")
-end
-
-t.DelJournal = function (self, filename)
+  for _, func in ipairs (JournalTbl) do func() end
+  if not next (JournalTbl) then SendDebug ("Journal empty.") return end
+  SendDebug ("Recovered "..#JournalTbl.." items from journal.")
   os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
-  persistence.store (string.sub(package.path, 1, -6).."data/"..filename, self.AllStuff)  
+  persistence.store (string.sub(package.path, 1, -6).."data/"..filename, self.AllStuff)
 end
 
 -- fake database generator
@@ -182,8 +191,9 @@ t.FakeStuff = function (self, num)
   end
 end
 
-t.OnTimer = function (self)
-  t:DelJournal("releases.lua")
+t.OnTimer = function ()
+  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua", self.AllStuff)
+  os.remove (string.sub(package.path, 1, -6).."journal/releases.lua")
 end
 
 t.OnExit = t.OnTimer
@@ -236,7 +246,7 @@ t.ComparisonHelper = function (tbl, nick)
       -- we have reached the last release, so stop this thread
       break
     end
-    local percent = 100*Levenshtein (AllStuff[id][4], req) -- compare
+    local percent = 100*Levenshtein (Releases.AllStuff[id][4], req) -- compare
     PIC = PIC + 1
     if percent >= MaxMatch then
       table.insert(match, {id, req, percent}) -- there is a match, register
@@ -296,9 +306,9 @@ end
 
 t.MainTableHelper = coroutine.create (t.MainTableParser)
 
-function Timer ()
+t.Timer = function ()
   if coroutine.status (t.MainTableHelper) == "dead" then
-    MainTableHelper = coroutine.create (t.MainTableParser)
+    t.MainTableHelper = coroutine.create (t.MainTableParser)
   end
   local bOK, match, tbl, nick = coroutine.resume (t.MainTableHelper)
   if nick then -- the coroutine explicitly returned = finished
