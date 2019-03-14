@@ -8,6 +8,8 @@
 -- for getting the desired command syntax is: music/today, music/new
 -- and music/23-59, maybe music/1,5,7,9,13,23-59
 -- same as above for deletion (the numbers)
+-- todo: remove unnecessary time fields from database
+-- now where are we? about to fix pendingstuff nil errors
 
 if not Host then 
   package.path = "C:/Users/szaka/Desktop/Linux/devel/"
@@ -32,7 +34,8 @@ __len = function (tbl)
   return number
 end})
 
--- Events: you call these from the event handler Event()
+t.ForbiddenWords = { "fuck", "shit" }
+  -- Events: you call these from the event handler Event()
 t.CategoryAdded = function (ev, cat, self)
   SendDebug ("added a new category: "..cat)
 end
@@ -47,7 +50,7 @@ t.AddCat = function (self, cat)
     Event("CategoryAdded", cat, self)
     self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
   else 
-    SendDebug ("category already exists!")
+    return "category already exists!"
   end
 end
 
@@ -64,50 +67,49 @@ t.Add = function (self, cat, rel)
   end
 end
 
-t.Add2 = function (self, cat, rel)
-  local tune = rel.title
-  local nick = os.tmpname()
+t.Add2 = function (self, cat, rel, nick)
+  nick = nick or "butcher"..math.random(1, 25)
   if cat then
-    if Types[cat] then
-      for _, word in pairs(ForbiddenWords) do
-      if string.find(tune, word, 1, true) then
-        SendDebug("The release name contains the following forbidden"
-        .." word (thus not added): "..word)
-        break
+    if self.AllStuff[cat] then
+      for _, word in pairs(t.ForbiddenWords) do
+        if string.find(rel.title, word, 1, true) then
+          return "The release name contains the following forbidden"
+          .." word (thus not added): "..word
+        end
       end
-    end
     -- Coroutines below should be like an array with a limit of 5; neater and who knows? :}
-    if self.Coroutines[nick] then SendDebug ("A release of yours is already "
-      .."being processed. Please wait a few seconds!") return end
+      if self.Coroutines[nick] then return ("A release of yours is already "
+      .."being processed. Please wait a few seconds!") end
       local count = #self.AllStuff
       if count == 0 then
         if ReleaseApprovalPolicy ~= 1 then
---          AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-          table.insert (self.AllStuff[cat], {nick = nick, title = title, 
+--         AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
+          table.insert (self.AllStuff[cat], {nick = nick, title = rel.title, 
           when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
           self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
           ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
           .."\", when = os.date (\"*t\")})")
-          --HandleEvent("OnRelAdded", nick, data, cat, tune, count + 1)
           return "\""..tune.."\" has been added to the releases in this "
           .."category: \""..Types[cat].."\" with ID "..count + 1, 2
         else
           -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           table.insert (self.PendingStuff[cat], {nick = nick, title = title, 
           when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
+          self:Journal ("releases_pending.lua", "table.insert(Releases.AllStuff[\""
+          ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+          .."\", when = os.date (\"*t\")})")
           return "\""..tune.."\" has been added to the pending releases "
           .."in this category: \""..Types[cat].."\" with ID "..count + 1
           ..", please wait until someone reviews it.", 2
         end
       else
-        self.Coroutines[nick] = {
-          Coroutine = coroutine.create(self.ComparisonHelper),
-          Release = tune,
-          CurrID = 0, -- to check rel #1 so avoid off-by-one errors
-          Category = cat,
-          }
-        return "Your release is being processed. You will be notified of"
-        .." the result.", 2
+        self.Coroutines[nick] =  {
+        Coroutine = coroutine.create(self.ComparisonHelper),
+        Release = rel,
+        CurrID = 0, -- to check rel #1 so avoid off-by-one errors
+        Category = cat,
+        }
+        return "Your release is being processed.", 2
       end
     else
       return "Unknown category: "..cat, 1
@@ -187,12 +189,12 @@ t.FakeStuff = function (self, num)
   end
   for k = 1, num do
     local no = math.random(#randomtype)
-    self:Add (randomtype[no], {nick = "bastya_elvtars"..no^3, title = string.sub(os.tmpname (),2,-1)}) 
+    print (self:Add2 (randomtype[no], {nick = "bastya_elvtars"..no^3, title = string.sub(os.tmpname (),2,-1)}) )
   end
 end
 
 t.OnTimer = function ()
-  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua", self.AllStuff)
+  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua", Releases.AllStuff)
   os.remove (string.sub(package.path, 1, -6).."journal/releases.lua")
 end
 
@@ -235,27 +237,27 @@ t.Levenshtein = function (self, string1, string2)
 end
 
 t.ComparisonHelper = function (tbl, nick)
+  print(tbl.Cat)
   local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
-  local req, id = tbl.Release, tbl.CurrID
+  local rel, id = tbl.Release, tbl.CurrID
   local match = {}
   local bExact
   while true do -- endless loop
     -- raise release ID by 1
     id = id + 1
-    if id > #Releases.AllStuff then
-      -- we have reached the last release, so stop this thread
-      break
-    end
-    local percent = 100*Levenshtein (Releases.AllStuff[id][4], req) -- compare
+    if id > #Releases.AllStuff[tbl.Category] then break end
+    local percent = 100*Releases:Levenshtein (Releases.AllStuff[tbl.Category][id].title, rel.title) -- compare
     PIC = PIC + 1
-    if percent >= MaxMatch then
+    -- todo: make value for value 75 below max match
+    if percent >= 75 then
       table.insert(match, {id, req, percent}) -- there is a match, register
       -- if 100% match found, further checking is futile
       if percent == 100 then return PIC, match; end
     end
-    if PIC >= ItemsToCheckAtOnce then -- no more for this session
-      Coroutines[nick].CurrID = id -- record the last processed ID
-      coroutine.yield(PIC)-- and go sleeping
+--    if PIC >= ItemsToCheckAtOnce then -- max reached  for this session
+    if PIC >= 30 then -- max reached  for this session
+      Releases.Coroutines[nick].CurrID = id -- record the last processed ID
+      coroutine.yield(PIC)-- and go to sleep
       PIC = 0
       -- When we wake up, the loop resumes
     end
@@ -263,8 +265,8 @@ t.ComparisonHelper = function (tbl, nick)
   id = 0
   while true do
     id = id + 1
-    if id > #Releases.PendingStuff then break end
-    local percent = 100*Levenshtein (PendingStuff[id][4], req)
+    if id > #Releases.PendingStuff[tbl.Category] then break end
+    local percent = 100*Releases:Levenshtein (Releases.PendingStuff[id][4], req)
     PIC = PIC + 1
     if percent == 100 then -- if matches
       table.insert(match, {id, req, percent, true})
@@ -282,24 +284,24 @@ end
 t.MainTableParser = function ()
   local bOK, rePIC, match, nick, tbl
   while true do
-    nick, tbl = next (t.Coroutines, nick)
+    nick, tbl = next (Releases.Coroutines, nick)
     if nick then
-      if coroutine.status(tbl.Coroutine) ~= "dead" then
-        bOK, rePIC, match = coroutine.resume(tbl.Coroutine, tbl, nick)
+      if coroutine.status (tbl.Coroutine) ~= "dead" then
+        bOK, rePIC, match = coroutine.resume (tbl.Coroutine, tbl, nick)
         -- syntax error
-        if not bOK then return nil, rePIC; end
+        if not bOK then print (nick, rePIC) return false, rePIC; end
         -- the coroutine finished
-        if match then return match, tbl, nick end
+        if match then return true, match, tbl, nick end
         -- reached the max number of items, sleep
         if rePIC >= ItemsToCheckAtOnce then coroutine.yield() end
       else
-        Coroutines[nick] = nil
+        Releases.Coroutines[nick] = nil
       end
     else
       -- If the table is empty, we just return an empty table plus 2 nil's.
       -- If not, the gets returned with friends either non-nil.
       -- See Timer() below.
-      return match or {}, tbl, nick
+      return true, match or {}, tbl, nick
     end
   end
 end
@@ -307,11 +309,12 @@ end
 t.MainTableHelper = coroutine.create (t.MainTableParser)
 
 t.Timer = function ()
-  if coroutine.status (t.MainTableHelper) == "dead" then
-    t.MainTableHelper = coroutine.create (t.MainTableParser)
+  if coroutine.status (Releases.MainTableHelper) == "dead" then
+    Releases.MainTableHelper = coroutine.create (Releases.MainTableParser)
   end
-  local bOK, match, tbl, nick = coroutine.resume (t.MainTableHelper)
+  local bOK, match, tbl, nick = coroutine.resume (Releases.MainTableHelper)
   if nick then -- the coroutine explicitly returned = finished
+    print (nick)
     local tune, cat = tbl.Release, tbl.Category
     if next (match) then
       -- Sort the table in reverse order for percentages.
@@ -342,12 +345,12 @@ t.Timer = function ()
         .." quite similar to the following release(s):"
         if percent == 100 then -- identical!
           if bPending then
-            PM(nick, "A release with the same name is already "
-            .."awaiting  approval. Release has NOT been added.")
+            return  "A release with the same name is already "
+            .."awaiting  approval. Release has NOT been added."
           else
-            PM(nick, "Your release is identical to the following "
+            return "Your release is identical to the following "
             .."release(s): \r\nID# "..id.." - Name: "..tune
-            ..".\r\n\r\nRelease has NOT been added.")
+            ..".\r\n\r\nRelease has NOT been added."
           end
           FoundSame = true
           break -- break the loop, we already have this release
@@ -359,10 +362,11 @@ t.Timer = function ()
         if not FoundSame then
           if ReleaseApprovalPolicy ~= 3 then
             msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
-            PendingStuff(cat, nick, os.date("%m/%d/%Y"),
-            tune, msg, msg_op)
+            table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title, 
+            when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
           else
-            AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg, msg_op)
+            table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
+            when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
           end
         end
       end
@@ -370,12 +374,13 @@ t.Timer = function ()
       if ReleaseApprovalPolicy ~= 1 then
         msg = "\""..tbl.Release
         .."\" has been added to the releases in this category: \""
-        ..Types[cat].."\" with ID "..(#AllStuff + 1).."."
-        AllStuff(cat, nick, os.date("%m/%d/%Y"), tune, msg)
+        ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
+        table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
+        when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
       end
     end
   elseif not bOK then -- there is a syntax error
-    SendOut(match) -- forward it to ops
+    return match -- forward it to ops
   end
 end
 

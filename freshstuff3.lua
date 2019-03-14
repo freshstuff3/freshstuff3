@@ -80,8 +80,10 @@ Releases:AddCat ("game")
 Releases:FakeStuff(50)
 
 Releases:OpenJournal ("releases.lua")
-for k, v in pairs (Releases) do print (k, v) end
+--for k, v in pairs (Releases) do print (k, v) end
 
 
 print(#Releases.AllStuff)
 print(#Releases.AllStuff.game)
+
+for  k = 1, 50 do Releases.Timer() end
