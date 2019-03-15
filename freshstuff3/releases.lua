@@ -60,7 +60,7 @@ t.RelAdded = function (ev, cat, rel, self)
 end
 
 t.PendingRelAdded = function (ev, cat, rel, self)
-  SendDebug ("added "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#Releases.PendingStuff[cat])
+  SendDebug ("added pending "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#Releases.PendingStuff[cat])
 end
 
 t.AddCat = function (self, cat)
@@ -71,7 +71,10 @@ t.AddCat = function (self, cat)
     self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
     self:Journal ("pendingrel.lua", "Releases.PendingStuff[\""..cat.."\"] = {}")
   else 
-    self.PendingStuff[cat] = self.PendingStuff[cat] or {}
+    if not self.PendingStuff[cat] then
+      self.PendingStuff[cat] = {}
+      self:Journal ("pendingrel.lua", "Releases.PendingStuff[\""..cat.."\"] = {}")
+    end
     return "category already exists!"
   end
 end
@@ -117,7 +120,7 @@ t.Add2 = function (self, cat, rel, nick)
           -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           table.insert (self.PendingStuff[cat], {nick = nick, title = title, 
           when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
-          self:Journal ("pendingrel.lua", "table.insert(Releases.AllStuff[\""
+          self:Journal ("pendingrel.lua", "table.insert(Releases.PendingStuff[\""
           ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
           .."\", when = os.date (\"*t\")})")
           return "\""..tune.."\" has been added to the pending releases "
@@ -384,11 +387,17 @@ t.Timer = function ()
         if not FoundSame then
           if ReleaseApprovalPolicy ~= 3 then
             msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
-            table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title, 
+            table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title,
             when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
+            Releases:Journal ("pendingrel.lua", "table.insert(Releases.PendingStuff[\""
+            ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+            .."\", when = os.date (\"*t\")})")
           else
             table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
             when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
+            Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
+            ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+            .."\", when = os.date (\"*t\")})")
           end
         end
       end
@@ -399,6 +408,9 @@ t.Timer = function ()
         ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
         table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
         when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
+        Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
+        ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+        .."\", when = os.date (\"*t\")})")
       end
     end
   elseif not bOK then -- there is a syntax error
