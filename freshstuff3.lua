@@ -77,13 +77,14 @@ Releases:AddCat ("software")
 Releases:AddCat ("game")
 
 
-Releases:FakeStuff(50)
-
+--Releases:FakeStuff(50)
+Releases:Add2 ("music", {nick = "bastya_elvtars", title = "the pirates of the caribbean"}) 
+Releases:Add2 ("music", {nick = "bastya_elvtars", title = "the pirates of the caribbean 2"}) 
 Releases:OpenJournal ("releases.lua")
---for k, v in pairs (Releases) do print (k, v) end
+Releases:OpenJournal ("pendingrel.lua")
 
 
 print(#Releases.AllStuff)
 print(#Releases.AllStuff.game)
 
-for  k = 1, 50 do Releases.Timer() end
+for  k = 1, 50 do print (Releases.Timer()) end
