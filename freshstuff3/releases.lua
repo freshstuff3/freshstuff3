@@ -315,7 +315,7 @@ t.MainTableParser = function ()
       if coroutine.status (tbl.Coroutine) ~= "dead" then
         bOK, rePIC, match = coroutine.resume (tbl.Coroutine, tbl, nick)
         -- syntax error
-        if not bOK then print (nick, rePIC) return false, rePIC; end
+        if not bOK then return false, rePIC; end
         -- the coroutine finished
         if match then return match, tbl, nick end
         -- reached the max number of items, sleep
@@ -392,12 +392,14 @@ t.Timer = function ()
             Releases:Journal ("pendingrel.lua", "table.insert(Releases.PendingStuff[\""
             ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
             .."\", when = os.date (\"*t\")})")
+            return msg_op
           else
             table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
             when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
             Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
             ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
             .."\", when = os.date (\"*t\")})")
+            return msg
           end
         end
       end
@@ -411,6 +413,7 @@ t.Timer = function ()
         Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
         ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
         .."\", when = os.date (\"*t\")})")
+      return msg
       end
     end
   elseif not bOK then -- there is a syntax error

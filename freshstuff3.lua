@@ -84,7 +84,7 @@ Releases:OpenJournal ("releases.lua")
 Releases:OpenJournal ("pendingrel.lua")
 
 
-print(#Releases.AllStuff)
-print(#Releases.AllStuff.game)
+--print(#Releases.AllStuff)
+--print(#Releases.AllStuff.game)
 
 for  k = 1, 50 do print (Releases.Timer()) end
