@@ -49,18 +49,34 @@ __len = function (tbl)
   return number
 end})
 
+function GetDate ()
+  local dt = os.date ("*t")
+  return { dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec }
+end
+
 t.ForbiddenWords = { "fuck", "shit" }
   -- Events: you call these from the event handler Event()
 t.CategoryAdded = function (ev, cat, self)
   SendDebug ("added a new category: "..cat)
 end
 
-t.RelAdded = function (ev, cat, rel, self)
-  SendDebug ("added "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#Releases.AllStuff[cat])
+t.RelAdded = function (ev, cat, rel)
+  table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title,
+  when = rel.when});
+  Releases:Journal ("releases.lua", "table.insert (Releases.AllStuff[\""
+  ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
+  .."\", when = { "..table.concat (rel.when, ", ").." } })")
+  SendOut ("\""..rel.title.."\" has been added to the releases with ID "..cat..
+  "/"..#Releases.AllStuff)
 end
 
 t.PendingRelAdded = function (ev, cat, rel, self)
-  SendDebug ("added pending "..rel.title.." by "..rel.nick.." with ID "..cat.."/"..#Releases.PendingStuff[cat])
+  table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title})
+  Releases:Journal ("pendingrel.lua", "table.insert (Releases.PendingStuff[\""
+  ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title.."\"  }")
+  SendOut( "\""..rel.title.."\" has been added to the pending releases "
+  .."with ID "..cat.."/"..#Releases.PendingStuff
+  ..", please wait until someone reviews it.")
 end
 
 t.AddCat = function (self, cat)
@@ -70,6 +86,7 @@ t.AddCat = function (self, cat)
     Event("CategoryAdded", cat, self)
     self:Journal ("releases.lua", "Releases.AllStuff[\""..cat.."\"] = {}")
     self:Journal ("pendingrel.lua", "Releases.PendingStuff[\""..cat.."\"] = {}")
+    return "added category "..cat
   else 
     if not self.PendingStuff[cat] then
       self.PendingStuff[cat] = {}
@@ -92,12 +109,13 @@ t.Add = function (self, cat, rel)
   end
 end
 
-t.Add2 = function (self, cat, rel, nick)
+t.Add2 = function (self, cat, tune, nick)
+  local rel
   nick = nick or "butcher"..math.random(1, 25)
   if cat then
     if self.AllStuff[cat] then
       for _, word in pairs(t.ForbiddenWords) do
-        if string.find(rel.title, word, 1, true) then
+        if string.find (tune, word, 1, true) then
           return "The release name contains the following forbidden"
           .." word (thus not added): "..word
         end
@@ -105,31 +123,23 @@ t.Add2 = function (self, cat, rel, nick)
     -- Coroutines below should be like an array with a limit of 5; neater and who knows? :}
       if self.Coroutines[nick] then return ("A release of yours is already "
       .."being processed. Please wait a few seconds!") end
+      local dt = os.date ("*t")
+      rel = { nick = nick, 
+              title = tune, 
+              when = { dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec }
+            }
       local count = #self.AllStuff
       if count == 0 then
         if ReleaseApprovalPolicy ~= 1 then
 --         AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
-          table.insert (self.AllStuff[cat], {nick = nick, title = rel.title, 
-          when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
-          self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
-          ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-          .."\", when = os.date (\"*t\")})")
-          return "\""..tune.."\" has been added to the releases in this "
-          .."category: \""..Types[cat].."\" with ID "..count + 1, 2
+          Event("RelAdded", cat, rel, self);
         else -- everything must be queued
           -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          table.insert (self.PendingStuff[cat], {nick = nick, title = title, 
-          when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
-          self:Journal ("pendingrel.lua", "table.insert(Releases.PendingStuff[\""
-          ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-          .."\", when = os.date (\"*t\")})")
-          return "\""..tune.."\" has been added to the pending releases "
-          .."in this category: \""..Types[cat].."\" with ID "..count + 1
-          ..", please wait until someone reviews it.", 2
+          Event("PendingRelAdded", cat, rel, self);
         end
       else
         self.Coroutines[nick] =  {
-        Coroutine = coroutine.create(self.ComparisonHelper),
+        Coroutine = coroutine.create (self.ComparisonHelper),
         Release = rel,
         CurrID = 0, -- to check rel #1 so avoid off-by-one errors
         Category = cat,
@@ -152,9 +162,26 @@ end --    ,{},Levels.Add,"<type> <name> // Add release of given type."
 -- RelEdited(), RelDeleted()
 -- t.Move (id, newCat) with RelMoved() returning a list of moved 
 
+
+-- Approve a pending release. 
+t.Approve = function (self, cat, id, nick)
+  -- here nick is the one that approves
+  if not self.PendingStuff[cat] then return "unknown category!" end
+  local rel = self.PendingStuff[cat][id]
+  if rel then
+    self.PendingStuff[cat][id] = nil
+    Event("RelAdded", cat, rel.title, rel.nick)
+    Event("RelApproved", cat, Releases.AllStuff[#Releases.AllStuff[cat]], nick)
+    return "added "..rel.title.." with id "..cat.."/"..id.." by "..rel.who
+  else
+    return "release with given ID does not exist"
+  end
+end
+  
 t.Get = function (self, Y, M, D)
 --  local td, YY, MM, DD; if Y == "today" then td = os.date ("%d/%m/%Y") else td = os.date (
-  local td = os.date ("%d/%m/%Y")
+  local td = os.date ("*t")
+  local dt = { td.day, td.month, td.year }
   for cat, arr in pairs (self.AllStuff) do
     local c = #arr
     local Y, M, D = arr[c].when.year, arr[c].when.month, arr[c].when.day
@@ -199,21 +226,21 @@ t.OpenJournal = function (self, filename)
     f:close ()
   end
   for _, func in ipairs (JournalTbl) do func() end
-  if not next (JournalTbl) then SendDebug ("Journal empty.") return end
+  if not next (JournalTbl) then SendDebug ("Journal empty: "..filename) return end
   SendDebug ("Recovered "..#JournalTbl.." items from journal.")
   os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
-  persistence.store (string.sub(package.path, 1, -6).."data/"..filename, self.AllStuff)
+  persistence.store (string.sub (package.path, 1, -6).."data/"..filename, self.AllStuff)
 end
 
 -- fake database generator
 t.FakeStuff = function (self, num)
   local randomtype = {}
-  for k, v in pairs(self.AllStuff) do
+  for k, v in pairs (self.AllStuff) do
     table.insert (randomtype, k)
   end
   for k = 1, num do
     local no = math.random(#randomtype)
-    print (self:Add2 (randomtype[no], {nick = "bastya_elvtars"..no^3, title = string.sub(os.tmpname (),2,-1)}) )
+    print (self:Add2 (randomtype[no], string.sub(os.tmpname (),2,-1), "bastya_elvtars"..no^3) )
   end
 end
 
@@ -380,25 +407,19 @@ t.Timer = function ()
           FoundSame = true
           break -- break the loop, we already have this release
         else
-          msg = msg.."\r\n"..id.." - "..rel.title.." ("..percent.."%)"
-          msg_op = msg_op.."\r\n"..id.." - "..rel.title.." ("..percent
+          msg = msg.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent.."%)"
+          msg_op = msg_op.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent
           .."%)"
         end
         if not FoundSame then
           if ReleaseApprovalPolicy ~= 3 then
             msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
-            table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title,
-            when = os.date ("*t")}); Event("PendingRelAdded", cat, rel, self);
-            Releases:Journal ("pendingrel.lua", "table.insert(Releases.PendingStuff[\""
-            ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-            .."\", when = os.date (\"*t\")})")
+            Event("PendingRelAdded", cat, {nick = nick, title = rel.title, 
+            when = date_arr}, self);            
             return msg_op
           else
-            table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
-            when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
-            Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
-            ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-            .."\", when = os.date (\"*t\")})")
+            Event("RelAdded", cat, {nick = nick, title = rel.title, 
+            when = date_arr}, self);
             return msg
           end
         end
@@ -408,11 +429,8 @@ t.Timer = function ()
         msg = "\""..tbl.Release.title
         .."\" has been added to the releases in this category: \""
         ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
-        table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title, 
-        when = os.date ("*t")}); Event("RelAdded", cat, rel, self);
-        Releases:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""
-        ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-        .."\", when = os.date (\"*t\")})")
+        Event("RelAdded", cat, {nick = nick, title = rel.title, 
+        when = date_arr}, self);
       return msg
       end
     end

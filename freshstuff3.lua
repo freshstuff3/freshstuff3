@@ -78,8 +78,8 @@ Releases:AddCat ("game")
 
 
 --Releases:FakeStuff(50)
-Releases:Add2 ("music", {nick = "bastya_elvtars", title = "the pirates of the caribbean"}) 
-Releases:Add2 ("music", {nick = "bastya_elvtars", title = "the pirates of the caribbean 2"}) 
+Releases:Add2 ("music", "the pirates of the caribbean", "bastya_elvtars") 
+Releases:Add2 ("music", "the pirates of the caribbean 2", "bastya_elvtars") 
 Releases:OpenJournal ("releases.lua")
 Releases:OpenJournal ("pendingrel.lua")
 
@@ -88,3 +88,5 @@ Releases:OpenJournal ("pendingrel.lua")
 --print(#Releases.AllStuff.game)
 
 for  k = 1, 50 do print (Releases.Timer()) end
+
+print (Releases:Approve ("music", 1))
