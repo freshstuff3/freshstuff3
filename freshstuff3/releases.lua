@@ -62,10 +62,10 @@ end
 
 t.RelAdded = function (ev, cat, rel)
   table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title,
-  when = rel.when});
+  when = os.date("%m/%d/%Y") } );
   Releases:Journal ("releases.lua", "table.insert (Releases.AllStuff[\""
   ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-  .."\", when = { "..table.concat (rel.when, ", ").." } })")
+  .."\", when = "..rel.when.." })")
   SendOut ("\""..rel.title.."\" has been added to the releases with ID "..cat..
   "/"..#Releases.AllStuff)
 end
@@ -123,18 +123,14 @@ t.Add2 = function (self, cat, tune, nick)
     -- Coroutines below should be like an array with a limit of 5; neater and who knows? :}
       if self.Coroutines[nick] then return ("A release of yours is already "
       .."being processed. Please wait a few seconds!") end
-      local dt = os.date ("*t")
-      rel = { nick = nick, 
+      local rel = { nick = nick, 
               title = tune, 
-              when = { dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec }
             }
       local count = #self.AllStuff
       if count == 0 then
         if ReleaseApprovalPolicy ~= 1 then
---         AllStuff(cat, nick, os.date("%m/%d/%Y"), tune)
           Event("RelAdded", cat, rel, self);
         else -- everything must be queued
-          -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           Event("PendingRelAdded", cat, rel, self);
         end
       else
@@ -142,8 +138,7 @@ t.Add2 = function (self, cat, tune, nick)
         Coroutine = coroutine.create (self.ComparisonHelper),
         Release = rel,
         CurrID = 0, -- to check rel #1 so avoid off-by-one errors
-        Category = cat,
-        }
+        Category = cat }
         return "Your release is being processed.", 2
       end
     else
