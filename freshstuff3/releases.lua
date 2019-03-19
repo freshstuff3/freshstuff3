@@ -49,14 +49,11 @@ __len = function (tbl)
   return number
 end})
 
-function GetDate ()
-  local dt = os.date ("*t")
-  return { dt.day, dt.month, dt.year, dt.hour, dt.min, dt.sec }
-end
-
+-- temporarily hardcoded config data, to be removed later
 t.ForbiddenWords = { "fuck", "shit" }
-  -- Events: you call these from the event handler Event()
-t.CategoryAdded = function (ev, cat, self)
+
+  -- Events: you call these from the event handler Event ("EventName", ...)
+t.CategoryAdded = function (ev, cat, nick)
   SendDebug ("added a new category: "..cat)
 end
 
@@ -79,6 +76,9 @@ t.PendingRelAdded = function (ev, cat, rel, self)
   ..", please wait until someone reviews it.")
 end
 
+-- Functions called with Releases:Blah(...)
+
+-- add a category
 t.AddCat = function (self, cat)
   if not self.AllStuff[cat] then
     self.AllStuff[cat] = {}
@@ -95,20 +95,33 @@ t.AddCat = function (self, cat)
     return "category already exists!"
   end
 end
+--TODO:
+-- t.ChangeDel(cat, id[, rel])
+-- multi id looking like {ps2 = {1,2,3,7,31}, music = {1,999}}
+-- "music/1-99" and things will be processed in Commands table
+-- RelEdited(), RelDeleted()
+-- t.Move (id, newCat) with RelMoved() returning a list of moved 
 
-t.Add = function (self, cat, rel)
-  if rel then
-    local nick, title = rel.nick, rel.title
-    assert (nick and title, "Invalid release object!")
-    if self.AllStuff[cat] then
-      table.insert (self.AllStuff[cat], {nick = nick, title = title, when = os.date ("*t")})
-      self:Journal ("releases.lua", "table.insert(Releases.AllStuff[\""..cat.."\"], {nick = \""
-        ..rel.nick.."\", title = \""..rel.title.."\", when = os.date (\"*t\")})")
-      Event("RelAdded", cat, rel, self); 
+-- primitive function to get data, TODO: include stuff from metatable.lua
+t.Get = function (self, Y, M, D)
+--  local td, YY, MM, DD; if Y == "today" then td = os.date ("%d/%m/%Y") else td = os.date (
+  local td = os.date ("*t")
+  local dt = { td.day, td.month, td.year }
+  for cat, arr in pairs (self.AllStuff) do
+    local c = #arr
+    local Y, M, D = arr[c].when.year, arr[c].when.month, arr[c].when.day
+    local dt = D.."/"..M.."/"..Y
+    while c > 0 and dt == td do
+      local rel = arr[c]
+      result[{cat = cat, ID = c}] = rel
+      max = max + 1 
+      c = c - 1
+      Y, M, D = arr[c].when.year, arr[c].when.month, arr[c].when.day
+      dt = D.."/"..M.."/"..Y
     end
   end
 end
-
+-- Add a release, largely grabbed from 5.x
 t.Add2 = function (self, cat, tune, nick)
   local rel
   nick = nick or "butcher"..math.random(1, 25)
@@ -150,14 +163,6 @@ t.Add2 = function (self, cat, tune, nick)
   end
 end --    ,{},Levels.Add,"<type> <name> // Add release of given type."
 
--- t.ChangeDel(cat, id[, rel])
--- if rel is unspecified then it deletes and id can be multiple, 
--- looking like {ps2 = {1,2,3,7,31}, music = {1,999}}
--- "music/1-99" and things will be processed in Commands table
--- RelEdited(), RelDeleted()
--- t.Move (id, newCat) with RelMoved() returning a list of moved 
-
-
 -- Approve a pending release. 
 t.Approve = function (self, cat, id, nick)
   -- here nick is the one that approves
@@ -170,25 +175,6 @@ t.Approve = function (self, cat, id, nick)
     return "added "..rel.title.." with id "..cat.."/"..id.." by "..rel.who
   else
     return "release with given ID does not exist"
-  end
-end
-  
-t.Get = function (self, Y, M, D)
---  local td, YY, MM, DD; if Y == "today" then td = os.date ("%d/%m/%Y") else td = os.date (
-  local td = os.date ("*t")
-  local dt = { td.day, td.month, td.year }
-  for cat, arr in pairs (self.AllStuff) do
-    local c = #arr
-    local Y, M, D = arr[c].when.year, arr[c].when.month, arr[c].when.day
-    local dt = D.."/"..M.."/"..Y
-    while c > 0 and dt == td do
-      local rel = arr[c]
-      result[{cat = cat, ID = c}] = rel
-      max = max + 1 
-      c = c - 1
-      Y, M, D = arr[c].when.year, arr[c].when.month, arr[c].when.day
-      dt = D.."/"..M.."/"..Y
-    end
   end
 end
 
@@ -222,7 +208,7 @@ t.OpenJournal = function (self, filename)
   end
   for _, func in ipairs (JournalTbl) do func() end
   if not next (JournalTbl) then SendDebug ("Journal empty: "..filename) return end
-  SendDebug ("Recovered "..#JournalTbl.." items from journal.")
+  SendDebug ("Recovered "..#JournalTbl.." items from journal file "..filename)
   os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
   persistence.store (string.sub (package.path, 1, -6).."data/"..filename, self.AllStuff)
 end
@@ -238,15 +224,6 @@ t.FakeStuff = function (self, num)
     print (self:Add2 (randomtype[no], string.sub(os.tmpname (),2,-1), "bastya_elvtars"..no^3) )
   end
 end
-
-t.OnTimer = function ()
-  persistence.store (string.sub(package.path, 1, -6).."data/releases.lua", Releases.AllStuff)
-  persistence.store (string.sub(package.path, 1, -6).."data/pendingrel.lua", Releases.AllStuff)
-  os.remove (string.sub(package.path, 1, -6).."journal/releases.lua")
-  os.remove (string.sub(package.path, 1, -6).."journal/pendingrel.lua")
-end
-
-t.OnExit = t.OnTimer
 
 -- Levenshtein distance algorithm from http://bit.ly/bCGkiX
 -- Here I use it for comparing two strings. In my practice, 75% means they're
@@ -284,6 +261,7 @@ t.Levenshtein = function (self, string1, string2)
   return 1-distance[str1len][str2len]/math.max(str1len, str2len)
 end
 
+-- this function is executed by 
 t.ComparisonHelper = function (tbl, nick)
   local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
   local rel, id = tbl.Release, tbl.CurrID
@@ -357,6 +335,8 @@ end
 t.MainTableHelper = coroutine.create (t.MainTableParser)
 
 t.Timer = function ()
+  Releases:OpenJournal ("releases.lua")
+  Releases:OpenJournal ("pendingrel.lua")
   if coroutine.status (Releases.MainTableHelper) == "dead" then
     Releases.MainTableHelper = coroutine.create (Releases.MainTableParser)
   end

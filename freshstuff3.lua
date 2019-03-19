@@ -78,15 +78,10 @@ Releases:AddCat ("game")
 
 
 --Releases:FakeStuff(50)
-Releases:Add2 ("music", "the pirates of the caribbean", "bastya_elvtars") 
+--Releases:Add2 ("music", "the pirates of the caribbean", "bastya_elvtars") 
+-- the below is buggy. it adds to the pending more than once somehow
 Releases:Add2 ("music", "the pirates of the caribbean 2", "bastya_elvtars") 
-Releases:OpenJournal ("releases.lua")
-Releases:OpenJournal ("pendingrel.lua")
 
+for  k = 1, 10 do print (Releases.Timer()) end
 
---print(#Releases.AllStuff)
---print(#Releases.AllStuff.game)
-
-for  k = 1, 50 do print (Releases.Timer()) end
-
-print (Releases:Approve ("music", 1))
+--print (Releases:Approve ("music", 1))
