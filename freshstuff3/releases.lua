@@ -22,7 +22,7 @@ local t = { Commands = {}, Coroutines = {} }
 t.AllStuff = persistence.load (string.sub(package.path, 1, -6)
   .."data/releases.lua") or {}
 t.PendingStuff  = persistence.load (string.sub(package.path, 1, -6)
-  .."data/releases_pending.lua") or {}
+  .."data/pendingrel.lua") or {}
 setmetatable (t.AllStuff, {
 __len = function (tbl)
   local number = 0
@@ -62,7 +62,7 @@ t.RelAdded = function (ev, cat, rel)
   when = os.date("%m/%d/%Y") } );
   Releases:Journal ("releases.lua", "table.insert (Releases.AllStuff[\""
   ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title
-  .."\", when = "..rel.when.." })")
+  .."\", when = "..os.date("%m/%d/%Y").." })")
   SendOut ("\""..rel.title.."\" has been added to the releases with ID "..cat..
   "/"..#Releases.AllStuff)
 end
@@ -75,6 +75,200 @@ t.PendingRelAdded = function (ev, cat, rel, self)
   .."with ID "..cat.."/"..#Releases.PendingStuff
   ..", please wait until someone reviews it.")
 end
+
+t.Timer = function ()
+  local arr = { "releases.lua", "pendingrel.lua" }
+  for _, filename in ipairs (arr) do
+    os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
+    persistence.store (string.sub (package.path, 1, -6).."data/"..filename, Releases.AllStuff)
+  end
+  Releases:OpenJournal ("releases.lua")
+  Releases:OpenJournal ("pendingrel.lua")
+  if coroutine.status (Releases.MainTableHelper) == "dead" then
+    Releases.MainTableHelper = coroutine.create (Releases.MainTableParser)
+  end
+  local bOK, match, tbl, nick = coroutine.resume (Releases.MainTableHelper)
+  if nick then -- the coroutine explicitly returned = finished
+    local rel, cat = tbl.Release, tbl.Category
+    if next (match) then
+      -- Sort the table in reverse order for percentages.
+      -- This ensures that if a 100% is found nothing will get added
+      -- afterwards.
+      table.sort(match, function (el1, el2)
+        return el1[3] > el2[3]
+      end)
+      for k, v in ipairs (match) do
+        local id, rel, percent, bPending = table.unpack (v)
+        local msg =
+        "\""..rel.title.."\" has been added to the to-be-reviewed releases "
+        .."in this category: \""..cat.."\" with ID "
+        ..(#Releases.PendingStuff + 1)
+        ..". \r\nIt needs approval by an authorized user before it"
+        .."could appear on the list"
+        local msg_op = "A release has been added by "..nick.. " that is"
+        .." quite similar to the following release(s):\r\n"
+        local FoundSame -- boolean for 100% match
+        local policy_msg =
+        {
+        msg..". Note that it is quite similar to the following release(s):",
+        msg.." BECAUSE it is quite similar to the following release(s):",
+        }
+        msg = policy_msg[ReleaseApprovalPolicy] or "\""..rel.title
+        .."\" has been added to the releases in this category: \""
+        ..cat.."\" with ID "..cat.."/"..(#Releases.AllStuff + 1)..". Note that it is"
+        .." quite similar to the following release(s):"
+        if percent == 100 then -- identical!
+          if bPending then
+            return  "A release with the same name is already "
+            .."awaiting  approval. Release has NOT been added.", rel.title
+          else
+            return "Your release is identical to the following "
+            .."release(s): \r\nID# "..cat.."/"..id.." - Name: "..rel.title
+            ..".\r\n\r\nRelease has NOT been added.", rel.title
+          end
+          FoundSame = true
+          break -- break the loop, we already have this release
+        else
+          msg = msg.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent.."%)"
+          msg_op = msg_op.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent
+          .."%)"
+        end
+        if not FoundSame then
+          if ReleaseApprovalPolicy ~= 3 then
+            msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
+            Event("PendingRelAdded", cat, {nick = nick, title = rel.title }, self);            
+            return msg_op
+          else
+            Event("RelAdded", cat, {nick = nick, title = rel.title, 
+            when = date_arr}, self);
+            return msg
+          end
+        end
+      end
+    else -- not even a single similar release found, add the stuff
+      if ReleaseApprovalPolicy ~= 1 then
+        msg = "\""..tbl.Release.title
+        .."\" has been added to the releases in this category: \""
+        ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
+        Event("RelAdded", cat, {nick = nick, title = rel.title, 
+        when = date_arr}, self);
+      return msg
+      end
+    end
+  elseif not bOK then -- there is a syntax error
+    return match -- forward it to ops
+  end
+end
+
+-- Levenshtein distance algorithm from http://bit.ly/bCGkiX
+-- Here I use it for comparing two strings. In my practice, 75% means they're
+-- nearly identical so further check is required.
+-- @return Is actually the ratio of the difference and the longer string, sub-
+-- @return tracted from 1.
+t.Levenshtein = function (self, string1, string2)
+  string1 = string1:lower(); string2 = string2:lower()
+  local str1, str2, distance = {}, {}, {};
+  local str1len, str2len = string1:len(), string2:len();
+  for s in string.gmatch(string1, "(.)") do
+    table.insert(str1, s);
+  end
+  for s in string.gmatch(string2, "(.)") do
+    table.insert(str2, s)
+  end
+  for i = 0, str1len do
+    distance[i] = distance[i] or {}
+    distance[i][0] = i;
+  end
+  for i = 0, str2len do
+    distance[i] = distance[i] or {}
+    distance[0][i] = i;
+  end
+  for i = 1, str1len do
+    for j = 1, str2len do
+      local tmpdist = 1;
+      if(str1[i-1] == str2[j-1]) then
+        tmpdist = 0;
+      end
+      distance[i][j] = math.min( distance[i-1][j] + 1,
+      distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
+    end
+  end
+  return 1-distance[str1len][str2len]/math.max(str1len, str2len)
+end
+
+-- this function is executed by 
+t.ComparisonHelper = function (tbl, nick)
+  local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
+  local rel, id = tbl.Release, tbl.CurrID
+  local match = {}
+  local bExact
+  while true do -- endless loop
+    -- raise release ID by 1
+    id = id + 1
+    if id > #Releases.AllStuff[tbl.Category] then break end
+    local percent = 100*Releases:Levenshtein (Releases.AllStuff[tbl.Category][id].title, rel.title) -- compare
+    SendDebug (percent)
+    PIC = PIC + 1
+    -- todo: make variable for value 75 below max match
+    if percent >= 75 then
+      table.insert(match, {id, rel, percent}) -- there is a match, register
+      -- if 100% match found, further checking is futile
+      if percent == 100 then return PIC, match; end
+    end
+--    if PIC >= ItemsToCheckAtOnce then -- max reached  for this session
+    if PIC >= 30 then -- max reached  for this session
+      Releases.Coroutines[nick].CurrID = id -- record the last processed ID
+      coroutine.yield(PIC)-- and go to sleep
+      PIC = 0
+      -- When we wake up, the loop resumes
+    end
+  end
+  id = 0
+  while true do
+    id = id + 1
+    if id > #Releases.PendingStuff[tbl.Category] then break end
+    local percent = 100*Releases:Levenshtein (Releases.PendingStuff[tbl.Category][id].title, rel.title)
+    PIC = PIC + 1
+    if percent == 100 then -- if matches
+      table.insert(match, {id, rel, percent, true})
+      return PIC, match
+    end
+--    if PIC >= ItemsToCheckAtOnce then
+    if PIC >= 30 then
+      Coroutines[nick].CurrID = id
+      coroutine.yield(PIC)
+      PIC = 0
+    end
+  end
+  return PIC, match -- return if there are matches, stopping the coroutine
+end
+
+t.MainTableParser = function ()
+  local bOK, rePIC, match, nick, tbl
+  while true do
+    nick, tbl = next (Releases.Coroutines, nick)
+    if nick then
+      if coroutine.status (tbl.Coroutine) ~= "dead" then
+        bOK, rePIC, match = coroutine.resume (tbl.Coroutine, tbl, nick)
+        -- syntax error
+        if not bOK then return false, rePIC; end
+        -- the coroutine finished
+        if match then return match, tbl, nick end
+        -- reached the max number of items, sleep
+        if rePIC >= 30 then coroutine.yield() end
+      else
+        Releases.Coroutines[nick] = nil
+      end
+    else
+      -- If the table is empty, we just return an empty table plus 2 nil's.
+      -- If not, the gets returned with friends either non-nil.
+      -- See Timer() below.
+      return match or {}, tbl, nick
+    end
+  end
+end
+
+t.MainTableHelper = coroutine.create (t.MainTableParser)
 
 -- Functions called with Releases:Blah(...)
 
@@ -122,7 +316,7 @@ t.Get = function (self, Y, M, D)
   end
 end
 -- Add a release, largely grabbed from 5.x
-t.Add2 = function (self, cat, tune, nick)
+t.Add = function (self, cat, tune, nick)
   local rel
   nick = nick or "butcher"..math.random(1, 25)
   if cat then
@@ -221,197 +415,10 @@ t.FakeStuff = function (self, num)
   end
   for k = 1, num do
     local no = math.random(#randomtype)
-    print (self:Add2 (randomtype[no], string.sub(os.tmpname (),2,-1), "bastya_elvtars"..no^3) )
+    print (self:Add (randomtype[no], string.sub(os.tmpname (),2,-1), "bastya_elvtars"..no^3) )
   end
 end
 
--- Levenshtein distance algorithm from http://bit.ly/bCGkiX
--- Here I use it for comparing two strings. In my practice, 75% means they're
--- nearly identical so further check is required.
--- @return Is actually the ratio of the difference and the longer string, sub-
--- @return tracted from 1.
-t.Levenshtein = function (self, string1, string2)
-  string1 = string1:lower(); string2 = string2:lower()
-  local str1, str2, distance = {}, {}, {};
-  local str1len, str2len = string1:len(), string2:len();
-  for s in string.gmatch(string1, "(.)") do
-    table.insert(str1, s);
-  end
-  for s in string.gmatch(string2, "(.)") do
-    table.insert(str2, s)
-  end
-  for i = 0, str1len do
-    distance[i] = distance[i] or {}
-    distance[i][0] = i;
-  end
-  for i = 0, str2len do
-    distance[i] = distance[i] or {}
-    distance[0][i] = i;
-  end
-  for i = 1, str1len do
-    for j = 1, str2len do
-      local tmpdist = 1;
-      if(str1[i-1] == str2[j-1]) then
-        tmpdist = 0;
-      end
-      distance[i][j] = math.min( distance[i-1][j] + 1,
-      distance[i][j-1]+1, distance[i-1][j-1] + tmpdist);
-    end
-  end
-  return 1-distance[str1len][str2len]/math.max(str1len, str2len)
-end
 
--- this function is executed by 
-t.ComparisonHelper = function (tbl, nick)
-  local PIC = 0 -- Processed Items Counter (smart acronym, SRSLY)
-  local rel, id = tbl.Release, tbl.CurrID
-  local match = {}
-  local bExact
-  while true do -- endless loop
-    -- raise release ID by 1
-    id = id + 1
-    if id > #Releases.AllStuff[tbl.Category] then break end
-    local percent = 100*Releases:Levenshtein (Releases.AllStuff[tbl.Category][id].title, rel.title) -- compare
-    PIC = PIC + 1
-    -- todo: make value for value 75 below max match
-    if percent >= 75 then
-      table.insert(match, {id, rel, percent}) -- there is a match, register
-      -- if 100% match found, further checking is futile
-      if percent == 100 then return PIC, match; end
-    end
---    if PIC >= ItemsToCheckAtOnce then -- max reached  for this session
-    if PIC >= 30 then -- max reached  for this session
-      Releases.Coroutines[nick].CurrID = id -- record the last processed ID
-      coroutine.yield(PIC)-- and go to sleep
-      PIC = 0
-      -- When we wake up, the loop resumes
-    end
-  end
-  id = 0
-  while true do
-    id = id + 1
-    if id > #Releases.PendingStuff[tbl.Category] then break end
-    local percent = 100*Releases:Levenshtein (Releases.PendingStuff[tbl.Category][id].title, rel.title)
-    PIC = PIC + 1
-    if percent == 100 then -- if matches
-      table.insert(match, {id, rel, percent, true})
-      return PIC, match
-    end
---    if PIC >= ItemsToCheckAtOnce then
-    if PIC >= 30 then
-      Coroutines[nick].CurrID = id
-      coroutine.yield(PIC)
-      PIC = 0
-    end
-  end
-  return PIC, match -- return if there are matches, stopping the coroutine
-end
-
-t.MainTableParser = function ()
-  local bOK, rePIC, match, nick, tbl
-  while true do
-    nick, tbl = next (Releases.Coroutines, nick)
-    if nick then
-      if coroutine.status (tbl.Coroutine) ~= "dead" then
-        bOK, rePIC, match = coroutine.resume (tbl.Coroutine, tbl, nick)
-        -- syntax error
-        if not bOK then return false, rePIC; end
-        -- the coroutine finished
-        if match then return match, tbl, nick end
-        -- reached the max number of items, sleep
-        if rePIC >= 30 then coroutine.yield() end
-      else
-        Releases.Coroutines[nick] = nil
-      end
-    else
-      -- If the table is empty, we just return an empty table plus 2 nil's.
-      -- If not, the gets returned with friends either non-nil.
-      -- See Timer() below.
-      return match or {}, tbl, nick
-    end
-  end
-end
-
-t.MainTableHelper = coroutine.create (t.MainTableParser)
-
-t.Timer = function ()
-  Releases:OpenJournal ("releases.lua")
-  Releases:OpenJournal ("pendingrel.lua")
-  if coroutine.status (Releases.MainTableHelper) == "dead" then
-    Releases.MainTableHelper = coroutine.create (Releases.MainTableParser)
-  end
-  local bOK, match, tbl, nick = coroutine.resume (Releases.MainTableHelper)
-  if nick then -- the coroutine explicitly returned = finished
-    local rel, cat = tbl.Release, tbl.Category
-    if next (match) then
-      -- Sort the table in reverse order for percentages.
-      -- This ensures that if a 100% is found nothing will get added
-      -- afterwards.
-      table.sort(match, function (el1, el2)
-        return el1[3] > el2[3]
-      end)
-      for k, v in ipairs (match) do
-        local id, rel, percent, bPending = table.unpack (v)
-        local msg =
-        "\""..rel.title.."\" has been added to the to-be-reviewed releases "
-        .."in this category: \""..cat.."\" with ID "
-        ..(#Releases.PendingStuff + 1)
-        ..". \r\nIt needs approval by an authorized user before it"
-        .."could appear on the list"
-        local msg_op = "A release has been added by "..nick.. " that is"
-        .." quite similar to the following release(s):\r\n"
-        local FoundSame -- boolean for 100% match
-        local policy_msg =
-        {
-        msg..". Note that it is quite similar to the following release(s):",
-        msg.." BECAUSE it is quite similar to the following release(s):",
-        }
-        msg = policy_msg[ReleaseApprovalPolicy] or "\""..rel.title
-        .."\" has been added to the releases in this category: \""
-        ..cat.."\" with ID "..cat.."/"..(#Releases.AllStuff + 1)..". Note that it is"
-        .." quite similar to the following release(s):"
-        if percent == 100 then -- identical!
-          if bPending then
-            return  "A release with the same name is already "
-            .."awaiting  approval. Release has NOT been added.", rel.title
-          else
-            return "Your release is identical to the following "
-            .."release(s): \r\nID# "..cat.."/"..id.." - Name: "..rel.title
-            ..".\r\n\r\nRelease has NOT been added.", rel.title
-          end
-          FoundSame = true
-          break -- break the loop, we already have this release
-        else
-          msg = msg.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent.."%)"
-          msg_op = msg_op.."\r\n"..cat.."/"..id.." - "..rel.title.." ("..percent
-          .."%)"
-        end
-        if not FoundSame then
-          if ReleaseApprovalPolicy ~= 3 then
-            msg_op = msg_op.."\r\n\r\nPlease review! Thanks!"
-            Event("PendingRelAdded", cat, {nick = nick, title = rel.title, 
-            when = date_arr}, self);            
-            return msg_op
-          else
-            Event("RelAdded", cat, {nick = nick, title = rel.title, 
-            when = date_arr}, self);
-            return msg
-          end
-        end
-      end
-    else -- not even a single similar release found, add the stuff
-      if ReleaseApprovalPolicy ~= 1 then
-        msg = "\""..tbl.Release.title
-        .."\" has been added to the releases in this category: \""
-        ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
-        Event("RelAdded", cat, {nick = nick, title = rel.title, 
-        when = date_arr}, self);
-      return msg
-      end
-    end
-  elseif not bOK then -- there is a syntax error
-    return match -- forward it to ops
-  end
-end
 
 return t

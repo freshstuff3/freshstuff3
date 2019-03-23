@@ -1,8 +1,7 @@
 -- FreshStuff3 6.0
 -- Distributed under the MIT license.
 
---AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
---   Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
+
 local Version="FreshStuff3 6.0 alpha 1"
 --unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
@@ -71,7 +70,7 @@ end
 -- Load the module(s)
 Releases = require "releases"
 
-Releases:AddCat ("music")
+print (Releases:AddCat ("music"))
 Releases:AddCat ("movie")
 Releases:AddCat ("software")
 Releases:AddCat ("game")
@@ -80,7 +79,9 @@ Releases:AddCat ("game")
 --Releases:FakeStuff(50)
 --Releases:Add2 ("music", "the pirates of the caribbean", "bastya_elvtars") 
 -- the below is buggy. it adds to the pending more than once somehow
-Releases:Add2 ("music", "the pirates of the caribbean 2", "bastya_elvtars") 
+-- the levenshtein seems b0rked
+-- also it writes out the release-to-be-added
+Releases:Add ("music", "the pirates of the caribbean 34", "dxhr3") 
 
 for  k = 1, 10 do print (Releases.Timer()) end
 

@@ -3,18 +3,17 @@ local multiRefObjects = {
 
 } -- multiRefObjects
 local obj1 = {
-	["game"] = {
+	["movie"] = {
 	};
 	["software"] = {
 	};
 	["music"] = {
 		[1] = {
-			["when"] = 8.2549116724451e-005;
-			["title"] = "the pirates of the caribbean";
-			["nick"] = "bastya_elvtars";
+			["title"] = "the pirates of the caribbean 44";
+			["when"] = "03/23/2019";
 		};
 	};
-	["movie"] = {
+	["game"] = {
 	};
 }
 return obj1
