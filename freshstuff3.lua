@@ -6,7 +6,7 @@ local Version="FreshStuff3 6.0 alpha 1"
 --unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
 -- Desired package.path for lua/stdout fallback if you are using standalone Lua.
-local luapath = "C:/Users/szaka/Desktop/Linux/devel/freshstuff3/freshstuff3/?.lua"
+local luapath = "C:/Users/Lenovo/Desktop/Linux/devel/freshstuff3/freshstuff3/?.lua"
 
 function LoadCfg(dir, fn)
   file = dir.."config/"..fn
@@ -79,7 +79,7 @@ Releases:AddCat ("game")
 --Releases:FakeStuff(50)
 --Releases:Add2 ("music", "the pirates of the caribbean", "bastya_elvtars") 
 -- the below is buggy. it adds to the pending more than once somehow
--- the levenshtein seems b0rked
+-- the levenshtein seems b0rked, it does not seen to chk against pending at all
 -- also it writes out the release-to-be-added
 Releases:Add ("music", "the pirates of the caribbean 34", "dxhr3") 
 

@@ -14,7 +14,7 @@
 ReleaseApprovalPolicy = 2
 
 if not Host then 
-  package.path = "C:/Users/szaka/Desktop/Linux/devel/"
+  package.path = "C:/Users/Lenovo/Desktop/Linux/devel/"
   .."freshstuff3/freshstuff3/?.lua" 
 end
 local persistence = require "persistence"
@@ -161,21 +161,17 @@ t.Timer = function ()
 end
 
 -- Levenshtein distance algorithm from http://bit.ly/bCGkiX
--- Here I use it for comparing two strings. In my practice, 75% means they're
--- nearly identical so further check is required.
--- @return Is actually the ratio of the difference and the longer string, sub-
--- @return tracted from 1.
+-- Here I use it for comparing two strings. In my practice, 75% or more 
+-- means they're nearly identical so further check is required.
+-- returns: X = 1 - D/L where D is the difference in no. of chars and L is
+-- the longer string's length 
 t.Levenshtein = function (self, string1, string2)
   string1 = string1:lower(); string2 = string2:lower()
   local str1, str2, distance = {}, {}, {};
   local str1len, str2len = string1:len(), string2:len();
-  for s in string.gmatch(string1, "(.)") do
-    table.insert(str1, s);
-  end
-  for s in string.gmatch(string2, "(.)") do
-    table.insert(str2, s)
-  end
-  for i = 0, str1len do
+  for s in string.gmatch(string1, "(.)") do; table.insert(str1, s); end
+  for s in string.gmatch(string2, "(.)") do; table.insert(str2, s); end
+  for i = 0, str1len do 
     distance[i] = distance[i] or {}
     distance[i][0] = i;
   end
