@@ -6,11 +6,11 @@ local Version="FreshStuff3 6.0 alpha 1"
 --unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
 -- Desired package.path for lua/stdout fallback if you are using standalone Lua.
-local luapath = "C:/Users/Lenovo/Desktop/Linux/devel/freshstuff3/freshstuff3/?.lua"
+local luapath = "C:/Users/szaka/OneDrive/dev/?.lua"
 
 function LoadCfg(dir, fn)
-  file = dir.."config/"..fn
-  local f = io.open(file,"r")
+  local file = dir.."config/"..fn
+  local f = io.open(file, "r")
   local str
   if not f then -- unlikely but play safe
     SendDebug (dir.."config/"..fn.." is missing, creating a new one.")
