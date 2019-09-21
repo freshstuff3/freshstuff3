@@ -6,7 +6,7 @@ local Version="FreshStuff3 6.0 alpha 1"
 --unpack = unpack or table.unpack -- Lua 5.1 compatibility
 
 -- Desired package.path for lua/stdout fallback if you are using standalone Lua.
-local luapath = "C:/Users/szaka/OneDrive/dev/?.lua"
+local luapath = "C:/Users/szaka/OneDrive/dev/fs3/freshstuff3/?.lua"
 
 function LoadCfg(dir, fn)
   local file = dir.."config/"..fn
@@ -38,7 +38,7 @@ local Host = {
       return Core.GetPtokaXPath().."scripts/freshstuff3/?.lua", true; end
     end,
   }
-local ok, t
+local ok
 for modname, loader in pairs(Host) do
   package.path, ok = loader ()
   if ok then 
@@ -61,19 +61,21 @@ end
 Event = Event or function (...)
   local x, event = {...}; event = x[1]
   local therewas
-  for n, mod in pairs (_G) do
-    if type(mod) == "table" and mod[event] then mod[event](...); therewas = true; end
+  for _, mod in pairs (_G) do
+    if type(mod) == "table" and mod[event] then mod[event](mod, ...); therewas = true; end
   end
   if not therewas then print (...) end
 end
 
 -- Load the module(s)
-Releases = require "releases"
-
+local Releases = require "releases"
+print (Releases:AddCat ("classical"))
+print (Releases:AddCat ("tutorial"))
+print(Releases:Add ("classical", "something", "dxhr3")) 
 print (Releases:AddCat ("music"))
-Releases:AddCat ("movie")
-Releases:AddCat ("software")
-Releases:AddCat ("game")
+print (Releases:AddCat ("movie"))
+print (Releases:AddCat ("software"))
+print (Releases:AddCat ("game"))
 
 
 --Releases:FakeStuff(50)
@@ -81,7 +83,6 @@ Releases:AddCat ("game")
 -- the below is buggy. it adds to the pending more than once somehow
 -- the levenshtein seems b0rked, it does not seen to chk against pending at all
 -- also it writes out the release-to-be-added
-Releases:Add ("music", "the pirates of the caribbean 34", "dxhr3") 
 
 for  k = 1, 10 do print (Releases.Timer()) end
 

@@ -11,19 +11,20 @@
 -- todo: remove unnecessary time fields from database
 -- now where are we? about to fix pendingstuff nil errors
 -- when category created, journal it in PendingStuff too
-ReleaseApprovalPolicy = 2
+local ReleaseApprovalPolicy = 2
 
 if not Host then 
-  package.path = "C:/Users/Lenovo/Desktop/Linux/devel/"
-  .."freshstuff3/freshstuff3/?.lua" 
+  package.path = "C:/Users/szaka/OneDrive/dev/"
+  .."fs3/freshstuff3/?.lua" 
 end
 local persistence = require "persistence"
 local t = { Commands = {}, Coroutines = {} }
-t.AllStuff = persistence.load (string.sub(package.path, 1, -6)
+Releases = {}
+Releases.AllStuff = persistence.load (string.sub(package.path, 1, -6)
   .."data/releases.lua") or {}
-t.PendingStuff  = persistence.load (string.sub(package.path, 1, -6)
+Releases.PendingStuff  = persistence.load (string.sub(package.path, 1, -6)
   .."data/pendingrel.lua") or {}
-setmetatable (t.AllStuff, {
+setmetatable (Releases.AllStuff, {
 __len = function (tbl)
   local number = 0
   if tbl[1] then -- non-empty category
@@ -36,7 +37,7 @@ __len = function (tbl)
   return number
 end})
 
-setmetatable (t.PendingStuff, {
+setmetatable (Releases.PendingStuff, {
 __len = function (tbl)
   local number = 0
   if tbl[1] then -- non-empty category
@@ -57,7 +58,7 @@ t.CategoryAdded = function (ev, cat, nick)
   SendDebug ("added a new category: "..cat)
 end
 
-t.RelAdded = function (ev, cat, rel)
+t.ItemAdded = function (ev, cat, rel)
   table.insert (Releases.AllStuff[cat], {nick = nick, title = rel.title,
   when = os.date("%m/%d/%Y") } );
   Releases:Journal ("releases.lua", "table.insert (Releases.AllStuff[\""
@@ -67,7 +68,7 @@ t.RelAdded = function (ev, cat, rel)
   "/"..#Releases.AllStuff)
 end
 
-t.PendingRelAdded = function (ev, cat, rel, self)
+t.PendingItemAdded = function (ev, cat, rel, self)
   table.insert (Releases.PendingStuff[cat], {nick = nick, title = rel.title})
   Releases:Journal ("pendingrel.lua", "table.insert (Releases.PendingStuff[\""
   ..cat.."\"], {nick = \""..rel.nick.."\", title = \""..rel.title.."\"  }")
@@ -76,18 +77,18 @@ t.PendingRelAdded = function (ev, cat, rel, self)
   ..", please wait until someone reviews it.")
 end
 
-t.Timer = function ()
+t.Timer = function (self)
   local arr = { "releases.lua", "pendingrel.lua" }
   for _, filename in ipairs (arr) do
     os.remove (string.sub(package.path, 1, -6).."journal/"..filename)
-    persistence.store (string.sub (package.path, 1, -6).."data/"..filename, Releases.AllStuff)
+    persistence.store (string.sub (package.path, 1, -6).."data/"..filename, self.AllStuff)
   end
-  Releases:OpenJournal ("releases.lua")
-  Releases:OpenJournal ("pendingrel.lua")
-  if coroutine.status (Releases.MainTableHelper) == "dead" then
-    Releases.MainTableHelper = coroutine.create (Releases.MainTableParser)
+  self:OpenJournal ("releases.lua")
+  self:OpenJournal ("pendingrel.lua")
+  if coroutine.status (self.MainTableHelper) == "dead" then
+    self.MainTableHelper = coroutine.create (self.MainTableParser)
   end
-  local bOK, match, tbl, nick = coroutine.resume (Releases.MainTableHelper)
+  local bOK, match, tbl, nick = coroutine.resume (self.MainTableHelper, self)
   if nick then -- the coroutine explicitly returned = finished
     local rel, cat = tbl.Release, tbl.Category
     if next (match) then
@@ -102,7 +103,7 @@ t.Timer = function ()
         local msg =
         "\""..rel.title.."\" has been added to the to-be-reviewed releases "
         .."in this category: \""..cat.."\" with ID "
-        ..(#Releases.PendingStuff + 1)
+        ..(#self.PendingStuff + 1)
         ..". \r\nIt needs approval by an authorized user before it"
         .."could appear on the list"
         local msg_op = "A release has been added by "..nick.. " that is"
@@ -115,7 +116,7 @@ t.Timer = function ()
         }
         msg = policy_msg[ReleaseApprovalPolicy] or "\""..rel.title
         .."\" has been added to the releases in this category: \""
-        ..cat.."\" with ID "..cat.."/"..(#Releases.AllStuff + 1)..". Note that it is"
+        ..cat.."\" with ID "..cat.."/"..(#self.AllStuff + 1)..". Note that it is"
         .." quite similar to the following release(s):"
         if percent == 100 then -- identical!
           if bPending then
@@ -149,7 +150,7 @@ t.Timer = function ()
       if ReleaseApprovalPolicy ~= 1 then
         msg = "\""..tbl.Release.title
         .."\" has been added to the releases in this category: \""
-        ..cat.."\" with ID "..(#Releases.AllStuff + 1).."."
+        ..cat.."\" with ID "..(#self.AllStuff + 1).."."
         Event("RelAdded", cat, {nick = nick, title = rel.title, 
         when = date_arr}, self);
       return msg
@@ -161,11 +162,12 @@ t.Timer = function ()
 end
 
 -- Levenshtein distance algorithm from http://bit.ly/bCGkiX
+-- (The above link does not work anymore so can't give proper credits).
 -- Here I use it for comparing two strings. In my practice, 75% or more 
 -- means they're nearly identical so further check is required.
 -- returns: X = 1 - D/L where D is the difference in no. of chars and L is
 -- the longer string's length 
-t.Levenshtein = function (self, string1, string2)
+t.Levenshtein = function (string1, string2)
   string1 = string1:lower(); string2 = string2:lower()
   local str1, str2, distance = {}, {}, {};
   local str1len, str2len = string1:len(), string2:len();
@@ -239,10 +241,10 @@ t.ComparisonHelper = function (tbl, nick)
   return PIC, match -- return if there are matches, stopping the coroutine
 end
 
-t.MainTableParser = function ()
+t.MainTableParser = function (self)
   local bOK, rePIC, match, nick, tbl
   while true do
-    nick, tbl = next (Releases.Coroutines, nick)
+    nick, tbl = next (self.Coroutines, nick)
     if nick then
       if coroutine.status (tbl.Coroutine) ~= "dead" then
         bOK, rePIC, match = coroutine.resume (tbl.Coroutine, tbl, nick)
@@ -253,7 +255,7 @@ t.MainTableParser = function ()
         -- reached the max number of items, sleep
         if rePIC >= 30 then coroutine.yield() end
       else
-        Releases.Coroutines[nick] = nil
+        self.Coroutines[nick] = nil
       end
     else
       -- If the table is empty, we just return an empty table plus 2 nil's.
@@ -269,7 +271,7 @@ t.MainTableHelper = coroutine.create (t.MainTableParser)
 -- Functions called with Releases:Blah(...)
 
 -- add a category
-t.AddCat = function (self, cat)
+t.AddCat = function (self, tbl, cat)
   if not self.AllStuff[cat] then
     self.AllStuff[cat] = {}
     self.PendingStuff[cat] = {}
@@ -360,8 +362,8 @@ t.Approve = function (self, cat, id, nick)
   local rel = self.PendingStuff[cat][id]
   if rel then
     self.PendingStuff[cat][id] = nil
-    Event("RelAdded", cat, rel.title, rel.nick)
-    Event("RelApproved", cat, Releases.AllStuff[#Releases.AllStuff[cat]], nick)
+    Event("ItemAdded", cat, rel.title, rel.nick)
+    Event("ItemApproved", cat, Releases.AllStuff[#Releases.AllStuff[cat]], nick)
     return "added "..rel.title.." with id "..cat.."/"..id.." by "..rel.who
   else
     return "release with given ID does not exist"
@@ -391,7 +393,7 @@ t.OpenJournal = function (self, filename)
   ..filename, "r+")
   if f then
     for line in f:lines() do
-      local func = load (line)
+      local func = load (line, _, _, self)
       if func then table.insert (JournalTbl, func) end
     end
     f:close ()
