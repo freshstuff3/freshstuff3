@@ -6,6 +6,11 @@ Distributed under the terms of the Common Development and Distribution License
    (CDDL) Version 1.0.
 See docs/license.txt for details.
 ]]
+
+
+-- ALSO TAKE CARE OF VERSION NUMBER FOR ONLINE CHECKS 
+-- ALSO TAKE CARE OF MIGRATION
+
 AllStuff, NewestStuff, PendingStuff, Engine, Bot, Commands, Levels, Allowed,
    Coroutines = {}, {}, {}, {}, {}, {}, {}, {}, {}
 Bot.version="FreshStuff3 5.5 alpha 3"
