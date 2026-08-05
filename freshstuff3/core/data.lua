@@ -4,6 +4,7 @@
 -- add category rebuild from AI
 -- data.delete
 -- maybe split out category manipulation as we are at 500 lines
+-- validation
 
 local Data = {}
 
@@ -283,6 +284,7 @@ end
 -- 
 -- @param path string - The category path
 -- @return number - Count of releases
+-- Completely useless. Use #self:get_cat_with_subcat(path) directly
 function Data:get_cat_rel_count(path)
     return #self:get_cat_with_subcat(path)
 end
@@ -423,17 +425,17 @@ end
 -- BUUUUUUUUUUUUUUUUUUUT:
 -- 
 -- lazy tree rebuild
-Data = {
-    _data = {},
-    _category_tree = {},
-    tree_dirty = false,  -- ← Track if tree needs rebuild
-}
+--Data = {
+--    _data = {},
+--    _category_tree = {},
+--    tree_dirty = false,  -- ← Track if tree needs rebuild
+--}
 
-function Data:mark_dirty(table_name)
+function Data:mark_dirty(table_name) -- cat
     _G[table_name].tree_dirty = true
 end
 
-function Data:ensure_tree_built(table_name)
+function Data:ensure_tree_built(table_name) -- cat
     if not _G[table_name].tree_dirty then
         return  -- Tree is fresh
     end
@@ -449,13 +451,13 @@ function Data:ensure_tree_built(table_name)
 end
 
 -- these should be added to existing functions
-function Data:delete(id)
-    table.remove(self._data, id)
+function Data:delete(table_name, id)
+    table.remove(_G[table_name]._data, id)
     _G[table_name].tree_dirty = true -- ← Tree is now stale
 end
 
 -- dont even see the use for this
-function Data:get_category(category)
+function Data:get_category(category, table_name) -- cat
     self:ensure_tree_built()  -- ← Only rebuilds when needed
     return _G[table_name]._category_tree[category]
 end
