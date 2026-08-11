@@ -1,17 +1,31 @@
 -- core/item.lua
--- Manipulates individual data items, and journals them at will.
--- TODO:
--- data.delete
-package.path = package.path .. ";/home/szg/ptokax-config/scripts/freshstuff3/?.lua"
+local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
 
--- local Category = Category or require "core.category"
+package.path = package.path .. string.format(";%s?.lua", base_path)
 
-local Item = {
-    _data = {},              -- Private storage
-    _category_tree = {},      -- Private category tree
+local JOURNAL_FILE = base_path.."data/journals/freshstuff3.lua"
+local TEST_CATEGORY = "/home/szg/ptokax-config/scripts/freshstuff3/data/test_category.lua"
+
+local Item = {}
+
+function Item:init()
+    self._data = {}              -- Private storage
+    self._category_tree = {}      -- Private category tree
     -- Private path index with per-category dirty flag
-    _category_index = { ["Music"] = { dirty = false } },
-}
+    self._category_index = {}
+    local Journal = Journal or require "core.journal"
+    local result, failed = Journal:replay(JOURNAL_FILE)
+    if result then -- success
+        self._data = result
+        Category:init(TEST_CATEGORY, self)
+        Journal:compact(JOURNAL_FILE, self)
+        return failed
+    else -- failed, return error message
+        return failed
+        -- no init for categories here as _data is untouched
+    end
+end
+
 
 --- ---- ADD DATA ITEM ----
 --- Category autocreated
@@ -19,87 +33,68 @@ local Item = {
 --- 
 --- @param rel_object table cat, nick, title, timestamp
 --- @param journal_path string|nil Journal path. No journaling takes place if nil.
---- @return number index The numerical index of the new item within _data
---- @return boolean|nil journal_success Journal success if performed
+--- @return boolean success The numerical index of the new item within _data
+--- @return boolean|nil error Error message in case of failure
 function Item:add(rel_object, journal_path)
   local Category = Category or require "core.category"
-    -- Add item to _data
+    -- Create category if does not exist
+    if not self._category_index[rel_object.category] then
+        local succ, fail = Category:create(rel_object.category)
+        if not succ then return false, fail end
+        local node = Category:get_node(rel_object.category)
+        -- Only adding to category tree for previously nonexistent categories
+        table.insert(node._releases, #self._data+1)
+        -- Mark node as clean as it is in sync with 1 item
+        self._category_index[rel_object.category].dirty = false
+    else -- category exists
+        -- Mark corresponding node as dirty
+        self._category_index[rel_object.category].dirty = true
+    end
+    -- Finally, add the item
     table.insert(self._data, rel_object)
-    if not self._category_index[rel_object.category] then 
-        -- Also auto-adds to tree when ID passed and marks it clean:
-        Category:create(rel_object.category, #self._data)
-    else 
-        -- add release ID to tree
-        -- not passing around self, loading Item if needed at point of use
-        Category:tree_master(rel_object.category, ID)
-        -- Mark tree item dirty
-        self._category_index[rel_object.category].dirty = true 
+    -- If specified, save to journal
+    if journal_path then
+        local Journal = Journal or require "core.journal"
+        local succ, err = Journal:append_add(rel_object, journal_path)
+        return succ, err
     end
-
-    -- Return the index always, return nil if journaling failed
-    return #self._data, journal_path and self:journal_append(
-                rel_object, journal_path) or nil
+    return true
 end
 
---- ---- DATA JOURNAL APPEND ----
---- 
---- Append action to journal
---- 
---- Can be deletion, move or addition - 
---- the function decides based on type of 1st parameter
---- 
---- @param param string|table|number (table: release object to be added, 
---- string: new path upon moving, number: ID for deletion)
---- @param journal_file string Journal file path relative to ptokax script 
---- folder
---- @param rel_id number release id
---- @return boolean success True on success, false on error
---- @return string|nil err Returns error message in case of failure
-function Item:journal_append(param, journal_file, rel_id)
-    local str
-    -- local write helper function
-    local function write_to_file (filename, str)
-        local f, err = io.open(filename,"a+")
-        if f then
-            f:write(str)
-            f:flush(); f:close()
-            return true
-        else 
-            return false, err
-        end
+--- MOVE ITEM BETWEEN CATEGORIES
+---
+--- @param id integer Item ID to move
+--- @param path string New category 
+--- @param journal_file string? Optional, file path if journaling needed
+--- @return boolean success True on success, false only
+--- on serialisation failure
+--- @return string err If serialisation failed, returns the error message
+function Item:move_id(id, path, journal_file)   
+-- TODO: check if the old category will become empty after move --- WHY???
+-- WE ARE REBUILDING WHEN QUERIED
+    if not self._category_index[path] then
+        return false, "Category does not exist'"
     end
-
-    local wtf = type (param)
-
-    if wtf == "number" then
-        -- we are deleting
-        -- we have the DELETED id with param
-        str = string.format("table.remove(data, %d)",param )
-    elseif wtf == "string" then 
-        -- category name, so we are moving
-        str = string.format("data[%d].category = \"%s\"",
-        rel_id, param 
-        )
-    else
-       -- we are adding as release object (table) received
-        if wtf ~= "table" then return false, string.format(
-            "Parameters of type %s are not recognised by Item:journal_append.", wtf
-            )
-        end
-        str = string.format(
-    "table.insert(data, {category = \"%s\", nick = \"%s\", title = \"%s\", when = %d };"..
-        " JOURNAL_LAST_WRITE = %d", param.category, param.nick, param.title, 
-        param.when, os.time()
-        )
+    local before = self._data[id].category
+    self._data[id].category = path
+    self._category_index[before].dirty = true
+    self._category_index[path].dirty = true
+    -- We do not serialise categories on moved IDs. Category states are not 
+    -- persistent, since a restart will result in a clean slate anyway.
+    -- However, we do journal the move 
+    if journal_file then
+        local Journal = Journal or require "core.journal"
+        return Journal:append_move(id, path, journal_file)
     end
-    return write_to_file (journal_file, str)
+    return true, _
 end
+
 
 --- ---- DELETE DATA ITEM ----
 --- Lorem ipsum
 --- 
 --- 
----@param id number ID
+---@param id integer ID
 ---@param journal_path string? Journal path (optional). No journaling happens if not stated.
 ---@return boolean success True on success
 ---@return string? err Error message
@@ -116,9 +111,10 @@ function Item:delete(id, journal_path)
     end
     -- optional journaling
     if journal_path then
-        return self:journal_append(id, journal_path)
-        -- we are not passing the 4th parameter as it is only used when moving
+        local Journal = Journal or require "core.journal"
+        return Journal:append_del(id, journal_path)
     end
+    return true, _
 end
 
 --- VALIDATE DATA ITEM 
@@ -129,7 +125,7 @@ end
 ---@param item string item to validate
 ---@return boolean success If true, validation succeeded
 ---@return string? err error message, if validation failed
----@return number|string? ID_or_word Detected forbidden word OR ID number of identical release, whichever applies
+---@return integer|string? ID_or_word Detected forbidden word OR ID number of identical release, whichever applies
 function Item:validate(item)
     -- sanitize: not needed
     -- TODO: config variable for FORBIDDEN
