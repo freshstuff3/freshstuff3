@@ -1,11 +1,11 @@
 -- core/release.lua
 
-local Data = require "core.data"
 lcal Category = require "core.category"
+local Data = require "core.data"
 
-Releases = {
+Data = {
     _data = {},              -- Private storage
     _category_tree = {},      -- Private category tree
-    _category_index = {},
+    _category_index = {["Music"] = {1}},
     tree_dirty = false
 }
