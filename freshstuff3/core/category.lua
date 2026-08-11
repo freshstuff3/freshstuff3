@@ -24,13 +24,17 @@ function Category:init()
     end
     end
 
--- Category validation
--- Not checking for spaces as it is detected as %S+ in input
--- This is a STRING validation, does not check for existence/emptiness
--- We don't even want to start manioulating categories without a valid path.
--- @param cat_str string - Category path x/z/y
--- @return boolean - Return true on success, false on error
--- @return string - the sanitized path string on success, error message on error
+--- Category validation
+--- 
+--- Not checking for spaces as it is detected as %S+ in input
+--- 
+--- This is a STRING validation, does not check for existence/emptiness
+--- 
+--- We don't even want to start manioulating categories without a valid path.
+--- 
+--- @param cat_str string - Category path x/z/y
+--- @return boolean success Return true on success, false on error
+--- @return string path_sanitized|error the sanitized path string on success, error message on error
 function Category:process_path(path)
     -- check if path exists
     if not path or path == "" then
@@ -58,11 +62,11 @@ function Category:process_path(path)
     return true, path 
 end
 
--- Split category path into parts
--- 
--- 
--- @param path string - category path
--- @return parts table - Returns an array of parts, ordered fromm top level downwards.
+--- Split category path into parts
+--- 
+--- 
+--- @param path string category path
+--- @return table parts Returns an array of parts, ordered fromm top level downwards.
 function Category:split_path(path)
     -- Check if top-level category
     print(path)
@@ -75,15 +79,16 @@ function Category:split_path(path)
     return parts
 end
 
--- ---- SAVE CATEGORIES TO FILE ----
--- Lorem ipsum
--- 
--- 
--- @param filename string - Table name to be used.
--- @param table_name string - Name of table to be serialized
--- @param tbl table - Table to be serialized that has _category_index.
--- @param category string - category path
--- @return boolean - Journal success
+--- ---- SAVE CATEGORIES TO FILE ----
+--- Lorem ipsum
+--- 
+--- 
+--- @param filename string Table name to be used.
+--- @param table_name string Name of table to be serialized
+--- @param tbl table Table to be serialized that has _category_index.
+--- @param category string category path
+--- @return boolean success Journal success
+--- @return string? err Error message in case of failure
 function Category:serialize(filename, category)
     local Item = Item or require "core/item"
     filename = filename or "freshstuff3/data/category.dat"
@@ -103,17 +108,17 @@ function Category:serialize(filename, category)
     return false, err -- serialization failed
 end
 
--- TREE MASTER (BEHOLD)
--- Retrieve a node from the tree, add to it or delete from it.
--- Specify release ID as second argument to add to node (optional)
--- Specify a boolean as to whether this is a deletion (optional, need ID as well if used)
--- 
--- 
--- @param path string - Category path Music/Classical/Baroque
--- @param id number - Optional item
--- @param should_delete boolean - Optional, whether this is a deletion
--- @param journal_path string - Optional, file path if journaling needed
--- @return target Returns the affected tree node containing the new item
+--- TREE MASTER (BEHOLD)
+--- Retrieve a node from the tree, add to it or delete from it.
+--- Specify release ID as second argument to add to node (optional)
+--- Specify a boolean as to whether this is a deletion (optional, need ID as well if used)
+--- 
+--- 
+--- @param path string Category path Music/Classical/Baroque
+--- @param id number Optional item
+--- @param should_delete boolean Optional, whether this is a deletion
+--- @param journal_path string Optional, file path if journaling needed
+--- @return table target Returns the updated tree node containing the new item
 function Category:tree_master(path, id, should_delete)
     local Item = Item or require "core.item"
     if not Item._category_index[path] then return false end
@@ -158,10 +163,10 @@ function Category:tree_master(path, id, should_delete)
     return target
 end
 
--- @param id number - Release ID to move
--- @param new_category string - New category
--- @param journal_path string - Optional, file path if journaling needed
--- @return 
+--- @param id number - Release ID to move
+--- @param new_category string - New category
+--- @param journal_path string - Optional, file path if journaling needed
+--- @return 
 function Category:move_id(id, new_category)    
    -- TODO: check if the old category will become empty after move -- nope, no purpose
     local Item = Item or require "core.item"
@@ -180,14 +185,14 @@ end
 ----------------------------------------------
 -- Category path traversal and tree navigation
 
--- ---- TRAVERSE ----
--- Traverses the category tree following a path like "Music/Metal/Death"
--- Returns the node at the end of the path, or nil if any segment doesn't exist
--- 
--- @param path string - The category path to traverse (e.g., "Music/Metal/Death")
--- @param tbl table The table to be manipulated hich also has _ctegory.tree
--- @return table|nil - The node at the end of the path, or nil if not found
--- @return string|nil - Error message if traversal fails
+--- ---- TRAVERSE ----
+--- Traverses the category tree following a path like "Music/Metal/Death"
+--- Returns the node at the end of the path, or nil if any segment doesn't exist
+--- 
+--- @param path string - The category path to traverse (e.g., "Music/Metal/Death")
+--- @param tbl table The table to be manipulated hich also has _ctegory.tree
+--- @return table The node at the end of the path, or nil if not found
+
 function Category:path_into_tree(path)
     -- Load data from memory
     local Item = Item or require "core.item"
@@ -273,11 +278,11 @@ function Category:create_path(path)
     }
 end
 
--- ---- GET RELEASES ----
--- Returns all releases at a specific category node (not including subcategories)
--- 
--- @param path string - The category path
--- @return table - Array of release IDs at this category
+--- ---- GET RELEASES ----
+--- Returns all releases at a specific category node (not including subcategories)
+--- 
+--- @param path string The category path
+--- @return table IDs Array of release IDs at this category
 function Category:get_no_subcat(path)
     local result = self:path_into_tree(path)
     if not result then
@@ -290,7 +295,7 @@ end
 --- Returns all releases in a category AND all its subcategories
 --- 
 --- @param path string The category path
---- @return table Array of all release IDs found
+--- @return table IDs Array of all release IDs found
 function Category:get_subcat(path)
     local result = self:path_into_tree(path)
     if not result then

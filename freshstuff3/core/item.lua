@@ -44,12 +44,17 @@ end
 --- ---- DATA JOURNAL APPEND ----
 --- 
 --- Append action to journal
---- Can be deletion, move or addition, the function decides
 --- 
---- @param param string|table|number (table: release object to be added, string: new path upon moving, number: ID for deletion)
---- @param journal_file string Journal file path relative to ptokax script folder
---- @param rel_id nunmber release id
---- @return boolean|nil True on success
+--- Can be deletion, move or addition - 
+--- the function decides based on type of 1st parameter
+--- 
+--- @param param string|table|number (table: release object to be added, 
+--- string: new path upon moving, number: ID for deletion)
+--- @param journal_file string Journal file path relative to ptokax script 
+--- folder
+--- @param rel_id number release id
+--- @return boolean success True on success, false on error
+--- @return string|nil err Returns error message in case of failure
 function Item:journal_append(param, journal_file, rel_id)
     local str
     -- local write helper function
@@ -64,26 +69,28 @@ function Item:journal_append(param, journal_file, rel_id)
         end
     end
 
-    if type(param) == "number" then
+    local wtf = type (param)
+
+    if wtf == "number" then
         -- we are deleting
         -- we have the DELETED id with param
         str = string.format("table.remove(data, %d)",param )
-    elseif type(param) == "string" then 
+    elseif wtf == "string" then 
         -- category name, so we are moving
         str = string.format("data[%d].category = \"%s\"",
         rel_id, param 
         )
     else
        -- we are adding as release object (table) received
-       -- str = string.format("table.insert(data, {category = \"%s\", "
-       -- .."nick =  \"%s\", title = \"%s\", when = %d }; JOURNAL_LAST_WRITE = "
-       -- ..os.time(),param.category, param.nick, param.title, param.when)
+        if wtf ~= "table" then return false, string.format(
+            "Parameters of type %s are not recognised by Item:journal_append.", wtf
+            )
+        end
         str = string.format(
     "table.insert(data, {category = \"%s\", nick = \"%s\", title = \"%s\", when = %d };"..
         " JOURNAL_LAST_WRITE = %d", param.category, param.nick, param.title, 
         param.when, os.time()
-    )
-
+        )
     end
     return write_to_file (journal_file, str)
 end
@@ -92,10 +99,10 @@ end
 --- Lorem ipsum
 --- 
 --- 
----@param id number - ID
----@param journal_path string - Journal path (optional). No journaling happens if not stated.
----@return boolean - True on success
----@return string - Error message
+---@param id number ID
+---@param journal_path string? Journal path (optional). No journaling happens if not stated.
+---@return boolean success True on success
+---@return string? err Error message
 function Item:delete(id, journal_path)
     if not self._data[id] then
         return false, string.format("No item with ID number %d exists.", id)
@@ -115,13 +122,14 @@ function Item:delete(id, journal_path)
 end
 
 --- VALIDATE DATA ITEM 
+--- 
 --- Lorem ipsum
 --- 
 --- 
----@param item string  - item to validate
----@return boolean - If true, validation succeeded
----@return string - error message, if validation failed
----@return number|string - Detected forbidden word OR ID number of identical release, whichever applies
+---@param item string item to validate
+---@return boolean success If true, validation succeeded
+---@return string? err error message, if validation failed
+---@return number|string? ID_or_word Detected forbidden word OR ID number of identical release, whichever applies
 function Item:validate(item)
     -- sanitize: not needed
     -- TODO: config variable for FORBIDDEN
