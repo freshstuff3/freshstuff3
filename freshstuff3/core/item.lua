@@ -1,26 +1,37 @@
 -- core/item.lua
+---@class Item
+---@field _data table
+---@field _category_index table
+---@field _category_tree table
 
 local Item = {}
 
-function Item:init()
-    self._data = {}              -- Private storage
-    self._category_tree = {}      -- Private category tree
-    -- Private path index with per-category dirty flag
-    self._category_index = {}
-    local Journal = Journal or require "core.journal"
-    local result, failed = Journal:replay(JOURNAL_FILE)
+--- ITEM INITIALISATION
+--- 
+--- Replays and compacts the journal.
+--- @param file string The journal to be replayed.
+--- @return table result The _data created from journal, or empty table on 
+--- journal replay/compact error
+--- @return table failed Returns an array of entries failed to process on an 
+--- otherwise successful replay OR an array containing a single error message
+--- if journal replay fails
+function Item:init(file)
+    file = file or JOURNAL_FILE
+    local Journal = require "core.journal"
+    local result, failed = Journal:replay(file)
     if result then -- success
-        local Category = Category or require "core.category"
-        self._data = result
-        Category:init(TEST_CATEGORY)
-        Journal:compact(JOURNAL_FILE)
-        return failed
-    else -- failed, return error message
-        return failed
-        -- no init for categories here as _data is untouched
+        -- compact() expects _data in a table: 
+        -- We are also compacting. This is expensive but startup times are
+        -- of no concern since during real-world use, restarts are infrequent
+        -- so might as well take a bit longer
+        local succ, err = Journal:compact(file, { _data = result })
+        if succ then
+            return result, failed
+        else failed = { ""..err.."" } end
+    -- no init for categories here as _data is untouched
     end
+    return {}, failed
 end
-
 
 --- ---- ADD DATA ITEM ----
 --- Category autocreated
@@ -31,12 +42,12 @@ end
 --- @return boolean success The numerical index of the new item within _data
 --- @return boolean|nil error Error message in case of failure
 function Item:add(rel_object, journal_path)
-  local Category = Category or require "core.category"
+  local Category = require "core.category"
     -- Create category if does not exist
     if not self._category_index[rel_object.category] then
-        local succ, fail = Category:create(rel_object.category)
+        local succ, fail = Category:create(rel_object.category, self)
         if not succ then return false, fail end
-        local node = Category:get_node(rel_object.category)
+        local node = Category:get_node(rel_object.category, self)
         -- Only adding to category tree for previously nonexistent categories
         table.insert(node._releases, #self._data+1)
         -- Mark node as clean as it is in sync with 1 item
@@ -49,7 +60,7 @@ function Item:add(rel_object, journal_path)
     table.insert(self._data, rel_object)
     -- If specified, save to journal
     if journal_path then
-        local Journal = Journal or require "core.journal"
+        local Journal = require "core.journal"
         local succ, err = Journal:append_add(rel_object, journal_path)
         return succ, err
     end
@@ -78,7 +89,7 @@ function Item:move_id(id, path, journal_file)
     -- persistent, since a restart will result in a clean slate anyway.
     -- However, we do journal the move 
     if journal_file then
-        local Journal = Journal or require "core.journal"
+        local Journal = require "core.journal"
         return Journal:append_move(id, path, journal_file)
     end
     return true, _
@@ -106,7 +117,7 @@ function Item:delete(id, journal_path)
     end
     -- optional journaling
     if journal_path then
-        local Journal = Journal or require "core.journal"
+        local Journal = require "core.journal"
         return Journal:append_del(id, journal_path)
     end
     return true, _
@@ -124,8 +135,9 @@ end
 function Item:validate(item)
     -- sanitize: not needed
     -- TODO: config variable for FORBIDDEN
-    local FORBIDDEN = require "config".FORBIDDEN or {}
+    -- local FORBIDDEN = require "config".FORBIDDEN or {}
     -- Check new item for forbidden words first
+    local FORBIDDEN = FORBIDDEN or { "shit" }
     for _, word in ipairs(FORBIDDEN) do
         if string.find(item:lower(), word:lower(), 1, true) then 
             return false, "Forbidden word detected", word
