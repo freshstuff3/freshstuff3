@@ -31,3 +31,29 @@ for cat, _ in pairs (Item._category_index) do
     print (c, cat)
     c = c + 1
 end
+
+local UI = require "core.ui"
+local all = {}
+for i = 1, #Item._data do
+    table.insert (all, i)
+end
+--local tree = UI:tree_from_ids(all, Item)
+--print(string.format( "\r\n\r\nALL THE STUFF (%d)\r\n\r\n", #Item._data))
+--print(table.concat(UI:render_tree(tree, Item), "\r\n"))
+
+local list = {}
+
+for i = 1, 13 do
+    table.insert(list,i)
+end
+
+local AllStuff = require "core.release"
+
+--print(string.format("\r\n\r\nLATEST %d STUFF\r\n\r\n", #ids))
+--local tree2 = UI:tree_from_ids(ids, Item)
+--print(table.concat(UI:render_tree(tree2, Item), "\r\n"))
+print(AllStuff:show_new(166, Item))
+print(AllStuff:show_new(#Item._data, Item))
+table.insert(list, 1293)
+print(UI:render_markdown(all, Item))
+print(UI:get_items_details(list, Item))

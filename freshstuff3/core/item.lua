@@ -3,6 +3,7 @@
 ---@field _data table
 ---@field _category_index table
 ---@field _category_tree table
+---@todo assertions for passed variables
 
 local Item = {}
 
