@@ -1,31 +1,32 @@
 -- core/category.lua
-
+--[[
 local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
 
 package.path = package.path .. string.format(";%s?.lua", base_path)
 
-local Category = {}
 local CATEGORIES_FILE = base_path.."data/categories.lua"
 local TEST_CATEGORY = "/home/szg/ptokax-config/scripts/freshstuff3/data/test_category.lua"
+]]
+
+local Category = {}
 
 --- CATEGORY INITIALISATION
 --- 
 --- Usually run on script restart or memory dump
 --- 
 --- @param filename string file to open
---- @param namespace table 
-function Category:init(filename, namespace)
+function Category:init(filename)
     filename = filename or TEST_CATEGORY
-    namespace = namespace or Item or require "core.item"
-    namespace._category_index = {}
-    namespace._category_tree = {}
+    namespace =  Item 
+    Item._category_index = {}
+    Item._category_tree = {}
     local go = loadfile(filename)
-    if go then namespace._category_index = go()
+    if go then Item._category_index = go()
     --else
         --"Categories file is missing or corrupt. Will create"..
          --   "a new one from the items."
     end
-    for id, piece in ipairs(namespace._data) do
+    for id, piece in ipairs(Item._data) do
         -- Not checking if exists. We are overwriting nothing.
         -- Also, marking clean by default as it does have releases 
         -- AND is up-to-date.
@@ -39,11 +40,11 @@ function Category:init(filename, namespace)
             end
         end
     end
-    for path, _ in pairs(namespace._category_index) do
-        namespace._category_index[path] = namespace._category_index[path] or {}
-        namespace._category_index[path].dirty = false
+    for path, _ in pairs(Item._category_index) do
+        Item._category_index[path] = Item._category_index[path] or {}
+        Item._category_index[path].dirty = false
     end
-    self:serialize(filename, namespace)
+    self:serialize(filename)
 end
 
 --- GET NODE 
@@ -54,7 +55,6 @@ end
 --- @return table|nil node The node at the end of the path, or nil if not found
 function Category:get_node(path)
     -- Load data from memory
-    local Item = Item or require "core.item"
 
     -- Check if path top-level. If yes, GTFO
     if not path:find("/") then 
@@ -96,7 +96,6 @@ end
 --- @return table|nil node Returns node on success, nil on error
 --- @return string error Upon failure, returns error message.
 function Category:create(path)
-    local Item = Item or require "core.item"
     if Item._category_index[path] and self:get_node(path) then
         return nil, string.format("Category %s already exists!", path)
     end
@@ -172,7 +171,6 @@ function Category:process_path(path)
                                             )
          end
     end
-    local Item = Item or require "core.item"
     if not Item._category_index[path] then return false, string.format(
         "Category %s not found in categories. It needs to be created"..
         " first. ", path
@@ -204,17 +202,14 @@ end
 --- 
 --- 
 --- @param filename string File name to be used.
---- @param namespace table
 --- @return boolean success Succes or failure
 --- @return string|nil err Error message in case of failure
-function Category:serialize(filename, namespace)
-    namespace = namespace or Item or require "core/item"
+function Category:serialize(filename)
     filename = filename or TEST_CATEGORY
     local f, err = io.open (filename, "w+")
     if f then
         f:write("return {\n")  
-        for path, _ in pairs(namespace._category_index) do
-            print("DAMN", path)
+        for path, _ in pairs(Item._category_index) do
             f:write ("[\""..path.."\"] = {},\r\n")
         end
         f:write("}\n")
@@ -222,7 +217,7 @@ function Category:serialize(filename, namespace)
         f:close()
         return true
     end
-    return false, err -- serialization failed
+    return false, err -- serialisation failed
 end
 
 
@@ -287,13 +282,11 @@ end
 --- Rebuild a single dirty category from _data
 --- 
 --- @param path string Category path to rebuild
---- @param tbl? table Optional ITEM table to use; falls back to Item if not specified
 --- @return table|nil node Returns the rebuilt node on success.
-function Category:rebuild_node(path, tbl)
+function Category:rebuild_node(path)
     -- If no namespace passed, fall back
-    if not tbl then tbl = Item or require "core.item" end
     -- Get the state from _category_index
-    local entry = tbl._category_index[path]
+    local entry = Item._category_index[path]
     if not entry or entry.dirty == nil or not entry.dirty then
         return nil -- Doesn't exist, empty, or already clean
     end
@@ -306,7 +299,7 @@ function Category:rebuild_node(path, tbl)
     
     -- Scan _data for items in this category
     local has_releases = false
-    for id, item in ipairs(tbl._data) do
+    for id, item in ipairs(Item._data) do
         if item.category == path then
             table.insert(node._releases, id)
             has_releases = true
@@ -315,9 +308,9 @@ function Category:rebuild_node(path, tbl)
     
     -- Update state
     if has_releases then
-        tbl._category_index[path] = { dirty = false }
+        Item._category_index[path] = { dirty = false }
     else
-        tbl._category_index[path] = {}  -- Empty
+        Item._category_index[path] = {}  -- Empty
     end
     return node
 end

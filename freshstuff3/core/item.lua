@@ -1,10 +1,4 @@
 -- core/item.lua
-local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
-
-package.path = package.path .. string.format(";%s?.lua", base_path)
-
-local JOURNAL_FILE = base_path.."data/journals/freshstuff3.lua"
-local TEST_CATEGORY = "/home/szg/ptokax-config/scripts/freshstuff3/data/test_category.lua"
 
 local Item = {}
 
@@ -16,9 +10,10 @@ function Item:init()
     local Journal = Journal or require "core.journal"
     local result, failed = Journal:replay(JOURNAL_FILE)
     if result then -- success
+        local Category = Category or require "core.category"
         self._data = result
-        Category:init(TEST_CATEGORY, self)
-        Journal:compact(JOURNAL_FILE, self)
+        Category:init(TEST_CATEGORY)
+        Journal:compact(JOURNAL_FILE)
         return failed
     else -- failed, return error message
         return failed
