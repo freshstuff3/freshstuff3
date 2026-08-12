@@ -7,8 +7,7 @@ package.path = package.path .. string.format(";%s?.lua", base_path)
 local CATEGORIES_FILE = base_path.."data/categories.lua"
 local TEST_CATEGORY = "/home/szg/ptokax-config/scripts/freshstuff3/data/test_category.lua"
 ]]
---- @class Category
-
+---@class Category
 local Category = {}
 
 --- CATEGORY INITIALISATION
@@ -239,6 +238,7 @@ end
 function Category:get_subcat(path, namespace)
     assert(path ~= nil and path ~="" and namespace ~= nil, 
         "Path and/or namespace unspecified!")
+    --assert(type(namespace._category_index[path]) == "table" )
     local result = self:rebuild_node(path, namespace) or self:get_node(path, namespace)
     if not result then return {} end
     

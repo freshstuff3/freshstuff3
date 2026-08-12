@@ -18,17 +18,17 @@ print("result and failures",
 
 Item._data = result
 
-print("total items", #Item._data) 
+--print("total items", #Item._data) 
 local Category = require "core.category"
 local idx, tree = Category:init(TEST_CATEGORY, Item)
 Item._category_index = idx
 Item._category_tree = tree
-print("Item._category_index", (Item._category_index ~= nil and "loaded successfully") or "failed to load category index")
+--print("Item._category_index", (Item._category_index ~= nil and "loaded successfully") or "failed to load category index")
 
-print "\r\n\r\nLIST OF CATEGORIES:"
+--print "\r\n\r\nLIST OF CATEGORIES:"
 local c = 1
 for cat, _ in pairs (Item._category_index) do
-    print (c, cat)
+    --print (c, cat)
     c = c + 1
 end
 
@@ -52,8 +52,14 @@ local AllStuff = require "core.release"
 --print(string.format("\r\n\r\nLATEST %d STUFF\r\n\r\n", #ids))
 --local tree2 = UI:tree_from_ids(ids, Item)
 --print(table.concat(UI:render_tree(tree2, Item), "\r\n"))
+--[[
 print(AllStuff:show_new(166, Item))
 print(AllStuff:show_new(#Item._data, Item))
 table.insert(list, 1293)
 print(UI:render_markdown(all, Item))
-print(UI:get_items_details(list, Item))
+print(UI:get_items_details(Category:get_subcat("TV", Item), Item))
+
+]]
+print((AllStuff:show_category("Music", Item)))
+local zero = AllStuff:show_newer_than("30d",Item)
+print(zero)

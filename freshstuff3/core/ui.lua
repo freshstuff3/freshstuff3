@@ -24,7 +24,7 @@
 --   UI:render_tree(music_tree)
 
 ---@class UI
----
+---@todo return headers and content separately, content as array
 local UI = {}
 
 --- Build a category tree containing only the specified release IDs
@@ -202,12 +202,15 @@ function UI:render_tree(node, namespace, prefix, is_last)
         local releases = n._releases or {}
         local count = #releases
 
-        
-        
         -- Print category node
         if path ~= "root" then
             local connector = last and "└── " or "├── "
-            table.insert(msg_arr, pre .. connector .. path .. " (" .. count .. " releases)")
+            -- ✅ Only show count if > 0
+            if count > 0 then
+                table.insert(msg_arr, pre .. connector .. path .. " (" .. count .. " releases)")
+            else
+                table.insert(msg_arr, pre .. connector .. path)
+            end
         end
         
         -- Print releases under this category
@@ -355,15 +358,15 @@ ITEM WITH ID 1293 DOES NOT EXIST IN DATABASE
 --------------------------------------------------------------------------------
 ]]
 function UI:get_items_details(ids, namespace)
-    local sep = string.rep("=", 80)
-    local sep2 = string.rep("-", 80)
-    local result = sep.."\r\nDetails of requested item(s):"..
-    "\r\n"..sep.."\r\n"
     assert(type(ids) == "table" and type(namespace) == "table" 
         and namespace._data ~= nil and #ids > 0,
         "Empty or missing namespace or ID list, or namespace has no"..
         " _data field!"
         )
+    local sep = string.rep("=", 80)
+    local sep2 = string.rep("-", 80)
+    local result = sep.."\r\nDetails of requested item(s):"..
+    "\r\n"..sep.."\r\n"
     for _, id in ipairs(ids) do
         if namespace._data[id] then
             result = result..string.format("ID: %d\r\n"..
@@ -382,6 +385,47 @@ function UI:get_items_details(ids, namespace)
         result = result.."\r\n"..sep2.."\r\n"
     end
     return result 
+end
+
+--- Show by age
+--- 
+--- @param param string today, yesterday, 5d, 6w, 1m etc
+--- @param namespace table Namespace to be used.
+--- @return table result Returns array of IDs as result
+function UI:get_newer_than(param, namespace)
+    local result = {}
+    local conversion = {
+        ["today"] = "0d",
+        ["yesterday"] = "1d"
+    }
+    param = conversion[param] or param
+    local number, mult = param:match("^(%d+)([dwm])$")
+    assert(number ~= "" and mult ~= "")
+    number = tonumber(number)
+    local multiplier = { d = 24*3600, w = 7*24*3600, m = 30*24*3600 }
+    local seconds = number * multiplier[mult]
+    local cutoff
+    -- Special case: "today" means start of today (00:00:00)
+    if number == 0 and mult == "d" then
+        local now = os.time()
+        local today_start = os.time({
+            year = os.date("%Y", now),
+            month = os.date("%m", now),
+            day = os.date("%d", now),
+            hour = 0,
+            min = 0,
+            sec = 0
+        })
+        cutoff = today_start
+    else
+        cutoff = os.time() - seconds
+    end
+    for id, obj in ipairs(namespace._data) do
+        if obj.when >= cutoff then
+            table.insert(result, id)
+        end
+    end
+    return result
 end
 
 return UI

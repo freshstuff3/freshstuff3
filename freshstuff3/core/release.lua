@@ -1,8 +1,9 @@
 -- core/release.lua
----@class AllStuff
 ---@todo search
----@ todo 
+---@todo reweite show_new to use ui full tree
+---@todo instead of return, it shoud send message, needs hostapp module first
 
+---@class AllStuff
 local AllStuff = {}
 
 --- GET NEW ITEMS
@@ -17,10 +18,10 @@ function AllStuff:show_new(number, namespace)
     local ret = ""
     local UI = require "core.ui"
 
-    local finish = math.max(1, #namespace._data - number)
+    local smallest = math.max(1, #namespace._data - number)
     local ids = {}
     local x = 1
-    for i = #namespace._data, finish, -1 do
+    for i = #namespace._data, smallest, -1 do
         table.insert(ids,i)
     end
     local what
@@ -34,6 +35,47 @@ function AllStuff:show_new(number, namespace)
     local tree = UI:tree_from_ids(ids, namespace)
     ret = ret..table.concat(UI:render_tree(tree, namespace), "\r\n")
     return (ret == "" and "No results" or ret) 
+end
+
+function AllStuff:show_category(path, namespace)
+    local ret = ""
+    local Category = require "core.category"
+    local UI = require "core.ui"
+    local ids = Category:get_subcat(path, namespace)
+    if #ids > 0 then
+        local tree = UI:tree_from_ids(ids, namespace)
+        ret = ret..table.concat(UI:render_tree(tree, namespace), "\r\n")
+    end
+    return (ret == "" and "No results" or ret)
+end
+
+-- AllStuff uses UI internally
+--[[
+function AllStuff:show_newer_than(param, namespace)
+local result = ""
+    local UI = require "core.ui"
+    local ids = UI:get_newer_than(param, namespace)
+    if #ids > 0 then
+        for _, id in ipairs(ids) do
+            result = result.."\r\n"..namespace._data[id].title.." - "..id
+        end
+    end
+    return result
+end
+]]
+function AllStuff:show_newer_than(param, namespace)
+    local UI = require "core.ui"
+    local ids = UI:get_newer_than(param, namespace)
+    if #ids == 0 then
+        return "No results"
+    end
+    local tree = UI:tree_from_ids(ids, namespace)
+    --tree = UI:clean_tree_array(tree)
+    local lines = UI:render_tree(tree, namespace)
+    if not lines or #lines == 0 then
+        return "No results"
+    end
+    return table.concat(lines, "\r\n")
 end
 
 return AllStuff
