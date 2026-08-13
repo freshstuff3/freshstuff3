@@ -76,13 +76,43 @@
 local Category = {}
 
 --- CATEGORY INITIALISATION
---- 
---- Usually run on script restart or memory dump
---- 
---- @param filename string file to open
---- @param source_of_truth table source_of_truth to use
---- @return table _category_index The generated category index
---- @return table _category_tree The generated category tree
+---
+--- Initialises the category system on script startup or after a memory dump.
+--- This function:
+---   1. Loads the category index from a file (if it exists)
+---   2. Rebuilds the category tree from _data (source of truth)
+---   3. Ensures all categories in _data exist in the tree
+---   4. Marks all categories as clean (dirty = false)
+---   5. Serializes the index back to disk (creates file if missing)
+---
+--- Why rebuilding from _data is safe:
+---   - _data is the authoritative source for which categories exist
+---   - Any category with at least one release will be in _data
+---   - Empty categories are not recreated (they will be re-added if needed)
+---
+--- Behaviour:
+---   - If the category file exists: Loads it, then adds any missing categories
+---   - If the category file is missing: Creates it from scratch from _data
+---   - If a release has a category that doesn't exist yet: Creates it
+---   - All categories are marked clean (dirty = false) on init
+---
+--- File format expected:
+---   return {
+---     ["Music"] = {},
+---     ["Music/Metal"] = {},
+---     ["Music/Metal/Death"] = {},
+---   }
+---
+---@param filename string Path to the categories file (e.g., "data/categories.lua")
+---@param source_of_truth table Namespace containing _data and _category_index
+---@return table _category_index Flat index of all categories (with dirty flags)
+---@return table _category_tree Nested tree structure for fast lookups
+---@todo If file loading fails, create from scratch from _data
+---@todo Add validation: ensure _data is not nil before iterating
+---@todo Add error recovery: if serialisation fails, keep existing data
+---@todo Consider skipping serialisation if no changes detected
+---@todo Add support for migrating old category formats (if needed)
+---@todo Consider using a temporary file during serialisation to avoid corruption
 function Category:init(filename, source_of_truth)
     assert(filename ~= nil and filename ~= "" and source_of_truth ~= nil, 
     "File name and/or source_of_truth unspecified!") 
@@ -114,13 +144,36 @@ function Category:init(filename, source_of_truth)
     return _category_index, _category_tree
 end
 
---- GET NODE 
---- 
---- Returns the node at the end of the path, or nil if any segment doesn't exist
---- 
---- @param path string The category path to retrieve (e.g., "Music/Metal/Death")
---- @param source_of_truth table source_of_truth to be used
---- @return table|nil node The node at the end of the path, or nil if not found
+--- GET NODE
+---
+--- Retrieves a category node from the category tree by traversing the given path.
+--- Returns the node at the end of the path, or nil if any segment is missing.
+---
+--- Behavior:
+---   - Top-level path (e.g., "Music"): Direct lookup in _category_tree
+---   - Nested path (e.g., "Music/Metal/Death"): Traverses each segment
+---   - If any segment is missing: Returns nil immediately
+---   - Returns the full node table containing _releases and child nodes
+---
+--- The node structure:
+---   {
+---     _releases = {1, 5, 12, 23},   -- Array of release IDs in this category
+---     ["Subcategory"] = { ... },    -- Child nodes (subcategories)
+---     ["Another"] = { ... },
+---   }
+---
+--- Examples:
+---   Category:get_node("Music", Item)          -- Returns top-level Music node
+---   Category:get_node("Music/Metal", Item)    -- Returns Metal node
+---   Category:get_node("Invalid/Path", Item)   -- Returns nil
+---
+---@param path string The category path to retrieve (e.g., "Music/Metal/Death")
+---@param source_of_truth table Namespace containing _category_tree (e.g., Item, Request)
+---@return table|nil node The node at the end of the path, or nil if not found
+---@todo Consider caching frequently accessed nodes for performance
+---@todo Add support for case-insensitive matching (optional, configurable)
+---@todo Add support for path validation before traversal (ensure no empty segments)
+---@todo Return more detailed error information (e.g., which segment failed)
 function Category:get_node(path, source_of_truth)
     -- Throw error in case of missing parameters
     assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
@@ -195,18 +248,33 @@ function Category:create(path, source_of_truth)
     return current, nil
 end
 
---- Category path sanitisation/validation
---- 
---- Not checking for spaces as it is detected as %S+ in business logic anyway
---- 
---- This is a STRING validation, does not check for emptiness
---- 
---- We don't even want to start manipulating categories without a valid path.
---- 
---- @param path string Category path x/z/y
---- @return boolean success Return true on success, false on error
---- @return string sanitized_path__or__error_msg the sanitized path string 
---- on success, error message on error
+--- CATEGORY PATH SANITISATION AND VALIDATION
+---
+--- Validates and sanitises a category path string before it is used for
+--- any category operations (creation, traversal, deletion, etc.).
+---
+--- Validation rules:
+---   - Maximum length: 70 characters (hardcoded for message display limits)
+---   - No leading slashes (e.g., "/Music" → "Music")
+---   - No trailing slashes (e.g., "Music/" → "Music")
+---   - No consecutive slashes (e.g., "Music//Metal" → "Music/Metal")
+---   - Maximum depth: 5 levels (e.g., "Music/Metal/Death/Slam/Brutal" is OK)
+---   - Category must exist in _category_index (for operations on existing cats)
+---
+--- Sanitisation steps:
+---   1. Remove leading slashes: "/Music/Metal" → "Music/Metal"
+---   2. Remove trailing slashes: "Music/Metal/" → "Music/Metal"
+---   3. Collapse consecutive slashes: "Music//Metal" → "Music/Metal"
+---
+--- Note: This function validates the STRING path, not the data.
+---       Spaces are NOT checked here (handled by %S+ in business logic).
+---       Emptiness is NOT checked here (handled by caller).
+---
+---@param path string Category path to validate (e.g., "Music/Metal/Death")
+---@param source_of_truth table Namespace containing _category_index
+---@return boolean success True if valid, false if invalid
+---@return string result Sanitized path on success, error message on failure
+---@todo Consider case sensitivity option (optional, default: case-sensitive)
 function Category:process_path(path, source_of_truth)
         assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
         "Path and/or source_of_truth unspecified!")
@@ -254,14 +322,37 @@ function Category:split_path(path)
     return parts
 end
 
---- ---- SAVE CATEGORIES TO FILE ----
---- This serializes _category_index only.
---- _category_tree only resides in memory and is created from _data initially
---- 
---- 
---- @param filename string File name to be used.
---- @return boolean success Succes or failure
---- @return string|nil err Error message in case of failure
+--- SAVE CATEGORIES TO FILE
+---
+--- Serializes the category index (_category_index) to a Lua file.
+--- The category tree (_category_tree) is NOT serialized as it can be
+--- rebuilt from _data on startup.
+---
+--- Why only _category_index:
+---   - _category_index is a flat list of all categories that exist
+---   - _category_tree is a nested structure derived from _data
+---   - On startup, _category_tree is rebuilt from _data
+---   - _category_index provides fast existence checks without traversing _data
+---
+--- File format:
+---   return {
+---     ["Music"] = {},
+---     ["Music/Metal"] = {},
+---     ["Music/Metal/Death"] = {},
+---   }
+---
+--- Empty tables are used as placeholders. The dirty state is NOT persisted;
+--- it is re-evaluated on startup based on _data.
+---
+---@param filename string File path to save to (e.g., "data/categories.lua")
+---@param source_of_truth table Namespace containing _category_index
+---@return boolean success True if save succeeded
+---@return string|nil err Error message if save failed
+---@todo Add backup before overwriting (rename old file to .bak)
+---@todo Add atomic write: write to temp file, then rename
+---@todo Add validation: ensure _category_index is not empty before saving
+---@todo Add logging: when save happens, how many categories saved
+---@todo Add error recovery: if save fails, keep existing file intact
 function Category:serialize(filename, source_of_truth)
     assert(filename ~= nil and filename ~= "" and source_of_truth ~= nil, 
         "File name and/or source_of_truth unspecified!")
@@ -280,23 +371,25 @@ function Category:serialize(filename, source_of_truth)
 end
 
 
---- ---- GET ITEMS ----
---- Returns all releases at a specific category node 
+--- ---- GET ITEMS (NON-RECURSIVE) ----
+--- Returns all items at a specific category node 
 --- (not including subcategories)
 --- 
 --- @param path string The category path
+--- @param source_of_truth table Source of truth
 --- @return table IDs Array of release IDs at this category
 function Category:get_no_subcat(path, source_of_truth)
     assert(path ~= nil and path ~="" and source_of_truth ~= nil, 
         "Path and/or source_of_truth unspecified!")
     -- No state checking. rebuild_node returns anyway if no rebuild needed
-    local result = self:rebuild_node(path, source_of_truth) or self:get_node(path, source_of_truth)
+    local result = self:rebuild_node(path, source_of_truth) or 
+        self:get_node(path, source_of_truth)
     if not result then return {} end
     return result._releases
 end
 
---- ---- GET ALL ITEMS (RECURSIVE) ----
---- Returns all releases in a category INCL. all its subcategories
+--- ---- GET ITEMS (RECURSIVE) ----
+--- Returns all items in a category INCL. all its subcategories
 --- 
 --- @param path string The category path
 --- @return table IDs Array of all release IDs found
