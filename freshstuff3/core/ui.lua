@@ -22,9 +22,20 @@
 --   local music_ids = Category:get_subcat("Music", Item)
 --   local music_tree = UI:tree_from_ids(music_ids)
 --   UI:render_tree(music_tree)
+-- 
+-- 
+---@todo create "X days/weeks ago" from unix timestamp
+---@todo return headers and content separately, content as array, 
+--- maybe 3 return values. but should only return array on markdown output
+--- I think the items to be processed need to be sort()ed PRIOR to processing
+---
+---@note This replaces hardcoded emoji mapping in UI:render_tree()
+---      with data-driven emoji stored alongside categories.
+---@see Category:set_emoji()
+---@see Category:get_emoji()
+---@see UI:render_tree() - should use Category:get_emoji()
 
 ---@class UI
----@todo return headers and content separately, content as array
 local UI = {}
 
 --- Build a category tree containing only the specified release IDs
@@ -189,38 +200,49 @@ end
 --- @param namespace table The namespace to be used
 --- @param prefix? string Indentation prefix for current level (used internally)
 --- @param is_last? boolean Whether this is the last child (used internally)
+--- Render a tree as ASCII art with full paths and emojis
+--- 
+--- This function returns a visually structured tree with:
+--- - 📁 for categories
+--- - 🎵 for releases
+--- - Full category paths for easy copy-paste
+--- - Release IDs and titles under each category
+--- 
+--- @param node table The tree node to render
+--- @param namespace table The namespace to be used
+--- @param prefix? string Indentation prefix (used internally)
+--- @param is_last? boolean Whether this is the last child (used internally)
 function UI:render_tree(node, namespace, prefix, is_last)
     assert(type(namespace) == "table" 
             and namespace._data ~= nil,
-            "Empty or missing namespace, or namespace has no "..
-            "_data field!"
+            "Empty or missing namespace, or namespace has no _data field!"
             )
     prefix = prefix or ""
     local msg_arr = {}
+    
     local function render_node(n, pre, last)
         local path = n._path or "root"
         local releases = n._releases or {}
         local count = #releases
-
-        -- Print category node
+        
+        -- Print category node with 📁
         if path ~= "root" then
             local connector = last and "└── " or "├── "
-            -- ✅ Only show count if > 0
             if count > 0 then
-                table.insert(msg_arr, pre .. connector .. path .. " (" .. count .. " releases)")
+                table.insert(msg_arr, pre .. connector .. "📁 " .. path .. " (" .. count .. " releases)")
             else
-                table.insert(msg_arr, pre .. connector .. path)
+                table.insert(msg_arr, pre .. connector .. "📁 " .. path)
             end
         end
         
-        -- Print releases under this category
+        -- Print releases under this category with 🎵
         if path ~= "root" and count > 0 then
             local rel_pre = pre .. (last and "    " or "│   ")
             for i, id in ipairs(releases) do
                 local rel_connector = (i == #releases) and "└── " or "├── "
                 local item = namespace._data[id]
                 local label = item and item.title or "unknown"
-                table.insert(msg_arr, rel_pre .. rel_connector .. "  ID:" .. id .. " " .. label)
+                table.insert(msg_arr, rel_pre .. rel_connector .. "✅ ID: " .. id .. " " .. label)
             end
         end
         
@@ -387,7 +409,10 @@ function UI:get_items_details(ids, namespace)
     return result 
 end
 
---- Show by age
+--- Show releases newer than ...
+--- 
+--- A timeframe is specified. d is for days, w for weeks, m for months. 
+--- Supports "today" and "yesterday". Also see below.
 --- 
 --- @param param string today, yesterday, 5d, 6w, 1m etc
 --- @param namespace table Namespace to be used.

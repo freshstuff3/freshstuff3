@@ -9,12 +9,12 @@ Item = require "core.item"
 
 local result, failed = Item:init(JOURNAL_FILE)
 
-print("Item._category_index", Item._category_index or "not available yet")
+--print("Item._category_index", Item._category_index or "not available yet")
 
-print("result and failures",
-     (#result ~= 0 and "SUCCESS\r\n") or "ERROR\r\n", 
-     "failures",(#failed == 0 and "no failures\r\n") or
-     table.concat(failed, "\r\n").."\r\n")
+--print("result and failures",
+ --    (#result ~= 0 and "SUCCESS\r\n") or "ERROR\r\n", 
+ --    "failures",(#failed == 0 and "no failures\r\n") or
+ --    table.concat(failed, "\r\n").."\r\n")
 
 Item._data = result
 
@@ -60,6 +60,13 @@ print(UI:render_markdown(all, Item))
 print(UI:get_items_details(Category:get_subcat("TV", Item), Item))
 
 ]]
-print((AllStuff:show_category("Music", Item)))
-local zero = AllStuff:show_newer_than("30d",Item)
-print(zero)
+--print((AllStuff:show_category("Music", Item)))
+--local zero = AllStuff:show_newer_than("30d",Item)
+--print(zero)
+
+-- Build full tree from _category_tree
+local full_tree = UI:build_full_tree(Item)
+
+-- Render it
+local lines = UI:render_tree(full_tree, Item)
+print(table.concat(lines, "\n"))

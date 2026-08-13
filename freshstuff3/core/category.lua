@@ -1,12 +1,77 @@
 -- core/category.lua
---[[
-local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
+--- DELETE CATEGORY
+--- 
+--- Removes a category and optionally its releases
+---
+---@param path string Category path to delete
+---@param namespace table Namespace to use
+---@param force? boolean If true, delete releases. If false, error if not empty.
+---@return boolean success
+---@return string error
+---@todo Implement: check if category exists
+---@todo Implement: get all release IDs in category
+---@todo Implement: if force, delete all releases (use table.remove, update dirty)
+---@todo Implement: if not force and has releases, return error with count
+---@todo Implement: remove from _category_tree
+---@todo Implement: remove from _category_index
+---@todo Implement: return success message with deleted count
+---@todo Implement: USE THE --force
 
-package.path = package.path .. string.format(";%s?.lua", base_path)
+--- RENAME CATEGORY
+---@param old_path string Current category path
+---@param new_path string New category path
+---@param namespace table Namespace to use
+---@return boolean success
+---@return string error
+---@todo Implement: validate old_path exists
+---@todo Implement: validate new_path doesn't exist
+---@todo Implement: validate new_path is valid (no spaces, etc.)
+---@todo Implement: create new category node
+---@todo Implement: move all releases from old to new (update .category field)
+---@todo Implement: move _releases to new node
+---@todo Implement: delete old category
+---@todo Implement: update _category_index
+---@todo Implement: mark both categories dirty
+---@todo Implement: return success message
 
-local CATEGORIES_FILE = base_path.."data/categories.lua"
-local TEST_CATEGORY = "/home/szg/ptokax-config/scripts/freshstuff3/data/test_category.lua"
-]]
+--- EMPTY CATEGORY (delete all releases but keep category)
+---@param path string Category path
+---@param namespace table Namespace to use
+---@return boolean success
+---@return string error
+---@todo Implement: check if category exists
+---@todo Implement: get all release IDs
+---@todo Implement: delete each release from _data
+---@todo Implement: clear _releases in tree
+---@todo Implement: update _category_index to empty state
+---@todo Implement: return success message with deleted count
+---@todo EMOJI STORAGE IN _category_index
+--- - [ ] Store emoji per-category in _category_index[path].emoji
+--- - [ ] Subcategories inherit parent emoji by default (fallback)
+--- - [ ] Allow explicit emoji override at any category level
+--- - [ ] Inherited emoji should be marked as such (e.g., _inherited = true)
+--- - [ ] When parent emoji changes, update children unless they have explicit overrides
+--- - [ ] Include emoji in _category_index serialization (categories.lua)
+--- - [ ] Add Category:set_emoji(path, emoji) to set explicit emoji
+--- - [ ] Add Category:get_emoji(path) to resolve inherited emoji
+---
+---@example
+---   -- Set explicit emoji for Music
+---   Category:set_emoji("Music", "🎶")
+---   -- Music/Metal inherits 🎶 by default
+---   -- Override Music/Metal explicitly
+---   Category:set_emoji("Music/Metal", "🤘")
+---
+---@example Category:get_emoji(path) return logic
+---   if _category_index[path].emoji then
+---       return _category_index[path].emoji  -- explicit
+---   end
+---   if path:find("/") then
+---       local parent = parent_path(path)
+---       return Category:get_emoji(parent)   -- inherited
+---   end
+---   return "📁"                             -- default
+
 ---@class Category
 local Category = {}
 
