@@ -29,12 +29,6 @@
 --- maybe 3 return values. but should only return array on markdown output
 --- I think the items to be processed need to be sort()ed PRIOR to processing
 ---
----@note This replaces hardcoded emoji mapping in UI:render_tree()
----      with data-driven emoji stored alongside categories.
----@see Category:set_emoji()
----@see Category:get_emoji()
----@see UI:render_tree() - should use Category:get_emoji()
-
 ---@class UI
 local UI = {}
 
@@ -67,17 +61,17 @@ local UI = {}
 ---   end
 ---   local search_tree = UI:tree_from_ids(search_ids)
 ---   UI:render_tree(search_tree)
-function UI:tree_from_ids(ids, namespace)
-    assert(type(ids) == "table" and type(namespace) == "table" 
-            and namespace._data ~= nil and #ids ~= 0,
-            "Empty or missing namespace or ID list, or namespace has no"..
+function UI:tree_from_ids(ids, source_of_truth)
+    assert(type(ids) == "table" and type(source_of_truth) == "table" 
+            and source_of_truth._data ~= nil and #ids ~= 0,
+            "Empty or missing source of truth or ID list, or source_of_truth has no"..
             " _data field!"
             )
     -- Group IDs by category path
     local category_map = {}
     
     for _, id in ipairs(ids) do
-        local item = namespace._data[id]
+        local item = source_of_truth._data[id]
         if item then
             local cat = item.category
             if not category_map[cat] then
@@ -197,7 +191,7 @@ end
 --- 
 --- 
 --- @param node table The tree node to render (from UI:tree_from_ids())
---- @param namespace table The namespace to be used
+--- @param source_of_truth table The source_of_truth to be used
 --- @param prefix? string Indentation prefix for current level (used internally)
 --- @param is_last? boolean Whether this is the last child (used internally)
 --- Render a tree as ASCII art with full paths and emojis
@@ -209,13 +203,13 @@ end
 --- - Release IDs and titles under each category
 --- 
 --- @param node table The tree node to render
---- @param namespace table The namespace to be used
+--- @param source_of_truth table The source_of_truth to be used
 --- @param prefix? string Indentation prefix (used internally)
 --- @param is_last? boolean Whether this is the last child (used internally)
-function UI:render_tree(node, namespace, prefix, is_last)
-    assert(type(namespace) == "table" 
-            and namespace._data ~= nil,
-            "Empty or missing namespace, or namespace has no _data field!"
+function UI:render_tree(node, source_of_truth, prefix, is_last)
+    assert(type(source_of_truth) == "table" 
+            and source_of_truth._data ~= nil,
+            "Empty or missing source_of_truth, or source_of_truth has no _data field!"
             )
     prefix = prefix or ""
     local msg_arr = {}
@@ -240,7 +234,7 @@ function UI:render_tree(node, namespace, prefix, is_last)
             local rel_pre = pre .. (last and "    " or "│   ")
             for i, id in ipairs(releases) do
                 local rel_connector = (i == #releases) and "└── " or "├── "
-                local item = namespace._data[id]
+                local item = source_of_truth._data[id]
                 local label = item and item.title or "unknown"
                 table.insert(msg_arr, rel_pre .. rel_connector .. "✅ ID: " .. id .. " " .. label)
             end
@@ -301,7 +295,7 @@ end
 --- Create markdown table from array of IDs
 --- 
 ---@param ids table array of IDs
----@param namespace table namespace to be used
+---@param source_of_truth table source_of_truth to be used
 ---@return string result The resulting markdown table
 ---@todo add date or nick, but not immportant
 ---@todo sorting, also not important as tree is preferred
@@ -323,20 +317,20 @@ end
 | 13 | Movies/Sci-Fi | The Android's Dream |
 | 1293 | ID not found | ID not found |
 ]]
-function UI:render_markdown(ids, namespace)
-    assert(type(ids) == "table" and type(namespace) == "table" 
-        and namespace._data ~= nil and #ids > 0,
-        "Empty or missing namespace or ID list, or namespace has no"..
+function UI:render_markdown(ids, source_of_truth)
+    assert(type(ids) == "table" and type(source_of_truth) == "table" 
+        and source_of_truth._data ~= nil and #ids > 0,
+        "Empty or missing source_of_truth or ID list, or source_of_truth has no"..
         " _data field!"
         )
     local result = "| ID | Category | Title |\r\n"..
     "|----|----------|-------|\r\n"
     for _, id in ipairs(ids) do
-        if namespace._data[id] then
+        if source_of_truth._data[id] then
             result = result..string.format("| %d | %s | %s |\r\n",
             id,
-            namespace._data[id].category,
-            namespace._data[id].title
+            source_of_truth._data[id].category,
+            source_of_truth._data[id].title
             )
         else
             result = result..string.format("| %d | %s | %s |\r\n",
@@ -352,7 +346,7 @@ end
 --- Get details on items
 --- 
 --- @param ids table Array of IDs
---- @param namespace table Namespace to be used
+--- @param source_of_truth table source_of_truth to be used
 --- @return string result 
 --[[OUTPUT
 ================================================================================
@@ -379,10 +373,10 @@ Added on: 2026-Jul-13 14:58
 ITEM WITH ID 1293 DOES NOT EXIST IN DATABASE
 --------------------------------------------------------------------------------
 ]]
-function UI:get_items_details(ids, namespace)
-    assert(type(ids) == "table" and type(namespace) == "table" 
-        and namespace._data ~= nil and #ids > 0,
-        "Empty or missing namespace or ID list, or namespace has no"..
+function UI:get_items_details(ids, source_of_truth)
+    assert(type(ids) == "table" and type(source_of_truth) == "table" 
+        and source_of_truth._data ~= nil and #ids > 0,
+        "Empty or missing source_of_truth or ID list, or source_of_truth has no"..
         " _data field!"
         )
     local sep = string.rep("=", 80)
@@ -390,14 +384,14 @@ function UI:get_items_details(ids, namespace)
     local result = sep.."\r\nDetails of requested item(s):"..
     "\r\n"..sep.."\r\n"
     for _, id in ipairs(ids) do
-        if namespace._data[id] then
+        if source_of_truth._data[id] then
             result = result..string.format("ID: %d\r\n"..
             "Category: %s\r\nTitle: %s\r\nAdded by: %s\r\nAdded on: %s",
             id,
-            namespace._data[id].category,
-            namespace._data[id].title,
-            namespace._data[id].nick,
-            os.date("%Y-%b-%d %H:%M", namespace._data[id].when
+            source_of_truth._data[id].category,
+            source_of_truth._data[id].title,
+            source_of_truth._data[id].nick,
+            os.date("%Y-%b-%d %H:%M", source_of_truth._data[id].when
             ))
         else
             result = result..string.format("ITEM WITH "..
@@ -415,9 +409,9 @@ end
 --- Supports "today" and "yesterday". Also see below.
 --- 
 --- @param param string today, yesterday, 5d, 6w, 1m etc
---- @param namespace table Namespace to be used.
+--- @param source_of_truth table source_of_truth to be used.
 --- @return table result Returns array of IDs as result
-function UI:get_newer_than(param, namespace)
+function UI:get_newer_than(param, source_of_truth)
     local result = {}
     local conversion = {
         ["today"] = "0d",
@@ -445,7 +439,7 @@ function UI:get_newer_than(param, namespace)
     else
         cutoff = os.time() - seconds
     end
-    for id, obj in ipairs(namespace._data) do
+    for id, obj in ipairs(source_of_truth._data) do
         if obj.when >= cutoff then
             table.insert(result, id)
         end

@@ -4,7 +4,7 @@
 --- Removes a category and optionally its releases
 ---
 ---@param path string Category path to delete
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@param force? boolean If true, delete releases. If false, error if not empty.
 ---@return boolean success
 ---@return string error
@@ -20,7 +20,7 @@
 --- RENAME CATEGORY
 ---@param old_path string Current category path
 ---@param new_path string New category path
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@return boolean success
 ---@return string error
 ---@todo Implement: validate old_path exists
@@ -36,7 +36,7 @@
 
 --- EMPTY CATEGORY (delete all releases but keep category)
 ---@param path string Category path
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@return boolean success
 ---@return string error
 ---@todo Implement: check if category exists
@@ -80,19 +80,19 @@ local Category = {}
 --- Usually run on script restart or memory dump
 --- 
 --- @param filename string file to open
---- @param namespace table namespace to use
+--- @param source_of_truth table source_of_truth to use
 --- @return table _category_index The generated category index
 --- @return table _category_tree The generated category tree
-function Category:init(filename, namespace)
-    assert(filename ~= nil and filename ~= "" and namespace ~= nil, 
-    "File name and/or namespace unspecified!") 
+function Category:init(filename, source_of_truth)
+    assert(filename ~= nil and filename ~= "" and source_of_truth ~= nil, 
+    "File name and/or source_of_truth unspecified!") 
     local _category_index, _category_tree = {}, {}
     local dummy = { ["_category_tree"] = _category_tree, 
                     ["_category_index"] = _category_index }
     local go, err = loadfile(filename)
     if go then _category_index = go()
     else return false, err end
-    for id, piece in ipairs(namespace._data) do
+    for id, piece in ipairs(source_of_truth._data) do
         -- Not checking if exists. We are overwriting nothing.
         -- Also, marking clean by default as it does have releases 
         -- AND is up-to-date.
@@ -119,22 +119,22 @@ end
 --- Returns the node at the end of the path, or nil if any segment doesn't exist
 --- 
 --- @param path string The category path to retrieve (e.g., "Music/Metal/Death")
---- @param namespace table Namespace to be used
+--- @param source_of_truth table source_of_truth to be used
 --- @return table|nil node The node at the end of the path, or nil if not found
-function Category:get_node(path, namespace)
+function Category:get_node(path, source_of_truth)
     -- Throw error in case of missing parameters
-    assert(path ~= nil and path ~= "" and namespace ~= nil, 
-        "Path and/or namespace unspecified!")
+    assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
+        "Path and/or source_of_truth unspecified!")
     -- Check if path top-level. If yes, GTFO
     if not path:find("/") then 
-        return namespace._category_tree[path]
+        return source_of_truth._category_tree[path]
     end
     -- not top-level: split it!
     local parts = self:split_path(path) -- maybe add error handling?
     -- List of path parts that have already been dealt with
     local full_path_parts = {}
     -- Get the current tree
-    local current = namespace._category_tree
+    local current = source_of_truth._category_tree
     -- Traverse through the path, starting from level 1 and going deeper
     for i, part in ipairs(parts) do
         table.insert(full_path_parts, part)
@@ -157,21 +157,21 @@ end
 --- @param path string The category path to create (e.g., "Music/Metal/Death")
 --- @return table|nil node Returns node on success, nil on error
 --- @return string error Upon failure, returns error message.
-function Category:create(path, namespace)
-    assert(path ~= nil and path ~= "" and namespace ~= nil, 
-    "Path and/or namespace unspecified!")
-    if namespace._category_index[path] and self:get_node(path, namespace) then
+function Category:create(path, source_of_truth)
+    assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
+    "Path and/or source_of_truth unspecified!")
+    if source_of_truth._category_index[path] and self:get_node(path, source_of_truth) then
         return nil, string.format("Category %s already exists!", path)
     end
     -- Add to index if not present
-    namespace._category_index[path] = namespace._category_index[path] or {}
+    source_of_truth._category_index[path] = source_of_truth._category_index[path] or {}
     if not path:find("/") then --top-level category
         local node = { _releases = {} }
-        namespace._category_tree[path] = node
+        source_of_truth._category_tree[path] = node
         return node, nil
     end
     local parts = self:split_path(path)
-    local current = namespace._category_tree
+    local current = source_of_truth._category_tree
     local full_path_parts = {}
 
     for i, part in ipairs(parts) do
@@ -207,9 +207,9 @@ end
 --- @return boolean success Return true on success, false on error
 --- @return string sanitized_path__or__error_msg the sanitized path string 
 --- on success, error message on error
-function Category:process_path(path, namespace)
-        assert(path ~= nil and path ~= "" and namespace ~= nil, 
-        "Path and/or namespace unspecified!")
+function Category:process_path(path, source_of_truth)
+        assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
+        "Path and/or source_of_truth unspecified!")
     -- string longer than 70 chars
     -- This should be hardcoded as for messages (ie. expected use case), 
     -- the display is the bottleneck
@@ -229,7 +229,7 @@ function Category:process_path(path, namespace)
                                             )
          end
     end
-    if not namespace._category_index[path] then return false, string.format(
+    if not source_of_truth._category_index[path] then return false, string.format(
         "Category %s not found in categories. It needs to be created"..
         " first. ", path
         )
@@ -262,13 +262,13 @@ end
 --- @param filename string File name to be used.
 --- @return boolean success Succes or failure
 --- @return string|nil err Error message in case of failure
-function Category:serialize(filename, namespace)
-    assert(filename ~= nil and filename ~= "" and namespace ~= nil, 
-        "File name and/or namespace unspecified!")
+function Category:serialize(filename, source_of_truth)
+    assert(filename ~= nil and filename ~= "" and source_of_truth ~= nil, 
+        "File name and/or source_of_truth unspecified!")
     local f, err = io.open (filename, "w+")
     if f then
         f:write("return {\n")  
-        for path, _ in pairs(namespace._category_index) do
+        for path, _ in pairs(source_of_truth._category_index) do
             f:write ("[\""..path.."\"] = {},\r\n")
         end
         f:write("}\n")
@@ -286,11 +286,11 @@ end
 --- 
 --- @param path string The category path
 --- @return table IDs Array of release IDs at this category
-function Category:get_no_subcat(path, namespace)
-    assert(path ~= nil and path ~="" and namespace ~= nil, 
-        "Path and/or namespace unspecified!")
+function Category:get_no_subcat(path, source_of_truth)
+    assert(path ~= nil and path ~="" and source_of_truth ~= nil, 
+        "Path and/or source_of_truth unspecified!")
     -- No state checking. rebuild_node returns anyway if no rebuild needed
-    local result = self:rebuild_node(path, namespace) or self:get_node(path, namespace)
+    local result = self:rebuild_node(path, source_of_truth) or self:get_node(path, source_of_truth)
     if not result then return {} end
     return result._releases
 end
@@ -300,11 +300,11 @@ end
 --- 
 --- @param path string The category path
 --- @return table IDs Array of all release IDs found
-function Category:get_subcat(path, namespace)
-    assert(path ~= nil and path ~="" and namespace ~= nil, 
-        "Path and/or namespace unspecified!")
-    --assert(type(namespace._category_index[path]) == "table" )
-    local result = self:rebuild_node(path, namespace) or self:get_node(path, namespace)
+function Category:get_subcat(path, source_of_truth)
+    assert(path ~= nil and path ~="" and source_of_truth ~= nil, 
+        "Path and/or source_of_truth unspecified!")
+    --assert(type(source_of_truth._category_index[path]) == "table" )
+    local result = self:rebuild_node(path, source_of_truth) or self:get_node(path, source_of_truth)
     if not result then return {} end
     
     local list = {}
@@ -346,26 +346,26 @@ end
 --- Rebuild a single dirty category from _data
 --- 
 --- @param path string Category path to rebuild
---- @param namespace table Namespace to be used
+--- @param source_of_truth table source_of_truth to be used
 --- @return table|nil node Returns the rebuilt node on success, or nil on error
-function Category:rebuild_node(path, namespace)
-    assert(path ~= nil and path ~= "" and namespace ~= nil, 
-        "Path and/or namespace unspecified!")
+function Category:rebuild_node(path, source_of_truth)
+    assert(path ~= nil and path ~= "" and source_of_truth ~= nil, 
+        "Path and/or source_of_truth unspecified!")
     -- Get the state from _category_index
-    local entry = namespace._category_index[path]
+    local entry = source_of_truth._category_index[path]
     if not entry or entry.dirty == nil or not entry.dirty then
         return nil -- Doesn't exist, empty, or already clean
     end
     
     -- Clear old items from tree
-    local node = self:get_node(path, namespace)
+    local node = self:get_node(path, source_of_truth)
     if node then
         node._releases = nil; node._releases = {}
     else return nil end
     
     -- Scan _data for items in this category
     local has_releases = false
-    for id, item in ipairs(namespace._data) do
+    for id, item in ipairs(source_of_truth._data) do
         if item.category == path then
             table.insert(node._releases, id)
             has_releases = true
@@ -374,9 +374,9 @@ function Category:rebuild_node(path, namespace)
     
     -- Update state
     if has_releases then
-        namespace._category_index[path] = { dirty = false }
+        source_of_truth._category_index[path] = { dirty = false }
     else
-        namespace._category_index[path] = {}  -- Empty
+        source_of_truth._category_index[path] = {}  -- Empty
     end
     return node
 end

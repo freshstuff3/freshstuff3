@@ -26,15 +26,15 @@
 -- core/release.lua
 --- Search and display results (business logic)
 ---@param query string Search term
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@return string result Formatted output
----@todo Implement: call Search:all(query, namespace)
----@todo Implement: use UI:tree_from_ids(results, namespace)
+---@todo Implement: call Search:all(query, source_of_truth)
+---@todo Implement: use UI:tree_from_ids(results, source_of_truth)
 ---@todo Implement: return formatted tree or "No results"
 
 --- Show category details with count
 ---@param path string Category path
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@return string result Formatted output
 ---@todo Implement: get category count
 ---@todo Implement: get subcategory count
@@ -42,9 +42,9 @@
 
 --- Show release details
 ---@param id number Release ID
----@param namespace table Namespace to use
+---@param source_of_truth table source_of_truth to use
 ---@return string result Formatted output
----@todo Implement: get release from namespace._data[id]
+---@todo Implement: get release from source_of_truth._data[id]
 ---@todo Implement: format: ID, Title, Category, Nick, Date
 ---@todo Implement: return "Release not found" if missing
 
@@ -56,46 +56,46 @@ local AllStuff = {}
 --- If number >= total no. of items, it interprets this as a 
 --- request for all items and changes text accordingly
 ---@param number integer Number of items to show
----@param namespace table Namespace to be used.
+---@param source_of_truth table source_of_truth to be used.
 ---@return string result Returns the result 
-function AllStuff:show_new(number, namespace)
-    assert (number ~= nil and namespace ~= nil, "Number or namespace "..
+function AllStuff:show_new(number, source_of_truth)
+    assert (number ~= nil and source_of_truth ~= nil, "Number or source_of_truth "..
                                                     "not specified!")
     local ret = ""
     local UI = require "core.ui"
 
-    local smallest = math.max(1, #namespace._data - number)
+    local smallest = math.max(1, #source_of_truth._data - number)
     local ids = {}
     local x = 1
-    for i = #namespace._data, smallest, -1 do
+    for i = #source_of_truth._data, smallest, -1 do
         table.insert(ids,i)
     end
     local what
-    if number >= #namespace._data then
+    if number >= #source_of_truth._data then
         ret = ret..string.format("\r\n\r\nALL THE ITEMS ( TOTAL: %d )\r\n\r\n"
-        , #namespace._data
+        , #source_of_truth._data
         )
     else
         ret = ret..string.format("\r\n\r\nLATEST %d ITEMS\r\n\r\n", #ids)
     end
-    local tree = UI:tree_from_ids(ids, namespace)
-    ret = ret..table.concat(UI:render_tree(tree, namespace), "\r\n")
+    local tree = UI:tree_from_ids(ids, source_of_truth)
+    ret = ret..table.concat(UI:render_tree(tree, source_of_truth), "\r\n")
     return (ret == "" and "No results" or ret) 
 end
 
 --- SHOW RELEASES BY CATEGORY
 --- 
 --- @param path string Category path
---- @param namespace table Namespace to be used.
+--- @param source_of_truth table source_of_truth to be used.
 --- @return string result Returns formatted result
-function AllStuff:show_category(path, namespace)
+function AllStuff:show_category(path, source_of_truth)
     local ret = ""
     local Category = require "core.category"
     local UI = require "core.ui"
-    local ids = Category:get_subcat(path, namespace)
+    local ids = Category:get_subcat(path, source_of_truth)
     if #ids > 0 then
-        local tree = UI:tree_from_ids(ids, namespace)
-        ret = ret..table.concat(UI:render_tree(tree, namespace), "\r\n")
+        local tree = UI:tree_from_ids(ids, source_of_truth)
+        ret = ret..table.concat(UI:render_tree(tree, source_of_truth), "\r\n")
     end
     return (ret == "" and "No results" or ret)
 end
@@ -104,17 +104,17 @@ end
 --- 
 --- Usage: 1d, 3w, 30m etc. Accepts "today" and "yesterday"
 --- @param param string today, yesterday, 5d, 6w, 1m etc
---- @param namespace table Namespace to be used.
+--- @param source_of_truth table source_of_truth to be used.
 --- @return string result Returns formatted result
-function AllStuff:show_newer_than(param, namespace)
+function AllStuff:show_newer_than(param, source_of_truth)
     local UI = require "core.ui"
-    local ids = UI:get_newer_than(param, namespace)
+    local ids = UI:get_newer_than(param, source_of_truth)
     if #ids == 0 then
         return "No results"
     end
-    local tree = UI:tree_from_ids(ids, namespace)
+    local tree = UI:tree_from_ids(ids, source_of_truth)
     --tree = UI:clean_tree_array(tree)
-    local lines = UI:render_tree(tree, namespace)
+    local lines = UI:render_tree(tree, source_of_truth)
     if not lines or #lines == 0 then
         return "No results"
     end

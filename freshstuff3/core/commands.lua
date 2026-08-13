@@ -86,7 +86,7 @@
 ---   !rel.show 5d                     → last 5 days (tree)
 ---   !rel.show 2w --md=st             → last 2 weeks, markdown sorted by title
 ---   !rel.search symphony --md        → search results as markdown
----   !rel.add Music "New Song" user   → add release
+---   !rel.add Music New Song   → add release
 ---   !rel.delete 5                    → delete release 5
 ---   !rel.move 5 Music/Classical      → move release 5
 ---   !rel.cat                         → list all categories

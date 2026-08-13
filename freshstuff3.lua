@@ -50,8 +50,8 @@ end
 local AllStuff = require "core.release"
 
 --print(string.format("\r\n\r\nLATEST %d STUFF\r\n\r\n", #ids))
---local tree2 = UI:tree_from_ids(ids, Item)
---print(table.concat(UI:render_tree(tree2, Item), "\r\n"))
+local tree2 = UI:tree_from_ids(list, Item)
+print(table.concat(UI:render_tree(tree2, Item), "\r\n"))
 --[[
 print(AllStuff:show_new(166, Item))
 print(AllStuff:show_new(#Item._data, Item))
@@ -63,10 +63,3 @@ print(UI:get_items_details(Category:get_subcat("TV", Item), Item))
 --print((AllStuff:show_category("Music", Item)))
 --local zero = AllStuff:show_newer_than("30d",Item)
 --print(zero)
-
--- Build full tree from _category_tree
-local full_tree = UI:build_full_tree(Item)
-
--- Render it
-local lines = UI:render_tree(full_tree, Item)
-print(table.concat(lines, "\n"))
