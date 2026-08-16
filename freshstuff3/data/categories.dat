@@ -1,0 +1,17 @@
+return {
+["Music/Classical"] = {},
+["Music/Metal/Death"] = {},
+["TV/Documentary"] = {},
+["Movies/Sci-Fi"] = {},
+["Movies"] = {},
+["Movies/Horror"] = {},
+["Music/Classical/Romantic"] = {},
+["Music/Metal/Symphonic"] = {},
+["Music/Rock/Classic"] = {},
+["Music/Jazz"] = {},
+["Music/Metal"] = {},
+["Music"] = {},
+["TV"] = {},
+["TV/Animation"] = {},
+["Music/Rock"] = {},
+}

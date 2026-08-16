@@ -93,5 +93,41 @@
 ---   !rel.info 3                      → show details for ID 3
 
 ---@class Commands
+-- core/commands.lua
+-- Simple command registration and dispatch
+
 local Commands = {}
+-- core/commands.lua
+
+-- Direct registry: cmd -> handler
+Commands._cmd_handlers = {}
+
+--- ## Register a command
+--- 
+--- @param cmd string Command
+--- @param handler function function to execute
+--- @param aliases? table command aliases
+function Commands:cmd_register(cmd, handler, aliases)
+    self._cmd_handlers[cmd] = handler
+    if not aliases or not next(aliases) then return end
+    for _,alias in ipairs (aliases) do
+        -- We do not check for existing here
+        self._cmd_handlers[alias] = handler
+    end
+end
+
+--- Register an alias (just points to another command)
+function Commands:cmd_alias(alias, target)
+    self._cmd_handlers[alias] = self._cmd_handlers[target]  -- Same function!
+end
+
+--- Execute command (O(1) lookup)
+function Commands:cmd_execute(cmd, args)
+    local handler = self._cmd_handlers[cmd]
+    if not handler then
+        return nil, "Unknown command: " .. cmd
+    end
+    return handler(args)
+end
+
 return Commands

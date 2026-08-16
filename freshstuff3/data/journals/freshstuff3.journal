@@ -1,0 +1,32 @@
+return { action = "add", category = "Music", nick = "MusicLover", when = 1725590400, title = "Greatest Hits Vol 1" }
+return { action = "add", category = "Music", nick = "Audiophile", when = 1725594000, title = "Ambient Sounds" }
+return { action = "add", category = "Music", nick = "DJ_Sonic", when = 1725597600, title = "Electronic Dreams" }
+return { action = "add", category = "Music/Rock", nick = "GuitarHero", when = 1725601200, title = "Electric Storm" }
+return { action = "add", category = "Music/Rock", nick = "DrummerBoy", when = 1725604800, title = "Rhythm & Beats" }
+return { action = "add", category = "Music/Rock/Classic", nick = "RetroFan", when = 1725608400, title = "Golden Era" }
+return { action = "add", category = "Music/Rock/Classic", nick = "VinylCollector", when = 1725612000, title = "Analog Sessions" }
+return { action = "add", category = "Music/Jazz", nick = "JazzCat", when = 1725615600, title = "Midnight Sax" }
+return { action = "add", category = "Music/Jazz", nick = "SmoothOperator", when = 1725619200, title = "Blue Note Sessions" }
+return { action = "add", category = "Music/Jazz", nick = "BebopKing", when = 1725622800, title = "Bird's Flight" }
+return { action = "add", category = "Music/Classical", nick = "Maestro", when = 1725626400, title = "Beethoven's 9th" }
+return { action = "add", category = "Music/Classical", nick = "PianoMan", when = 1725630000, title = "Moonlight Sonata" }
+return { action = "add", category = "Music/Classical/Romantic", nick = "RomanticSoul", when = 1725633600, title = "Liebesträume" }
+return { action = "add", category = "Music/Classical/Romantic", nick = "ChopinFan", when = 1725637200, title = "Nocturnes" }
+return { action = "add", category = "Music/Metal", nick = "MetalHead", when = 1725640800, title = "Screaming Into The Void" }
+return { action = "add", category = "Music/Metal", nick = "ThrashLord", when = 1725644400, title = "Eternal Darkness" }
+return { action = "add", category = "Music/Metal/Death", nick = "DeathMetalFan", when = 1725648000, title = "Grave Digger" }
+return { action = "add", category = "Music/Metal/Death", nick = "GoreLord", when = 1725651600, title = "Crimson Eclipse" }
+return { action = "add", category = "Music/Metal/Death", nick = "SkeletonKey", when = 1725655200, title = "Bone Crusher" }
+return { action = "add", category = "Music/Metal/Symphonic", nick = "OrchestraNerd", when = 1725658800, title = "Symphony of Destruction" }
+return { action = "add", category = "Music/Metal/Symphonic", nick = "EpicFan", when = 1725662400, title = "The Phoenix Rises" }
+return { action = "add", category = "Movies", nick = "FilmBuff", when = 1725666000, title = "Classic Collection" }
+return { action = "add", category = "Movies/Horror", nick = "HorrorFan", when = 1725669600, title = "The Cabin In The Woods" }
+return { action = "add", category = "Movies/Horror", nick = "SlasherGuy", when = 1725673200, title = "Friday Night Massacre" }
+return { action = "add", category = "Movies/Horror", nick = "GhostHunter", when = 1725676800, title = "Poltergeist" }
+return { action = "add", category = "Movies/Sci-Fi", nick = "SpaceCadet", when = 1725680400, title = "Interstellar Voyage" }
+return { action = "add", category = "Movies/Sci-Fi", nick = "RobotLover", when = 1725684000, title = "The Android's Dream" }
+return { action = "add", category = "TV", nick = "BingeWatcher", when = 1725687600, title = "Complete Series" }
+return { action = "add", category = "TV/Animation", nick = "CartoonFan", when = 1725691200, title = "The Animated Series" }
+return { action = "add", category = "TV/Animation", nick = "AnimeLover", when = 1725694800, title = "Epic Ninja Saga" }
+return { action = "add", category = "TV/Documentary", nick = "NatureLover", when = 1725698400, title = "Planet Earth" }
+return { action = "add", category = "TV/Documentary", nick = "HistoryBuff", when = 1725702000, title = "Ancient Civilizations" }

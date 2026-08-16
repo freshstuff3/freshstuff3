@@ -15,12 +15,13 @@ local Journal = {}
 --- 
 --- Does the effective append job 
 --- 
+--- Internal function
 --- 
 --- @param filename string Journal file name
 --- @param str string The line to write
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
-function Journal:append(filename, str)
+function Journal:Journal_append(filename, str)
      local f, err = io.open(filename,"a+")
     if f then
         f:write(str)
@@ -40,19 +41,19 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Returns error message in case of failure
-function Journal:append_add(obj, journal_file)
+function Journal:Journal_append_add(obj, journal_file)
     if not (obj and journal_file) then
         return false, "Release object and/or journal file not specified!"
     end 
     local str = string.format(
      'return { action = \"add\", category = \"%s\", nick = \"%s\",'..
-                ' when = %d, title = \"%s\" }\r\n',
+                ' when = %d, title = \"%s\" }\n',
         obj.category, 
         obj.nick, 
         obj.when, 
         obj.title
         )
-    return self:append(journal_file, str)
+    return self:Journal_append(journal_file, str)
 end
 
 
@@ -64,12 +65,12 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Error message in case of failure
-function Journal:append_del(id, journal_file)
+function Journal:Journal_append_del(id, journal_file)
     if not (id and journal_file) then
         return false, "Release ID and/or journal file not specified!"
     end
-    local str = string.format('return { action = \"delete\", id = %d }',id)
-    return self:append(journal_file, str)
+    local str = string.format('return { action = \"delete\", id = %d }\n',id)
+    return self:Journal_append(journal_file, str)
 end
 
 --- ---- JOURNAL APPEND: MOVE ----
@@ -81,7 +82,7 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Error message in case of failure
-function Journal:append_move(id, new_category, journal_file)
+function Journal:Journal_append_move(id, new_category, journal_file)
     if not (id and journal_file and new_category) then
         return false, "Release object and/or journal file and/or new category not specified!"
     end
@@ -90,26 +91,25 @@ function Journal:append_move(id, new_category, journal_file)
         id,
         new_category
     )
-    return self:append(journal_file, str)
+    return self:Journal_append(journal_file, str)
 end
 
---- COMPACTING JOURNAL 
+--- # COMPACTING JOURNAL 
+--- 
+--- Only runs on script restart
 --- 
 --- Takes namespace as optional argument, falls back to Item 
 --- 
 --- @param journal_file string Filename. 
---- @param namespace table Namespace containing _data to be used. 
 --- @return boolean success True if success, false if failure
 --- @return string|nil error In case of failure, returns error message
-function Journal:compact(journal_file, namespace)
-    assert(journal_file ~= nil and namespace ~= nil, 
-            "Journal file and/or namespace not specified!")
-    assert( namespace._data ~= nil or type(namespace._data) ~= "table",
-    "No _data field in specified namespace or _data is not a table!"
-    )
-     local f, err = io.open(journal_file, "w+")
+function Journal:Journal_compact(journal_file)
+    assert(journal_file ~= nil, "Journal file not specified!")
+    -- Write to temp file first
+    local temp = os.tmpname()
+    local f, err = io.open(temp, "w+")
     if not f then return false, err end
-    for id, obj in ipairs(namespace._data) do
+    for id, obj in ipairs(self._data) do
         f:write(string.format(
             'return { action = \"add\", category = \"%s\", nick = \"%s\",'..
             ' when = %d, title = \"%s\" }\r\n',
@@ -121,24 +121,28 @@ function Journal:compact(journal_file, namespace)
     end
     f:flush()
     f:close()
-    return true, _
+    -- Write succeeded, replace previous journal file with temp
+    os.rename(temp, journal_file)
+    return true, nil
 end
 
 --- JOURNAL REPLAY
 --- 
---- @param journal_file string Joural file to be used
+--- @param journal_file string Journal file to be used
 --- @return table _data  Returns the data after replay, in an array, or 
 --- empty table on file open failure/in case of an empty or nonexistent file.
 --- @return table ret2 Returns list of failed single items on an 
 --- otherwise successful replay or error string added to array or error.
 --- On total success, returns empty table
-function Journal:replay(journal_file)
-    assert(journal_file ~= nil, "Journal file not specfied")
+function Journal:Journal_replay(journal_file)
+    assert(journal_file ~= nil and self ~= nil and self._data ~= nil,
+             "Journal file not specfied, or invalid container")
     local f, err = io.open(journal_file, "r+")
     if f then
         local _data = {}
         local failed = {}
         for line in f:lines() do
+            
             local c, err = load (line)
             if c then
                 local obj = c()

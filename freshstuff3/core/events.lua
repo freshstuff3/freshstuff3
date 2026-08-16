@@ -2,13 +2,7 @@
 ---@field handlers table event_name -> list of handler functions
 ---@field timer_handlers table interval -> list of handler functions
 
---- Register an event handler
----@param event string Event name (e.g., "RelAdded", "RelDeleted", "CategoryCreated")
----@param handler function Function to call when event fires
----@param priority? number Higher priority = called first (default: 0)
----@todo Implement: store handler in handlers[event] table
----@todo Implement: sort by priority
----@todo Implement: return unique handler ID for unregister
+
 
 --- Unregister an event handler
 ---@param event string Event name
@@ -47,4 +41,38 @@
 ---@todo Implement: wrap in pcall for error isolation
 
 ---@class Events
-local Events = {}
+local Event = {
+    _events = {}
+}
+
+
+--- Register an event handler
+---@param event string Event name (e.g., "RelAdded", "RelDeleted", "CategoryCreated")
+---@param handler function Function to call when event fires
+---@param priority? number Higher priority = called first (default: 0)
+---@todo Implement: store handler in handlers[event] table
+---@todo Implement: sort by priority
+---@todo Implement: return unique handler ID for unregister
+Event:Event_register = function(name, function)
+    self._events[name] = self._events[name]  or {}
+    table.insert(self._events[name], function)
+
+
+-- Define event signatures in one place
+Event_define("RelAdded", {
+    fields = {"nick", "category", "title", "id"},
+    description = "Fired when a release is added",
+})
+
+-- Fire checks argument count
+function Event.fire(name, ...)
+    local sig = Event.signatures[name]
+    if sig then
+        local args = {...}
+        if #args < #sig.fields then
+            error(string.format("Event %s: expected %d args, got %d", 
+                name, #sig.fields, #args))
+        end
+    end
+    -- Fire handlers...
+end
