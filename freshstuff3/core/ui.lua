@@ -1,14 +1,10 @@
 -- core/ui.lua
--- 
--- UI rendering module for FreshStuff3
--- Provides ASCII tree, Markdown table, and detailed item views.
--- 
-
-
--------@class UI
-local UI = {}
-
---- # PUBLIC: UNIFIED RENDERER
+--- 
+--- # UI rendering module for FreshStuff3
+--- 
+--- Provides ASCII tree, Markdown table, and detailed item views.
+--- 
+--- ## PUBLIC: UNIFIED RENDERER
 --- Unified renderer for all output formats
 --- 
 --- This is the main entry point for rendering. It handles:
@@ -69,9 +65,7 @@ local UI = {}
 --- | 13 | Movies/Sci-Fi | The Android's Dream |
 --- | 1293 | ID not found | ID not found |
 --- ```
---- 
 ---
---- 
 --- ## DETAILED LIST
 --- 
 --- ```text
@@ -136,12 +130,16 @@ local UI = {}
 --- 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
 --- ```
 --- 
+
+return {
+---
 ---@param ids table Array of IDs to render
 ---@param format? "tree"|"md"|"detail" default: "tree"
 ---@param sort_order? "sn"|"sw"|"st"|"rsn"|"rsw"|"rst"|"r" Sort order 
 ---@return string|false result Formatted output, or false on error
 ---@todo return headers and content separately, content as array maybe
-function UI.UI_render(self, ids, format, sort_order)
+---
+UI_render = function(self, ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
@@ -222,7 +220,7 @@ function UI.UI_render(self, ids, format, sort_order)
         return table.concat(result, "\r\n"..string.rep("-", 80).."\r\n")
     end
     return false
-end
+end,
 
 --- # Render category tree with release counts only (no individual releases)
 --- 
@@ -236,7 +234,7 @@ end
 --- @param is_last? boolean Whether this is the last child (used internally)
 --- @return string tree Formatted tree with category counts
 --- Render category tree with release counts only (no individual releases)
-function UI.UI_render_category_tree(self, path, prefix, is_last)
+UI_render_category_tree = function(self, path, prefix, is_last)
     prefix = prefix or ""
     is_last = is_last or true
     
@@ -300,7 +298,7 @@ function UI.UI_render_category_tree(self, path, prefix, is_last)
     
     local result = render_node(start_node, start_path, prefix, is_last, true)
     return table.concat(result, "\r\n")
-end
+end,
 
 -- ============================================================
 -- INTERNAL: TREE BUILDING
@@ -318,7 +316,7 @@ end
 ---   - _releases: Array of release IDs directly in this category
 ---   - _children: Array of child category nodes
 --- @return table not_found IDs that don't exist in the database
-function UI:UI_tree_from_ids(ids)
+UI_tree_from_ids = function(self, ids)
     assert(type(ids) == "table" and type(self) == "table" 
             and self._data ~= nil and #ids ~= 0,
             "Empty or invalid ID list!"
@@ -413,7 +411,7 @@ function UI:UI_tree_from_ids(ids)
     end
     
     return build_tree(category_map, 1), not_found, _
-end
+end,
 
 -- ============================================================
 -- INTERNAL: ASCII TREE RENDERER
@@ -431,7 +429,7 @@ end
 --- @param prefix? string Indentation prefix (used internally)
 --- @param is_last? boolean Whether this is the last child (used internally)
 --- @return string tree Formatted tree with specified IDs
-function UI:UI_render_tree(ids, prefix, is_last)
+UI_render_tree = function(self, ids, prefix, is_last)
     local node, not_found = self:UI_tree_from_ids(ids, self)
     prefix = prefix or ""
     local msg_arr = {}
@@ -492,7 +490,7 @@ function UI:UI_render_tree(ids, prefix, is_last)
         table.insert(msg_arr, table.concat(not_found, ", "))
     end
     return table.concat(msg_arr, "\r\n")
-end
+end,
 
 -- ============================================================
 -- UTILITY FUNCTIONS
@@ -503,7 +501,7 @@ end
 --- @param node table The tree node to traverse
 --- @param result table Accumulator for paths (optional)
 --- @return table Array of full category paths
-function UI:UI_get_tree_paths(node, result)
+UI_get_tree_paths = function (self, node, result)
     result = result or {}
     local function collect(n)
         if n._path and n._path ~= "root" then
@@ -517,7 +515,7 @@ function UI:UI_get_tree_paths(node, result)
     end
     collect(node)
     return result
-end
+end,
 
 --- Split a comma-separated list of IDs or an ID range to a list of IDs.
 --- 
@@ -528,7 +526,7 @@ end
 --- 
 --- @param str string String to split (e.g., "1,2,3" or "1-6")
 --- @return table|false result Array of IDs, or false on invalid string
-function UI:UI_split_ids(str)
+UI_split_ids = function(self, str)
     local result = {}
     -- ID list, comma-separated
     if str:find("%d+%,%d+.*") and not str:find("%-") then 
@@ -546,6 +544,5 @@ function UI:UI_split_ids(str)
         end 
     end
     return result
-end
-
-return UI
+end,
+}

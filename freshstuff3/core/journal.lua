@@ -5,12 +5,7 @@
 --- @class Journal
 --- @todo assertions for passed variables
 
-local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
-
-package.path = package.path .. string.format(";%s?.lua", base_path)
-
-local Journal = {}
-
+return {
 --- JOURNAL WRITE
 --- 
 --- Does the effective append job 
@@ -21,7 +16,7 @@ local Journal = {}
 --- @param str string The line to write
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
-function Journal:Journal_append(filename, str)
+Journal_append = function(self, filename, str)
      local f, err = io.open(filename,"a+")
     if f then
         f:write(str)
@@ -30,7 +25,7 @@ function Journal:Journal_append(filename, str)
     else 
         return false, err
     end
-end
+end,
 
 --- ---- JOURNAL APPEND: ADD ----
 --- 
@@ -41,7 +36,7 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Returns error message in case of failure
-function Journal:Journal_append_add(obj, journal_file)
+Journal_append_add = function(self, obj, journal_file)
     if not (obj and journal_file) then
         return false, "Release object and/or journal file not specified!"
     end 
@@ -54,8 +49,7 @@ function Journal:Journal_append_add(obj, journal_file)
         obj.title
         )
     return self:Journal_append(journal_file, str)
-end
-
+end,
 
 --- ---- JOURNAL APPEND: DELETE ----
 --- 
@@ -65,13 +59,13 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Error message in case of failure
-function Journal:Journal_append_del(id, journal_file)
+Journal_append_del = function(self, id, journal_file)
     if not (id and journal_file) then
         return false, "Release ID and/or journal file not specified!"
     end
     local str = string.format('return { action = \"delete\", id = %d }\n',id)
     return self:Journal_append(journal_file, str)
-end
+end,
 
 --- ---- JOURNAL APPEND: MOVE ----
 --- 
@@ -82,7 +76,7 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Error message in case of failure
-function Journal:Journal_append_move(id, new_category, journal_file)
+Journal_append_move = function(self, id, new_category, journal_file)
     if not (id and journal_file and new_category) then
         return false, "Release object and/or journal file and/or new category not specified!"
     end
@@ -92,18 +86,17 @@ function Journal:Journal_append_move(id, new_category, journal_file)
         new_category
     )
     return self:Journal_append(journal_file, str)
-end
+end,
 
 --- # COMPACTING JOURNAL 
 --- 
 --- Only runs on script restart
 --- 
---- Takes namespace as optional argument, falls back to Item 
 --- 
 --- @param journal_file string Filename. 
 --- @return boolean success True if success, false if failure
 --- @return string|nil error In case of failure, returns error message
-function Journal:Journal_compact(journal_file)
+Journal_compact = function (self, journal_file)
     assert(journal_file ~= nil, "Journal file not specified!")
     -- Write to temp file first
     local temp = os.tmpname()
@@ -124,7 +117,7 @@ function Journal:Journal_compact(journal_file)
     -- Write succeeded, replace previous journal file with temp
     os.rename(temp, journal_file)
     return true, nil
-end
+end,
 
 --- JOURNAL REPLAY
 --- 
@@ -134,7 +127,7 @@ end
 --- @return table ret2 Returns list of failed single items on an 
 --- otherwise successful replay or error string added to array or error.
 --- On total success, returns empty table
-function Journal:Journal_replay(journal_file)
+Journal_replay = function(self, journal_file)
     assert(journal_file ~= nil and self ~= nil and self._data ~= nil,
              "Journal file not specfied, or invalid container")
     local f, err = io.open(journal_file, "r+")
@@ -163,6 +156,5 @@ function Journal:Journal_replay(journal_file)
     else
         return {}, { ""..err.."" }
     end
-end
-
-return Journal
+end,
+}

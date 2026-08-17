@@ -1,63 +1,13 @@
 -- core/Category_lua
---- DELETE CATEGORY
+
+return {
+
+--- # CATEGORY MANAGEMENT CORE MODULE FOR FRESHSTUFF3
+---
+--- ## I. CRUD OPERATIONS FOR CATEGORIES
 --- 
---- Removes a category and optionally its releases
----
----@param path string Category path to delete
----@param force? boolean If true, delete releases. If false, error if not empty.
----@return boolean success
----@return string error
----@todo Implement: check if category exists
----@todo Implement: get all release IDs in category
----@todo Implement: if force, delete all releases (use table.remove, update dirty)
----@todo Implement: if not force and has releases, return error with count
----@todo Implement: remove from _category_tree
----@todo Implement: remove from _category_index
----@todo Implement: return success message with deleted count
----@todo Implement: USE THE --force
-
-
-
---- EMPTY CATEGORY (delete all releases but keep category)
----@param path string Category path
----@return boolean success
----@return string error
----@todo Implement: check if category exists
----@todo Implement: get all release IDs
----@todo Implement: delete each release from _data
----@todo Implement: clear _releases in tree
----@todo Implement: update _category_index to empty state
----@todo Implement: return success message with deleted count
----@todo EMOJI STORAGE IN _category_index
---- - [ ] Store emoji per-category in _category_index[path].emoji
---- - [ ] Subcategories inherit parent emoji by default (fallback)
---- - [ ] Allow explicit emoji override at any category level
---- - [ ] Inherited emoji should be marked as such (e.g., _inherited = true)
---- - [ ] When parent emoji changes, update children unless they have explicit overrides
---- - [ ] Include emoji in _category_index serialization (categories.lua)
---- - [ ] Add Category:set_emoji(path, emoji) to set explicit emoji
---- - [ ] Add Category:get_emoji(path) to resolve inherited emoji
----
----@example
----   -- Set explicit emoji for Music
----   Category:set_emoji("Music", "🎶")
----   -- Music/Metal inherits 🎶 by default
----   -- Override Music/Metal explicitly
----   Category:set_emoji("Music/Metal", "🤘")
----
----@example Category:get_emoji(path) return logic
----   if _category_index[path].emoji then
----       return _category_index[path].emoji  -- explicit
----   end
----   if path:find("/") then
----       local parent = parent_path(path)
----       return Category:get_emoji(parent)   -- inherited
----   end
----   return "📁"                             -- default
-
-local Category = {}
-
---- CATEGORY INITIALISATION
+--- 
+--- ### CATEGORY INITIALISATION
 ---
 --- Initialises the category system on script startup or after a memory dump.
 --- This function:
@@ -88,11 +38,11 @@ local Category = {}
 ---@param filename string Path to the categories file (e.g., "data/categories.lua")
 ---@todo If file loading fails, create from scratch from _data
 ---@todo Add validation: ensure _data is not nil before iterating---@todo Add support for migrating old category formats (if needed)
-function Category:Category_init(filename)
+Category_init = function(self, category_file)
     self._category_index, self._category_tree = {}, {}
     
     -- Load from file
-    local go, err = loadfile(filename)
+    local go, err = loadfile(category_file)
     if go then 
         local loaded = go()
         if type(loaded) == "table" then
@@ -102,41 +52,44 @@ function Category:Category_init(filename)
         end
     end
     
-    -- CRITICAL: Rebuild from _data and populate _releases for ALL parent categories
-    for id, piece in ipairs(self._data) do
-        local parts = self:Category_split_path(piece.category)
-        local current_path = ""
-    
-        -- Create all parent categories AND add the release ID to each level
-        for i, part in ipairs(parts) do
-            current_path = i == 1 and part or (current_path .. "/" .. part)
-            
-            -- Create in index if missing
-            if not self._category_index[current_path] then
-                self._category_index[current_path] = {}
-            end
-            
-            -- Create in tree if missing
-            local node = self:Category_get_node(current_path)
-            if not node then
-                node = self:Category_create(current_path)
-            end
-            
-            -- ✅ FIX: Add the release ID to EVERY parent category
-            if node then
-                if not node._releases then
-                    node._releases = {}
+    -- Return early if _data empty
+    if next(self._data) then 
+        -- CRITICAL: Rebuild from _data and populate _releases for ALL parent categories
+        for id, piece in ipairs(self._data) do
+            local parts = self:Category_split_path(piece.category)
+            local current_path = ""
+        
+            -- Create all parent categories AND add the release ID to each level
+            for i, part in ipairs(parts) do
+                current_path = i == 1 and part or (current_path .. "/" .. part)
+                
+                -- Create in index if missing
+                if not self._category_index[current_path] then
+                    self._category_index[current_path] = {}
                 end
-                -- Avoid duplicates (in case this runs multiple times)
-                local found = false
-                for _, existing_id in ipairs(node._releases) do
-                    if existing_id == id then
-                        found = true
-                        break
+                
+                -- Create in tree if missing
+                local node = self:Category_get_node(current_path)
+                if not node then
+                    node = self:Category_create(current_path)
+                end
+                
+                -- ✅ FIX: Add the release ID to EVERY parent category
+                if node then
+                    if not node._releases then
+                        node._releases = {}
                     end
-                end
-                if not found then
-                    table.insert(node._releases, id)
+                    -- Avoid duplicates (in case this runs multiple times)
+                    local found = false
+                    for _, existing_id in ipairs(node._releases) do
+                        if existing_id == id then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        table.insert(node._releases, id)
+                    end
                 end
             end
         end
@@ -148,97 +101,107 @@ function Category:Category_init(filename)
         self._category_index[path].dirty = false
     end
     
-    assert(self:Category_serialize(filename), "Category serialisation failed!")
-end
-
--- Helper: Ensure all parent categories exist in both tree and index
-function Category:Category_ensure_path(path)
-    local parts = self:Category_split_path(path)
-    local current_path = ""
-    
-    for i, part in ipairs(parts) do
-        current_path = i == 1 and part or (current_path .. "/" .. part)
-        
-        -- Create in index if missing
-        if not self._category_index[current_path] then
-            self._category_index[current_path] = {}
-        end
-        
-        -- Create in tree if missing
-        if not self:Category_get_node(current_path) then
-            self:Category_create(current_path)
-        end
+            -- ✅ Optional serialization (like journal_path)
+    if category_file then
+        local ok, err = self:Category_serialize(category_file)
+        if not ok then
+                -- Rollback on serialization failure
+                return nil, "Serialization failed: " .. err
+        end   
     end
-    return true
-end
+end,
 
-
---- GET NODE
+--- ### DELETE CATEGORY
 ---
---- Retrieves a category node from the category tree by traversing the given path.
---- Returns the node at the end of the path, or nil if any segment is missing.
+--- Deletes a category and optionally its releases and subcategories.
+--- Supports preview mode, force deletion (with releases), and nuke deletion (with subcategories).
 ---
 --- Behavior:
----   - Top-level path (e.g., "Music"): Direct lookup in _category_tree
----   - Nested path (e.g., "Music/Metal/Death"): Traverses each segment
----   - If any segment is missing: Returns nil immediately
----   - Returns the full node table containing _releases and child nodes
+---   - If category doesn't exist: Returns error
+---   - If category is empty (no releases, no subcats): Deletes immediately (no force needed)
+---   - If category has releases but no subcats and is_force = false: Returns error with release count
+---   - If category has releases but no subcats and is_force = true: Deletes category and all releases
+---   - If category has subcategories and is_nuke = false: Returns error with subcategory list
+---   - If category has subcategories and is_nuke = true: Deletes category, all subcategories, and all releases
+---   - If is_preview = true: Returns what would be deleted without actually deleting anything
 ---
---- The node structure:
----   {
----     _releases = {1, 5, 12, 23},   -- Array of release IDs in this category
----     ["Subcategory"] = { ... },    -- Child nodes (subcategories)
----     ["Another"] = { ... },
----   }
+--- State matrix for _category_index[category]:
+---   nil                    -- Category doesn't exist
+---   {}                     -- Category exists, empty (no releases)
+---   { dirty = false }      -- Category exists, has releases, clean
+---   { dirty = true }       -- Category exists, has releases, dirty
+---
+--- Deletion modes:
+---   1. Empty category deletion (no flags needed):
+---      - Category exists but has no releases and no subcategories
+---      - Removes from _category_index and _category_tree
+---      - Serializes category file
+---
+---   2. Force deletion (is_force = true):
+---      - Deletes category even if it has releases
+---      - Only works if category has NO subcategories
+---      - Deletes all releases in category from _data
+---      - Removes from _category_index and _category_tree
+---      - Serializes category file
+---
+---   3. Nuke deletion (is_nuke = true):
+---      - Deletes category AND all subcategories recursively
+---      - Deletes ALL releases in category and subcategories from _data
+---      - Removes all subcategories from _category_index and _category_tree
+---      - Serializes category file
+---
+---   4. Preview mode (is_preview = true):
+---      - Shows what would be deleted
+---      - Returns list of items and categories that would be affected
+---      - NO changes are made to _data, _category_index, or _category_tree
 ---
 --- Examples:
----   Category:get_node("Music", Item)          -- Returns top-level Music node
----   Category:get_node("Music/Metal", Item)    -- Returns Metal node
----   Category:get_node("Invalid/Path", Item)   -- Returns nil
+--- ```lua
+---   -- Preview deletion (dry run)
+---   local ids, cats = Category:Category_delete("Music/Rock", "cats.dat", "journal.dat", false, false, true)
+---   -- ids = {1, 2, 3}, cats = {"Music/Rock"}
 ---
----@param path string The category path to retrieve (e.g., "Music/Metal/Death")
----@return table|nil node The node at the end of the path, or nil if not found
----@todo Consider caching frequently accessed nodes for performance
----@todo Add support for case-insensitive matching (optional, configurable)
----@todo Add support for path validation before traversal (ensure no empty segments)
----@todo Return more detailed error information (e.g., which segment failed)
-function Category:Category_get_node(path)
-    -- Throw error in case of missing parameters
-    assert(path ~= nil and path ~= "", "Path unspecified!")
-    -- Check if path top-level. If yes, GTFO
-    if not path:find("/") then 
-        return self._category_tree[path]
-    end
-    -- not top-level: split it!
-    local parts = self:Category_split_path(path) -- maybe add error handling?
-    -- List of path parts that have already been dealt with
-    local full_path_parts = {}
-    -- Get the current tree
-    local current = self._category_tree
-    -- Traverse through the path, starting from level 1 and going deeper
-    for i, part in ipairs(parts) do
-        table.insert(full_path_parts, part)
-        if not current[part] then
-            return nil  -- Path segment doesn't exist
-        end
-        -- Current tree overwritten
-        current = current[part]
-    end
-    return current
-end
-
+---   -- Force delete category with releases (no subcategories)
+---   local ids, result = Category:Category_delete("Music/Rock", "cats.dat", "journal.dat", true, false, false)
+---   -- ids = {1, 2, 3}, result = "Deleted category Music/Rock (3 items)"
 ---
---- Delete category
+---   -- Nuke delete category with subcategories
+---   local ids, result = Category:Category_delete("Music", "cats.dat", "journal.dat", true, true, false)
+---   -- ids = {1,2,3,4,5,6,7,8,9}, result = "Deleted category Music (9 items)"
 ---
----@param path string Category path
----@param category_file string Category file to use
----@param journal_file string Journal file to use
----@param is_force? boolean Delete category even if it has items. Will not delete if subcategories are present.
----@param is_nuke? boolean Deep-delete category even if it has items and/or subcategories. Needs `force` to be `true`
----@param is_preview? boolean Whether we are doing a dry run. If unspecified, it's a dry run.
----@return table|boolean items Returns list of ITEMS to be deleted if preview, true on real deletion success and false on error
----@return table|string err Returns response on non-preview deletion or error message. Returns list of categories to be deleted if preview
-function Category:Category_delete(path, category_file, journal_file, is_force, is_nuke, is_preview)
+---   -- Try to delete non-empty category without force (fails)
+---   local ids, err = Category:Category_delete("Music/Rock", "cats.dat", "journal.dat", false, false, false)
+---   -- ids = false, err = "Category `Music/Rock` not deleted: it has 3 releases, but this is not a 'force' deletion."
+---
+---   -- Try to delete category with subcategories without nuke (fails)
+---   local ids, err = Category:Category_delete("Music", "cats.dat", "journal.dat", true, false, false)
+---   -- ids = false, err = "Category Music not deleted: it has subcategories (Rock, Jazz, Classical), but this is not a 'nuke' deletion."
+--- ```
+---@param path string Category path to delete
+---@param category_file string Path to category file for serialization
+---@param journal_file string Path to journal file for journalling deletions
+---@param is_force? boolean Delete category with releases (only if no subcategories). Default: false
+---@param is_nuke? boolean Delete category, subcategories, and all releases recursively. Requires is_force = true. Default: false
+---@param is_preview? boolean Dry run - return what would be deleted without making changes. Default: true
+---@return table|boolean items Returns:
+---   - On preview: table of item IDs that would be deleted
+---   - On success: table of deleted item IDs
+---   - On error: false
+---@return table|string result Returns:
+---   - On preview: table of category paths that would be deleted
+---   - On success: string message with deletion summary
+---   - On error: string error message
+---@todo Add backup creation before deletion (create backup journal)
+---@todo Add --imeanit confirmation flag for actual deletion (prevent accidents)
+---@todo Add recovery/restore capability from backup
+---@todo Add dry-run with detailed summary (items, categories, subcategories)
+---@todo Add progress indication for large deletions (1000+ items)
+---@todo Add validation to prevent deleting root categories (optional)
+---@todo Add logging of deletion operations for audit trail
+---@todo Consider moving deleted items to a "trash" category instead of permanent deletion
+---@todo Add confirmation prompt for nuke deletions (safety) -- for Lua only
+---@todo Update all parent categories' dirty flags after deletion -- taken care of by Item:add // b_e
+Category_delete = function (self, path, category_file, journal_file, is_force, is_nuke, is_preview)
     assert(path ~= nil and category_file ~= nil, "Unspecified path and/or category file!")
     
     local state = self._category_index[path]
@@ -284,7 +247,7 @@ function Category:Category_delete(path, category_file, journal_file, is_force, i
     if has_subcats then
         if not is_nuke then 
             return false, string.format(
-                "Category %s not deleted: it has subcategories (%s), "..
+                "❌ Category %s not deleted: it has subcategories (%s), "..
                 "but this is not a \"nuke\" deletion.", 
                 path, table.concat(subcat_names, ", ")
             )
@@ -293,7 +256,7 @@ function Category:Category_delete(path, category_file, journal_file, is_force, i
         -- No subcategories, check if force is needed
         if #to_del > 0 and not is_force then
             return false, string.format(
-                "Category `%s` not deleted: it has %d releases, "..
+                "❌ Category `%s` not deleted: it has %d releases, "..
                 "but this is not a \"force\" deletion.", 
                 path, #to_del
             )
@@ -343,109 +306,26 @@ function Category:Category_delete(path, category_file, journal_file, is_force, i
     end
     
     return {}, string.format("Empty category %s deleted!", path)
-end
+end,
 
-
---- Delete node from category tree
---- 
---- @param path string Category path
-function Category:Category_delete_node(path)
-    if not path or path == "" then return false end
-    
-    local parts = self:Category_split_path(path)
-    if not next(parts) then return false end
-    
-    if #parts == 1 then
-        -- Top-level category
-        self._category_tree[path] = nil
-        return true
-    end
-    
-    -- Find the parent
-    local parent_path = table.concat(parts, "/", 1, #parts - 1)
-    local parent = self:Category_get_node(parent_path)
-    if not parent then return false end
-    
-    local name = parts[#parts]
-    parent[name] = nil
-    return true
-end
-
---- Mark parents of given category path's respective node dirty in tree
---- 
---- @param path string Category path
-function Category:Category_mark_parents_dirty(path)
-    local parts, err = self:Category_split_path(path)
-    if not parts then return false, err end
-    for i = 1, #parts - 1 do
-        local parent_path = table.concat(parts, "/", 1, i)
-        if self._category_index[parent_path] then
-            self._category_index[parent_path].dirty = true
-        end
-    end
-    return true
-end
-   
---- ---- CREATE CATEGORY ----
+--- ### CREATE CATEGORY
 --- 
 --- Creates the node in _category_tree, but ONLY if parent category exists
 --- 
---- If item ID is specified, it will be added to the created node
---- 
 --- @param path string The category path to create (e.g., "Music/Metal/Death")
 --- @return table|nil node Returns node on success, nil on error
---- @return string error Upon failure, returns error message.
+--- @return string? error Upon failure, returns error message.
 --- 
---[[
-function Category:Category_create(path)
-    assert(path ~= nil and path ~= "" and self ~= nil, 
-    "Path and/or namespace unspecified!")
-    if self._category_index[path] and self:Category_rebuild_node(path) then
-        return nil, string.format("Category %s already exists!", path)
-    end
-    -- Add to index if not present
-    self._category_index[path] = self._category_index[path] or {}
-    if not path:find("/") then --top-level category
-        local node = { _releases = {} }
-        self._category_tree[path] = node
-        return node, nil
-    end
-    local parts = self:Category_split_path(path)
-    local current = self._category_tree
-    local full_path_parts = {}
-
-    for i, part in ipairs(parts) do
-        table.insert(full_path_parts, part)
-        
-        if not current[part] then -- nonexistent node
-            if i == #parts then -- innermost, create it
-                current[part] = {
-                    _releases = {},
-                }
-            else -- parent category does not exist, return error
-                return nil, string.format(
-                "Parent category %s for specified category %s does not exist."..
-                "Create it first!",
-                table.concat(full_path_parts, "/"), path
-                )
-            end
-        end
-        current = current[part]
-    end
-    return current, nil
-end
-]]
-function Category:Category_create(path)
-    assert(path ~= nil and path ~= "", "Path unspecified!")
+Category_create = function (self, path, category_file)
+    assert(path ~= nil and path ~= "", "❌ Category unspecified!")
 
     local node = self:Category_get_node(path)
     
     if self._category_index[path] and node then
-        return node  -- return node if exists
+        return node -- return node if exists
     end
     -- Add to index if not present
     self._category_index[path] = {}
-    
     local parts = self:Category_split_path(path)
     local current = self._category_tree
     local full_path = ""
@@ -457,17 +337,27 @@ function Category:Category_create(path)
             current[part] = { _releases = {} }
         end
         
-        if i == #parts then
+        if i == #parts then -- successfully created node in tree
+            -- Optional serialisation (like journal_path)
+            if category_file then
+                local ok, err = self:Category_serialize(category_file)
+                if not ok then
+                    -- Rollback on serialisation failure
+                    self._category_index[path] = nil
+                    return nil, "Serialization failed: " .. err
+                end
+            end
             return current[part]
         end
         
         current = current[part]
     end
-    
-    return nil
-end
+    -- Roll back if we got here
+    self._category_index[path] = nil
+    return nil, "❌ Failed to create category: " .. path
+end,
 
---- CATEGORY PATH SANITISATION AND VALIDATION
+--- ### CATEGORY PATH SANITISER/VALIDATOR
 ---
 --- Validates and sanitises a category path string before it is used for
 --- any category operations (creation, traversal, deletion, etc.).
@@ -486,20 +376,20 @@ end
 ---   3. Collapse consecutive slashes: "Music//Metal" → "Music/Metal"
 ---
 --- Note: This function validates the STRING path, not the data.
----       Spaces are NOT checked here (handled by %S+ in business logic).
+---       Spaces are NOT checked here (handled by %S+ in command parsing).
 ---       Emptiness is NOT checked here (handled by caller).
 ---
 ---@param path string Category path to validate (e.g., "Music/Metal/Death")
 ---@return boolean success True if valid, false if invalid
 ---@return string result Sanitized path on success, error message on failure
 ---@todo Consider case sensitivity option (optional, default: case-sensitive)
-function Category:Category_process_path(path)
-        assert(path ~= nil and path ~= "", "Path unspecified!")
+Category_process_path = function (self, path)
+        assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     -- string longer than 70 chars
     -- This should be hardcoded as for messages (ie. expected use case), 
     -- the display is the bottleneck
     if #path > 70 then 
-        return false, string.format("Category path %s too long. "..
+        return false, string.format("❌ Category path %s too long. "..
         "Maximum 70 characters.", path) 
     end
 
@@ -509,41 +399,24 @@ function Category:Category_process_path(path)
     if string.find (path, "/") then -- subcategory
         local depth = #self:Category_split_path(path)
         if depth > 5 then 
-            return false, string.format("Subcategory %s deeper than"..
+            return false, string.format("❌ Subcategory %s deeper than"..
                                             " five levels.", path
                                             )
          end
     end
     if not self._category_index[path] then return false, string.format(
-        "Category %s not found in categories. It needs to be created"..
+        "❌ Category %s not found in categories. It needs to be created"..
         " first. ", path
         )
     end
     return true, path 
-end
+end,
 
---- Split category path into parts
---- 
---- 
---- @param path string category path
---- @return table parts Returns an array of parts, 
---- ordered fromm top level downwards.
-function Category:Category_split_path(path)
-    -- Check if top-level category
-    if not path:find("/") then; return { path }; end
-    -- Not-top-level category, split required
-    local parts = {}
-    for part in path:gmatch("([^/]+)") do
-        table.insert(parts, part)
-    end
-    return parts
-end
-
---- SAVE CATEGORIES TO FILE
+--- ### SAVE CATEGORIES TO FILE
 ---
 --- Serializes the category index (_category_index) to a Lua file.
---- The category tree (_category_tree) is NOT serialized as it can be
---- rebuilt from _data on startup.
+--- The category tree (_category_tree) is NOT serialised as it will be
+--- rebuilt into a fullly clean state from _data (i.e. RAM) on startup anyway.
 ---
 --- Why only _category_index:
 ---   - _category_index is a flat list of all categories that exist
@@ -552,14 +425,18 @@ end
 ---   - _category_index provides fast existence checks without traversing _data
 ---
 --- File format:
+--- 
+--- ```lua
 ---   return {
 ---     ["Music"] = {},
 ---     ["Music/Metal"] = {},
 ---     ["Music/Metal/Death"] = {},
 ---   }
----
+--- ```
+--- 
 --- Empty tables are used as placeholders. The dirty state is NOT persisted;
---- it is re-evaluated on startup based on _data.
+--- a clean tree is built during startup based upon _data.
+--- 
 ---
 ---@param filename string File path to save to (e.g., "data/categories.lua")
 ---@return boolean success True if save succeeded
@@ -569,9 +446,9 @@ end
 ---@todo Add validation: ensure _category_index is not empty before saving
 ---@todo Add logging: when save happens, how many categories saved
 ---@todo Add error recovery: if save fails, keep existing file intact
-function Category:Category_serialize(filename)
+Category_serialize = function (self, filename)
     -- File does not have to exist.
-    assert(filename ~= nil and filename ~= "", "File name unspecified!")
+    assert(filename ~= nil and filename ~= "", "❌ File name unspecified!")
     local tmp = filename -- os.tmpname()
     local f, err = io.open (tmp, "w+")
     if f then
@@ -586,30 +463,32 @@ function Category:Category_serialize(filename)
         return true
     end
     return false, err -- serialisation failed
-end
+end,
 
-
---- ---- GET ITEMS (NON-RECURSIVE) ----
---- Returns all items at a specific category node 
---- (not including subcategories)
+--- ###  GET ITEMS (NON-RECURSIVE) 
+--- 
+--- Returns all items at a specific category node, not including subcategories
 --- 
 --- @param path string The category path
 --- @return table IDs Array of release IDs at this category
-function Category:Category_get_no_subcat(path)
-    assert(path ~= nil and path ~="" and self ~= nil, 
-        "Path unspecified!")
+Category_get_no_subcat = function(self, path)
+    assert(path ~= nil and path ~="" ,"Path unspecified!")
     -- No state checking. rebuild_node returns anyway if no rebuild needed
     local result = self:Category_rebuild_node(path)
     if not result then return {} end
     return result._releases
-end
+end,
 
---- ---- GET ITEMS (RECURSIVE) ----
---- Returns all items in a category INCL. all its subcategories
+--- ###  GET ITEMS (RECURSIVE) 
+--- 
+--- Returns all items in a category path recursively, i.e. INCLUDING all its 
+--- subcategories
 --- 
 --- @param path string The category path
---- @return table IDs Array of all release IDs found
-function Category:Category_get_subcat(path)
+--- @return table|false result 
+--- - Array of all release IDs found. 
+--- - False on failed retrieval
+Category_get_subcat = function(self, path)
     assert(path ~= nil and path ~= "", "Path unspecified!")
     
     local result = self:Category_rebuild_node(path)
@@ -645,30 +524,166 @@ function Category:Category_get_subcat(path)
     end
     collect(result)
     return list
-end
---- ---- LAZY TREE REBUILD ----
+end,
+
+--- ### RENAME CATEGORY
+---
+--- Renames an existing category to a new path. All releases in the category
+--- are updated to the new category path. The category must be a leaf node
+--- (no subcategories) to be renamed.
+---
+--- #### Behavior:
+---   - Validates both old and new paths
+---   - Checks that old category exists and new category doesn't
+---   - Verifies category has releases (cannot rename empty categories)
+---   - Verifies category has NO subcategories (leaf node only)
+---   - Creates new category node
+---   - Moves all release IDs from old node to new node
+---   - Updates each release's category field in _data
+---   - Removes old category from tree and index
+---   - Marks new category as clean (dirty = false)
+---   - Journals each move operation
+---
+--- #### Limitations:
+---   - Cannot rename empty categories
+---   - Cannot rename to an already existing category
+---   - Only leaf nodes (categories with no subcategories) can be renamed
+---
+--- #### Examples:
+---   -- Rename "Music/Rock" to "Music/RockAndRoll"
+---   Category:Category_rename("Music/Rock", "Music/RockAndRoll", JOURNAL_FILE)
+---
+---   -- Rename "Movies/SciFi" to "Movies/ScienceFiction"
+---   Category:Category_rename("Movies/SciFi", "Movies/ScienceFiction", JOURNAL_FILE)
+---
+---   -- This will fail because "Music" has subcategories
+---   Category:Category_rename("Music", "Music2", JOURNAL_FILE)  -- ❌ Error
+---
+---@param old_path string Current category path (must exist, must be leaf)
+---@param new_path string New category path (must not exist)
+---@param journal_file string Path to journal file for journalling moves
+---@return table|false node_new The new category node on success, false on error
+---@return string|nil error Error message on failure, nil on success
+---@todo Add support for renaming categories with subcategories (recursive rename)
+---@todo Add validation to prevent renaming to a path that would create a cycle
+---@todo Consider adding an option to rename empty categories (currently not allowed)
+---@todo Add logging for rename operations for debugging
+---@todo Handle concurrent operations (lock category during rename)
+---@todo Add support for renaming top-level categories (currently allowed)
+---@todo Consider updating category_index for all subcategories if recursive rename is implemented
+Category_rename = function(self, old_path, new_path, journal_file, category_file)
+    if self._category_index[new_path] then
+        return false, "❌ Target category already exists."
+    elseif not self._category_index[old_path] then
+        return false, "❌ Source category does not exist."
+    end
+
+    -- First, get all IDs in old_path
+    local node_old = self:Category_rebuild_node(old_path)
+    if not node_old then
+        return false, string.format("❌ Failed to retrieve node for path %s", old_path)
+    end
+
+    -- Check if node has subcategories
+    local has_subcats = false
+    for key, _ in pairs(node_old) do
+        if key ~= "_releases" then
+            has_subcats = true
+            return false, "❌ Categories that have subcategories cannot be renamed."
+        end
+    end
+    local node_new = self:Category_create(new_path)
+
+    -- Move items to new category
+    table.move(node_old._releases, 1, #node_old._releases, 1, node_new._releases)
+    for id, _ in ipairs(node_new._releases) do
+        self:Item_move_id(id, new_path, journal_file)
+    end
+    self._category_index[new_path] = { dirty = false }
+
+    -- 
+    local parent_path = old_path:match("^(.*)/[^/]+$")
+    if parent_path then
+        -- It's a subcategory, remove from parent's children
+        local parent = self:Category_rebuild_node(parent_path)
+        if parent then
+            local name = old_path:match("^.*/([^/]+)$")
+            parent[name] = nil
+        end
+    else
+        -- It's top-level, remove directly
+        self._category_tree[old_path] = nil
+    end
+    self._category_index[old_path] = nil
+    -- ✅ Optional serialization (like journal_path)
+     if category_file then
+        local ok, err = self:Category_serialize(category_file)
+        if not ok then
+            ---@bug No rollback on serialisation failure
+            return false, "Serialization failed: " .. err
+        end
+    end
+    return node_new._releases, node_old._releases
+end,
+
+--- # CATEGORY TREE LOGIC
 --- 
+--- Will be moved into its separate CatTree namespace and file
 --- 
---- State matrix for _category_index[category]:
+--- ## State matrix 
 --- 
----   nil                    = Category doesn't exist
+--- for _category_index[category]:
 --- 
----   {}                     = Category exists, empty (no releases)
+--- ```lua
+---   nil                    -- Category doesn't exist
 --- 
----   { dirty = false }      = Category exists, has releases, clean
+---   {}                     -- Category exists, empty (no releases)
 --- 
----   { dirty = true }       = Category exists, has releases, dirty (needs rebuild)
+---   { dirty = false }      -- Category exists, has releases, clean
+--- 
+---   { dirty = true }       -- Category exists, has releases, dirty (needs rebuild)
+--- ```
 --- 
 --- Categories are marked dirty upon item addition, deletion or move.
+--- 
 --- When moving, old and new category both need to be marked dirty.
-
-
---- Rebuild a single dirty category from _data
+--- 
+--- 
+--- ## IN-MEMORY TREE STRUCTURE
+--- 
+--- ```lua
+--- _category_tree = {
+---    ["Movies"] = {
+---        _releases = { 1 },              -- IDs directly in Movies
+---        ["Horror"] = {
+---            _releases = { 2, 3, 4 },    -- IDs in Movies/Horror
+---        },
+---        ["Sci-Fi"] = {
+---            _releases = { 5, 6 },       -- IDs in Movies/Sci-Fi
+---        },
+---    },
+---    ["Music"] = {
+---        _releases = { 7 },              -- IDs directly in Music
+---        ["Classical"] = {
+---            _releases = { 8 },          -- IDs directly in Music/Classical
+---            ["Romantic"] = {
+---                _releases = { 9 },      -- IDs in Music/Classical/Romantic
+---            },
+---        },
+---        -- ... etc
+---    },
+--- }
+--- ```
+--- 
+--- 
+--- ## METHODS
+---  
+--- ### Rebuild a single dirty category tree node from _data
 --- 
 --- @param path string Category path to rebuild
 --- @return table|boolean node Returns the rebuilt node on success, false if not found
-function Category:Category_rebuild_node(path)
-    assert(path ~= nil and path ~= "", "Path unspecified!")
+Category_rebuild_node = function(self, path)
+    assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     
     local entry = self._category_index[path]
     if not entry then return false end
@@ -698,52 +713,146 @@ function Category:Category_rebuild_node(path)
     -- Update state
     entry.dirty = false
     return node
-end
+end,
 
-function Category:Category_rename(old_path, new_path, journal_file)
-    if self._category_index[new_path] then
-        return false, "Target category already exists."
-    elseif not self._category_index[old_path] then
-        return false, "Source category does not exist."
+--- ### Split category path into parts
+--- 
+--- @param path string category path
+--- @return table|false parts Returns an array of parts, 
+--- ordered fromm top level downwards.
+Category_split_path = function (self, path)
+    assert(type(path) =="string" and path ~= "", "Invalid or no path" )
+    -- Check if top-level category
+    if not path:find("/") then; return { path }; end
+    -- Not-top-level category, split required
+    local parts = {}
+    for part in path:gmatch("([^/]+)") do
+        table.insert(parts, part)
     end
-    -- First, get all IDs in old_path
-    local node_old = self:Category_rebuild_node(old_path)
-    local rel = node_old._releases or {}
-    if not next(rel) then
-        return false, "Source category is empty."
+    return parts
+end,
+
+--- ### Delete node from category tree
+--- 
+--- @param path string Category path
+Category_delete_node = function (self, path)
+    if not path or path == "" then return false end
+    
+    local parts = self:Category_split_path(path)
+    if not next(parts) then return false end
+    
+    if #parts == 1 then
+        -- Top-level category
+        self._category_tree[path] = nil
+        return true
     end
-    -- Check if node has subcategories
-    local has_subcats = false
-    for key, _ in pairs(node_old) do
-        if key ~= "_releases" then
-            has_subcats = true
-            return false, "Categories that have subcategories cannot be renamed."
+    
+    -- Find the parent
+    local parent_path = table.concat(parts, "/", 1, #parts - 1)
+    local parent = self:Category_get_node(parent_path)
+    if not parent then return false end
+    
+    local name = parts[#parts]
+    parent[name] = nil
+    return true
+end,
+
+--- ### Mark parents of given category path's respective node dirty in tree
+--- 
+--- @param path string Category path
+--- 
+Category_mark_parents_dirty = function (self, path)
+    local parts, err = self:Category_split_path(path)
+    if not parts then return false, err end
+    for i = 1, #parts - 1 do
+        local parent_path = table.concat(parts, "/", 1, i)
+        if self._category_index[parent_path] then
+            self._category_index[parent_path].dirty = true
         end
     end
-    local node_new = self:Category_create(new_path)
+    return true
+end,
 
-    table.move(node_old._releases, 1, #node_old._releases, 1, node_new._releases)
-    for id, _ in ipairs(node_new._releases) do
-        self:Item_move_id(id, new_path, journal_file)
+--- ### Get node
+---
+--- Retrieves a category node from the category tree by traversing the given path.
+--- Returns the node at the end of the path, or nil if any segment is missing.
+---
+--- Behaviour:
+---   - Top-level path (e.g., "Music"): Direct lookup in _category_tree
+---   - Nested path (e.g., "Music/Metal/Death"): Traverses each segment
+---   - If any segment is missing: Returns nil immediately
+---   - Returns the full node table containing _releases and child nodes
+---
+--- The node structure as per above:
+---   {
+---     _releases = {1, 5, 12, 23},   -- Array of release IDs in this category
+---     ["Subcategory"] = { ... },    -- Child nodes (subcategories)
+---     ["Another"] = { ... },
+---   }
+---
+--- Examples:
+---   Category:get_node("Music", Item)          -- Returns top-level Music node
+---   Category:get_node("Music/Metal", Item)    -- Returns Metal node
+---   Category:get_node("Invalid/Path", Item)   -- Returns nil
+---
+---@param path string The category path to retrieve (e.g., "Music/Metal/Death")
+---@return table|nil node The node at the end of the path, or nil if not found
+---@todo Consider caching frequently accessed nodes for performance
+---@todo Add support for case-insensitive matching (optional, configurable)
+---@todo Add support for path validation before traversal (ensure no empty segments)
+---@todo Return more detailed error information (e.g., which segment failed)
+Category_get_node = function (self, path)
+    -- Throw error in case of missing parameters
+    assert(path ~= nil and path ~= "", "❌ Path unspecified!")
+    -- Check if path top-level. If yes, GTFO
+    if not path:find("/") then 
+        return self._category_tree[path]
     end
-    self._category_index[new_path] = { dirty = false }
-
-    local parent_path = old_path:match("^(.*)/[^/]+$")
-    if parent_path then
-        -- It's a subcategory, remove from parent's children
-        local parent = self:Category_rebuild_node(parent_path)
-        if parent then
-            local name = old_path:match("^.*/([^/]+)$")
-            parent[name] = nil
+    -- not top-level: split it!
+    local parts = self:Category_split_path(path) -- maybe add error handling?
+    -- List of path parts that have already been dealt with
+    local full_path_parts = {}
+    -- Get the current tree
+    local current = self._category_tree
+    -- Traverse through the path, starting from level 1 and going deeper
+    for i, part in ipairs(parts) do
+        table.insert(full_path_parts, part)
+        if not current[part] then
+            return nil  -- Path segment doesn't exist
         end
-    else
-        -- It's top-level, remove directly
-        self._category_tree[old_path] = nil
+        -- Current tree overwritten
+        current = current[part]
     end
-    self._category_index[old_path] = nil
-    return node_new._releases, node_old._releases
-end
+    return current
+end,
 
-return Category
--- for some reason emmylua still sees stuff as undefined, but only with this file, not with categories.lua or journal.lua etc.
----@class Category
+-- Helper: Ensure all parent categories exist in both tree and index
+Category_ensure_path = function (self, path)
+    local parts = self:Category_split_path(path)
+    local current_path = ""
+    
+    for i, part in ipairs(parts) do
+        current_path = i == 1 and part or (current_path .. "/" .. part)
+        
+        -- Create in index if missing
+        if not self._category_index[current_path] then
+            self._category_index[current_path] = {}
+        end
+        
+        -- Create in tree if missing
+        if not self:Category_get_node(current_path) then
+            self:Category_create(current_path)
+        end
+    end
+    return true
+end,
+
+Tree_ensure_path = function (self, path); return self:Category_ensure_path(self, path); end,
+Tree_get_node = function (self, path); return self:Category_get_node(self, path); end,
+Tree_mark_parents_dirty = function (self, path); return self:Category_mark_parents_dirty(self, path); end,
+Tree_rebuild_node = function (self, path); return self:Category_rebuild_node(self, path); end,
+Tree_delete_node = function (self, path); return self:Category_delete_node(self, path); end,
+Tree_split_path = function (self, path); return self:Category_split_path(self, path); end,
+
+}

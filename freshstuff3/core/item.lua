@@ -1,15 +1,19 @@
 -- core/item.lua
 ---@todo assertions for passed variables
-
-local Item = {}
-
---- ITEM INITIALISATION
+---
+return {
+--- # INDIVIDUAL ITEM MANUPULATION FOR FRESHSTUFF3
+--- 
+--- CRUD operations on items
+--- 
+--- ## ITEMS' INITIALISATION
 --- 
 --- Replays and compacts the journal.
 --- @param file string The journal to be replayed.
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
-function Item:Item_init(file)
+--- 
+Item_init = function (self, file)
     assert(file ~= nil and file ~= "", "Journal file not specified!")
     -- Replay the file
     local result, failed = self:Journal_replay(file)
@@ -29,18 +33,18 @@ function Item:Item_init(file)
     end
     -- If we are here, journal replay has failed
     return false, failed
-end
+end,
 
---- ---- ADD DATA ITEM ----
+--- ## ADD/CREATE DATA ITEM
 --- 
 --- Category must exist
---- 
---- 
+---  
 --- @param rel_object table cat, nick, title, timestamp
 --- @param journal_path? string Journal path. No journaling takes place if unspecified.
 --- @return boolean success 
 --- @return string? error Error message in case of failure
-function Item:Item_add(rel_object, journal_path)
+--- 
+Item_add = function (self, rel_object, journal_path)
     assert(rel_object ~= nil, "Release object unspecified!")
     if not self._category_index[rel_object.category] then
         return false, "Category does not exist! Needs to be created first..."
@@ -58,17 +62,18 @@ function Item:Item_add(rel_object, journal_path)
         return succ, err
     end
     return true
-end
+end,
 
---- MOVE ITEM BETWEEN CATEGORIES
+--- ## MOVE ITEM BETWEEN CATEGORIES
 ---
 --- @param id integer Item ID to move
 --- @param path string New category (sanitised)
 --- @param journal_file string? Optional, file path if journaling needed
 --- @return boolean success True on success, false only
 --- on serialisation failure
---- @return string err If serialisation failed, returns the error message
-function Item:Item_move_id(id, path, journal_file)   
+--- @return string? err If serialisation failed, returns the error message
+--- 
+Item_move_id = function (self, id, path, journal_file)   
 -- TODO: check if the old category will become empty after move --- WHY???
 -- WE ARE REBUILDING WHEN QUERIED
     if not self._category_index[path] then
@@ -89,10 +94,10 @@ function Item:Item_move_id(id, path, journal_file)
         return self:Journal_append_move(id, path, journal_file)
     end
     return true
-end
+end,
 
-
---- ---- DELETE DATA ITEM ----
+--- ## DELETE DATA ITEM 
+--- 
 --- Lorem ipsum
 --- 
 --- 
@@ -100,7 +105,8 @@ end
 ---@param journal_path string? Journal path (optional). No journaling happens if not stated.
 ---@return boolean success True on success
 ---@return string? err Error message
-function Item:Item_delete(id, journal_path)
+---
+Item_delete = function (self, id, journal_path)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
@@ -123,9 +129,9 @@ function Item:Item_delete(id, journal_path)
         return self:Journal_append_del(id, journal_path)
     end
     return true, nil
-end
+end,
 
---- VALIDATE DATA ITEM 
+--- ## VALIDATE DATA ITEM 
 --- 
 --- Lorem ipsum
 --- 
@@ -133,11 +139,13 @@ end
 ---@param item string item to validate
 ---@return boolean success If true, validation succeeded
 ---@return string? err error message, if validation failed
-function Item:Item_validate_title(item)
+---
+Item_validate_title = function (self, item)
     -- sanitize: not needed
-    -- TODO: config variable for FORBIDDEN
+    ---@todo : config variable for FORBIDDEN
     -- local FORBIDDEN = require "config".FORBIDDEN or {}
     -- Check new item for forbidden words first
+    ---@type table
     local FORBIDDEN = FORBIDDEN or { "shit" }
     for _, word in ipairs(FORBIDDEN) do
         if string.find(item:lower(), word:lower(), 1, true) then 
@@ -156,60 +164,20 @@ function Item:Item_validate_title(item)
         end
     end 
     return true 
-end
+end,
 
---- Get IDs for items newer than a specified timeframe
---- 
---- Time format: <number><unit> where unit is:
----   - d: days (e.g., 7d = 7 days)
----   - w: weeks (e.g., 2w = 14 days)
----   - m: months (e.g., 3m = 90 days)
---- 
---- Special shortcuts:
----   - "today"    : Start of today (00:00:00)
----   - "yesterday": Start of yesterday (00:00:00)
---- 
---- @param param string Timeframe (e.g., "5d", "2w", "1m", "today", "yesterday")
---- @return table|false ids Array of release IDs newer than the cutoff
---- or false on invalid string
-function Item:Item_get_newer_than(param)
-    local result = {}
-    local conversion = {
-        ["today"] = "0d",
-        ["yesterday"] = "1d"
-    }
-    param = conversion[param] or param
-    local number, mult = param:match("^(%d+)([dwm])$")
-    if not (number and mult) or number == "" or mult == "" then return false end
-    number = tonumber(number)
-    local multiplier = { d = 24*3600, w = 7*24*3600, m = 30*24*3600 }
-    local seconds = number * multiplier[mult]
-    local cutoff
-    -- Special case: "today" means start of today (00:00:00)
-    if number == 0 and mult == "d" then
-        local now = os.time()
-        local today_start = os.time({
-            year = os.date("%Y", now),
-            month = os.date("%m", now),
-            day = os.date("%d", now),
-            hour = 0,
-            min = 0,
-            sec = 0
-        })
-        cutoff = today_start
-    else
-        cutoff = os.time() - seconds
-    end
-    for id, obj in ipairs(self._data) do
-        if obj.when >= cutoff then
-            table.insert(result, id)
-        end
-    end
-    return result
-end
 
--- 
-function Item:Item_search(query)
+--- ## ITEM SEARCH
+---
+--- Case-insensitive
+--- 
+---@param query string Search query.
+---@return table result Results in items.
+---@return table result_cat Results in categories.
+---     Returns empty tables if no items.
+--- 
+Item_search = function(self, query)
+    assert(type(query) == "string" and query ~= "", "Invalid search query!")
     local result, result_cat  = {}, {}
     if not query:find("%s+") then
         -- no spaces, search categories first
@@ -228,9 +196,157 @@ function Item:Item_search(query)
         end
     end
     return result, result_cat
+end,
+
+--- ## FAKE DB GENERATOR
+--- 
+--- Generate fake database with random releases
+--- 
+--- No journaling
+--- 
+---@param count number Number of fake releases to generate
+---@return boolean success
+---@return string | nil error
+---
+Item_fake_database = function (self, count)
+    if not count or count < 1 then
+        return false, "Count must be a positive number"
+    end
+    if count > 10000 then
+        return false, "Maximum 10000 releases allowed"
+    end
+    
+    -- Categories with subcategories
+    local category_tree = {
+        ["Music"] = {
+            ["Rock"] = {"Classic Rock", "Alternative", "Progressive"},
+            ["Metal"] = {"Death Metal", "Black Metal", "Symphonic Metal"},
+            ["Jazz"] = {"Bebop", "Cool Jazz", "Fusion"},
+            ["Classical"] = {"Baroque", "Romantic", "Modern"},
+            ["Electronic"] = {"House", "Techno", "Ambient"},
+        },
+        ["Movies"] = {
+            ["Horror"] = {"Slasher", "Supernatural", "Psychological"},
+            ["Sci-Fi"] = {"Space Opera", "Cyberpunk", "Post-Apocalyptic"},
+            ["Drama"] = {"Period", "Contemporary", "Crime"},
+            ["Comedy"] = {"Rom-Com", "Satire", "Slapstick"},
+        },
+        ["TV"] = {
+            ["Animation"] = {"Anime", "Cartoon", "Stop Motion"},
+            ["Documentary"] = {"Nature", "History", "True Crime"},
+            ["Drama"] = {"Crime", "Medical", "Legal"},
+            ["Comedy"] = {"Sitcom", "Sketch", "Improvisation"},
+        },
+        ["Games"] = {
+            ["RPG"] = {"Fantasy", "Sci-Fi", "Post-Apocalyptic"},
+            ["FPS"] = {"Military", "Sci-Fi", "Horror"},
+            ["Strategy"] = {"RTS", "Turn-Based", "4X"},
+            ["Platformer"] = {"2D", "3D", "Puzzle"},
+        },
+        ["Software"] = {
+            ["Tools"] = {"Development", "Design", "Audio"},
+            ["Games"] = {"Indie", "AAA", "Retro"},
+            ["Utilities"] = {"System", "Network", "Security"},
+        },
+    }
+    
+    -- Extract all category paths
+    local all_categories = {}
+    for main, subcats in pairs(category_tree) do
+        table.insert(all_categories, main)
+        for sub, subsubs in pairs(subcats) do
+            local path = main .. "/" .. sub
+            table.insert(all_categories, path)
+            for _, subsub in ipairs(subsubs) do
+                table.insert(all_categories, path .. "/" .. subsub)
+            end
+        end
+    end
+    
+    -- Nicks
+    local nicks = {
+        "MusicLover", "Audiophile", "DJ_Sonic", "GuitarHero", "DrummerBoy",
+        "RetroFan", "VinylCollector", "JazzCat", "SmoothOperator", "BebopKing",
+        "Maestro", "PianoMan", "RomanticSoul", "ChopinFan", "MetalHead",
+        "ThrashLord", "DeathMetalFan", "GoreLord", "SkeletonKey", "OrchestraNerd",
+        "EpicFan", "FilmBuff", "HorrorFan", "SlasherGuy", "GhostHunter",
+        "SpaceCadet", "RobotLover", "BingeWatcher", "CartoonFan", "AnimeLover",
+        "NatureLover", "HistoryBuff", "Gamer", "RPGMaster", "FPSPro",
+        "StrategyGenius", "PlatformerKing", "DevGuru", "DesignWizard",
+        "AudioEngineer", "RetroGamer", "TechEnthusiast", "SecurityExpert",
+    }
+    
+    local title_parts = {
+        "Greatest Hits", "Ultimate Collection", "The Best Of", "Essential",
+        "Masterpiece", "Symphony", "Anthology", "Chronicles", "Legend",
+        "Classic", "Modern", "Revolutionary", "Timeless", "Epic",
+        "Dark", "Light", "Eternal", "Infinite", "Beyond",
+        "Dream", "Nightmare", "Reality", "Fantasy", "Myth",
+        "Volume 1", "Volume 2", "Volume 3", "The Beginning", "The End",
+        "Origins", "Destiny", "Awakening", "Rebirth", "Phoenix",
+        "Stories", "Tales", "Fables", "Sagas", "Legends",
+        "Echoes", "Shadows", "Crimson", "Emerald", "Golden",
+    }
+    
+    local titles = {
+        "Symphony of Destruction", "The Dark Side", "Ride the Lightning",
+        "Master of Puppets", "Back in Black", "The Wall", "Dark Side of the Moon",
+        "Thriller", "Purple Rain", "Hotel California", "Stairway to Heaven",
+        "Bohemian Rhapsody", "Imagine", "Yesterday", "Hey Jude",
+        "Like a Rolling Stone", "Respect", "What's Going On", "Smells Like Teen Spirit",
+        "Civilization", "The Art of War", "The Prince", "The Republic",
+        "A Tale of Two Cities", "War and Peace", "The Great Gatsby",
+        "1984", "Brave New World", "Fahrenheit 451", "The Catcher in the Rye",
+        "The Matrix", "Inception", "Interstellar", "The Dark Knight",
+        "Pulp Fiction", "Forrest Gump", "The Shawshank Redemption",
+        "The Godfather", "The Silence of the Lambs", "The Big Lebowski",
+    }
+    
+    -- ✅ Step 1: Create ALL categories first    
+    for _, cat_path in ipairs(all_categories) do
+        if not self._category_index[cat_path] then
+            self:Category_create(cat_path)
+        end
+    end
+    
+    -- ✅ Step 2: Clear existing data
+    self._data = {}
+    self.next_id = 1
+    
+    -- ✅ Step 3: Generate and add releases
+    local now = os.time()
+    
+    for i = 1, count do
+        local category = all_categories[math.random(#all_categories)]
+        local title
+        if math.random() < 0.3 then
+            title = titles[math.random(#titles)]
+        else
+            local parts = {}
+            local num_parts = math.random(1, 3)
+            for _ = 1, num_parts do
+                table.insert(parts, title_parts[math.random(#title_parts)])
+            end
+            title = table.concat(parts, " ")
+        end
+        title = title .. " " .. math.random(1, 999)
+        
+        local release = {
+            category = category,
+            title = title,
+            nick = nicks[math.random(#nicks)],
+            when = now - math.random(86400 * 365 * 2),
+        }
+        
+        -- ✅ Temporarily disable journaling
+        local success, err = self:Item_add(release)
+        
+        if not success then
+            return false, "Failed to add release: " .. err
+        end
+    end
+    
+    return true, string.format("Generated %d fake releases", #self._data)
 end
+}
 
-return Item
-
--- for some reason emmylua still sees stuff as undefined, but only with this file, not with categories.lua or journal.lua etc.
----@class Item

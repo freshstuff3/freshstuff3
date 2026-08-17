@@ -2,9 +2,11 @@
 -- host/ptokax.lua
 
 -- ---- HOST EVENT BRIDGE ----
-
+---@object Core
+---
 function OnStartup()
-    Event.fire("HostStarted", "PtokaX", Core.Version)
+    Loader:Load_plugins()
+    -- Event.fire("HostStarted", "PtokaX", Core.Version)
 end
 
 function OnTimer()
