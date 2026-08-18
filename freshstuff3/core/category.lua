@@ -29,11 +29,13 @@ return {
 ---   - All categories are marked clean (dirty = false) on init
 ---
 --- File format expected:
+--- ```lua
 ---   return {
 ---     ["Music"] = {},
 ---     ["Music/Metal"] = {},
 ---     ["Music/Metal/Death"] = {},
 ---   }
+--- ```
 ---
 ---@param filename string Path to the categories file (e.g., "data/categories.lua")
 ---@todo If file loading fails, create from scratch from _data
@@ -67,14 +69,11 @@ Category_init = function(self, category_file)
                 if not self._category_index[current_path] then
                     self._category_index[current_path] = {}
                 end
-                
                 -- Create in tree if missing
-                local node = self:Category_get_node(current_path)
-                if not node then
-                    node = self:Category_create(current_path)
+                local node
+                if self:Category_create(current_path) then
+                    node = self:Category_get_node(current_path)
                 end
-                
-                -- ✅ FIX: Add the release ID to EVERY parent category
                 if node then
                     if not node._releases then
                         node._releases = {}
@@ -313,16 +312,15 @@ end,
 --- Creates the node in _category_tree, but ONLY if parent category exists
 --- 
 --- @param path string The category path to create (e.g., "Music/Metal/Death")
---- @return table|nil node Returns node on success, nil on error
+--- @return boolean node Returns true if already exists, false on failure
 --- @return string? error Upon failure, returns error message.
+--- 
 --- 
 Category_create = function (self, path, category_file)
     assert(path ~= nil and path ~= "", "❌ Category unspecified!")
 
-    local node = self:Category_get_node(path)
-    
-    if self._category_index[path] and node then
-        return node -- return node if exists
+    if self._category_index[path] then
+        return true -- return true if exists
     end
     -- Add to index if not present
     self._category_index[path] = {}
@@ -344,8 +342,9 @@ Category_create = function (self, path, category_file)
                 if not ok then
                     -- Rollback on serialisation failure
                     self._category_index[path] = nil
-                    return nil, "Serialization failed: " .. err
+                    return false, "Serialization failed: " .. err
                 end
+                return true
             end
             return current[part]
         end
@@ -354,7 +353,7 @@ Category_create = function (self, path, category_file)
     end
     -- Roll back if we got here
     self._category_index[path] = nil
-    return nil, "❌ Failed to create category: " .. path
+    return false, "❌ Failed to create category: " .. path
 end,
 
 --- ### CATEGORY PATH SANITISER/VALIDATOR
@@ -380,11 +379,11 @@ end,
 ---       Emptiness is NOT checked here (handled by caller).
 ---
 ---@param path string Category path to validate (e.g., "Music/Metal/Death")
----@return boolean success True if valid, false if invalid
+---@return string|false success False on error, true if category exists
 ---@return string result Sanitized path on success, error message on failure
 ---@todo Consider case sensitivity option (optional, default: case-sensitive)
 Category_process_path = function (self, path)
-        assert(path ~= nil and path ~= "", "❌ Path unspecified!")
+    assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     -- string longer than 70 chars
     -- This should be hardcoded as for messages (ie. expected use case), 
     -- the display is the bottleneck
@@ -393,10 +392,14 @@ Category_process_path = function (self, path)
         "Maximum 70 characters.", path) 
     end
 
+    if path:find("_releases", 1, true) then
+        return false, "The string _releses is not allowed in category names/paths!"
+    end
+
     -- Replace trailing and leading slashes, 
     -- also multiple consecutive slashes
     path = path:gsub( "^/+", ""):gsub( "/+$", ""):gsub("//+", "/")
-    if string.find (path, "/") then -- subcategory
+    if path:find ("/") then -- subcategory, check how deep
         local depth = #self:Category_split_path(path)
         if depth > 5 then 
             return false, string.format("❌ Subcategory %s deeper than"..
@@ -404,7 +407,7 @@ Category_process_path = function (self, path)
                                             )
          end
     end
-    if not self._category_index[path] then return false, string.format(
+    if not self._category_index[path] then return true, string.format(
         "❌ Category %s not found in categories. It needs to be created"..
         " first. ", path
         )

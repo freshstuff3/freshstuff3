@@ -2,20 +2,46 @@
 -- Business logic and frontend for freshstuff3 core fucntionality
 -- This plugin cannot be disabled.
 local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
--- Variables that are to be hardcoded/become config
----@type string
- ---@type string
 
 --
 -- First we load item manipulation fuctionality into our namespace
--- Namespace is global as data needs to be accessible from anywhere
-local Init = require "core.init"
-local AllStuff = Init:Create_instance()
-assert(type(AllStuff) == "table","FATAL: Failed to initialise release module!") 
+
+-- local AllStuff = Init:load_plugin("release")
+
+--assert(type(AllStuff) == "table","FATAL: Failed to initialise release module!") 
+local Init = require "helpers.init"
+local AllStuff = package.loaded["plugins.release"] 
+-- This had been loaded before, most likely at startup, so
+-- just return the cached copy and get outta here
+if AllStuff then return AllStuff end
+
+-- AllStuff does not exist: first load, not subsequent require.
+-- We therefore need to create the plugin instance
+--  
+AllStuff = Init:create_instance()
+
+--- OPTIONAL SECTION
+--- Do the below only on initial load
+--- These only have to be done if you plan to have your plugin's
+--- own database, which we do in this case.
+
+--- Now that our instance has been created, let's let it take control!
+
+-- Load submodules specific to this plugin
+-- For example, I have put the entire business logic into an outside file,
+-- limiting this script file to command/event registration
+-- 
+AllStuff:merge('plugins.release.business')
+
+-- Declare category and journal file (OPTIONAL)
 AllStuff.JOURNAL_FILE = base_path.."data/journals/freshstuff3.journal"
 AllStuff.TEST_CATEGORY = base_path.."data/categories.dat"
-AllStuff:Data_init(AllStuff.JOURNAL_FILE, AllStuff.TEST_CATEGORY)
 
+-- Initialise data (OPTIONAL)
+AllStuff:data_init(AllStuff.JOURNAL_FILE, AllStuff.TEST_CATEGORY)
+
+---
+--- END OPTIONAL SECTION
 
 --- Command registration
 --- 
@@ -226,4 +252,5 @@ end
 }
 }
 
+--- Store the above in package.loaded upon require
 return AllStuff
