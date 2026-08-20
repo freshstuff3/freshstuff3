@@ -14,7 +14,7 @@ if not table.move then
     end
 end
 
--- Access helper functions
+-- Access helper functions 
 local Event = require "helpers.event"
 ---@diagnostic disable-next-line: unresolved-require
 local Init = require "helpers.init" 
@@ -38,20 +38,35 @@ function OnTimer()
 end
 
 function ChatArrival(user, data)
-    
-    Event.fire("Chat", user.sNick, data)
+    local nick = user
+    if type(user) == "table" then
+        nick = user.sNick
+    end
+    Event.fire("Chat", nick, data)
 end
 
 function ToArrival(user, data)
-    Event.fire("PrivMsg", user.sNick, data)
+    local nick = user
+    if type(user) == "table" then
+        nick = user.sNick
+    end
+    Event.fire("PrivMsg", nick, data)
 end
 
 function UserConnected(user)
-    Event.fire("UserConnected", user.sNick, user.iProfile)
+    local nick = user
+    if type(user) == "table" then
+        nick = user.sNick
+    end
+    Event.fire("UserConnected", nick, user.iProfile)
 end
 
 function UserDisconnected(user)
-    Event.fire("UserDisconnected", user.sNick)
+    local nick = user
+    if type(user) == "table" then
+        nick = user.sNick
+    end
+    Event.fire("UserDisconnected", nick)
 end
 
 function OnError(err)
