@@ -1,12 +1,23 @@
--- core/journal.lua
--- Journaling functions for FreshSuff3
--- This one is namespace-agnostic, except for compact()
--- where we need to have the source of truth from RAM
---- @class Journal
---- @todo assertions for passed variables
+--- core/journal.lua
+--- Journaling functions for FreshSuff3
+--- 
+--- NOTE: 
+--- 
+--- The code is more complex as it could have been, but it's for our own good.
+--- 
+--- I know I could just string.dump() functios, but that would 
+--- have tradeoffs:
+--- 
+--- - Sigificantly slower load and save times
+--- - Much larger journal files, since the entire function is dumped, 
+---     not just the data
+--- - Journal non-editable and not trasferrable between Lua versions, 
+---     since the function dump is version-specific
+--- 
+---@todo assertions for passed variables
 
 return {
---- JOURNAL WRITE
+--- JOURNAL APPEND
 --- 
 --- Does the effective append job 
 --- 
@@ -27,6 +38,7 @@ Journal_append = function(self, filename, str)
     end
 end,
 
+--- WRAPPERS FOR THE ABOVE FUNCTION
 --- ---- JOURNAL APPEND: ADD ----
 --- 
 --- Add action journalling
@@ -127,6 +139,7 @@ end,
 --- @return table ret2 Returns list of failed single items on an 
 --- otherwise successful replay or error string added to array or error.
 --- On total success, returns empty table
+--- 
 Journal_replay = function(self, journal_file)
     assert(journal_file ~= nil and self ~= nil and self._data ~= nil,
              "Journal file not specfied, or invalid container")
