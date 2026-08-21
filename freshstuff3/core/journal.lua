@@ -32,8 +32,7 @@ local Journal = {}
 --- 
 --- Internal function
 --- 
---- @param filename string Journal file name
---- @param str string The line to write
+--- @param data string The line to write
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
 function Journal:Journal_append(data)
@@ -58,7 +57,6 @@ end
 --- 
 --- @param obj table Item object to be added 
 --- string: new path upon moving, number: ID for deletion)
---- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Returns error message in case of failure
 function Journal:Journal_append_add(obj)
@@ -100,7 +98,6 @@ end
 --- 
 --- @param id integer ID of item to be deleted 
 --- @param new_category string Category the item is being moved INTO 
---- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return table|string? err Error message in case of failure
 function Journal:Journal_append_move(id, new_category)
@@ -159,10 +156,9 @@ function Journal:Journal_compact()
 end
 --- JOURNAL REPLAY
 --- 
---- @param journal_file string Journal file to be used
---- @return table _data  Returns the data after replay, in an array, or 
+--- @return table|false _data  Returns the data after replay, in an array, or 
 --- empty table on file open failure/in case of an empty or nonexistent file.
---- @return table ret2 Returns list of failed single items on an 
+--- @return table|string? ret2 Returns list of failed single items on an 
 --- otherwise successful replay or error string added to array or error.
 --- On total success, returns empty table
 --- 
@@ -207,6 +203,5 @@ function Journal:Journal_replay()
         return false, err
     end
 end
-
 
 return Journal
