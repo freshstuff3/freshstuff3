@@ -1,5 +1,6 @@
 -- core/item.lua
 ---@todo assertions for passed variables
+---@diagnostic disable: undefined-field
 ---
 local Item = {}
 --- # INDIVIDUAL ITEM MANUPULATION FOR FRESHSTUFF3
@@ -13,29 +14,6 @@ local Item = {}
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
 --- 
---[[
-function Item:Item_init(file)
-    assert(file ~= nil and file ~= "", "Journal file not specified!")
-    -- Replay the file
-    local result, failed = self:Journal_replay(file)
-    if result then -- success
-        -- compact() expects _data in a table: 
-        -- We are also compacting. This is expensive but startup times are
-        -- of no concern since during real-world use, restarts are infrequent
-        -- so might as well take a bit longer
-        -- Purposely using dotted here as self._data is not yet available
-        local succ, err = self.Journal_compact({ _data = result }, file)
-        if succ then
-            -- Only initialise self._data if journal compact succeeds
-            self._data = result
-            return true, failed
-        else return false, err end
-    -- Categories need to be initialised separately.
-    end
-    -- If we are here, journal replay has failed
-    return false, failed
-end]]
-
 function Item:Item_init(file)
     assert(file ~= nil and file ~= "", "Journal file not specified!")
     
@@ -131,20 +109,23 @@ end
 ---@param journal_path string? Journal path (optional). No journaling happens if not stated.
 ---@return boolean success True on success
 ---@return string? err Error message
+---@return table|string? deleted The deleted item on success, or error message on failure
 ---
 function Item:Item_delete(id, journal_path)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
     end
+        -- Store the item before deletion
+    local deleted_item = self._data[id]
     
     -- Mark category as dirty
-    if self._data[id] and self._data[id].category then
-        local cat = self._data[id].category
+    if deleted_item and deleted_item.category then
+        local cat = deleted_item.category
         if self._category_index[cat] then
             self._category_index[cat].dirty = true
+            self:Category_mark_parents_dirty(cat)
         end
-        self:Category_mark_parents_dirty(cat)
     end
     
     -- Remove from _data
@@ -154,7 +135,7 @@ function Item:Item_delete(id, journal_path)
     if journal_path then
         return self:Journal_append_del(id, journal_path)
     end
-    return true, nil
+   return true, deleted_item
 end
 
 --- ## VALIDATE DATA ITEM 

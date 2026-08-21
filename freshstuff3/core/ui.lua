@@ -546,4 +546,91 @@ function UI:UI_split_ids(str)
     return result
 end
 
+--- Format deletion preview for display
+--- Converts raw deletion data into a formatted preview message
+---
+---@param data table { items = table, categories = table }
+---@param path string Category path
+---@param is_preview boolean Whether this is a preview
+---@return string formatted output
+function UI:UI_format_deletion_preview(data, path, is_preview)
+    local lines = {
+        is_preview and "CATEGORY DELETION PREVIEW" or "CATEGORY DELETION COMPLETE",
+        string.rep("=", 50),
+        string.format("Category: %s", path or "unknown"),
+        string.format("Items affected: %d", #(data.items or {})),
+        string.format("Categories affected: %d", #(data.categories or {})),
+    }
+    
+    if #(data.categories or {}) > 1 then
+        table.insert(lines, "")
+        table.insert(lines, "Subcategories:")
+        for _, cat in ipairs(data.categories or {}) do
+            if cat ~= path then
+                table.insert(lines, string.format("  - %s", cat))
+            end
+        end
+    end
+    
+    if #(data.items or {}) > 0 then
+        table.insert(lines, "")
+        table.insert(lines, "Items:")
+        local count = 0
+        for _, id in ipairs(data.items or {}) do
+            if count >= 20 then
+                table.insert(lines, string.format("  ... and %d more", #(data.items or {}) - 20))
+                break
+            end
+            local item = self._data[id]
+            if item then
+                table.insert(lines, string.format("  [%d] %s", id, item.title))
+                count = count + 1
+            end
+        end
+    end
+    
+    if #(data.items or {}) == 0 and #(data.categories or {}) <= 1 then
+        table.insert(lines, "")
+        table.insert(lines, "⚠️  Empty category - nothing to delete")
+    end
+    
+    return table.concat(lines, "\r\n")
+end
+
+--- Format deletion result for display
+---
+---@param data table { items = table, categories = table, errors = table }
+---@param path string Category path
+---@return string formatted output
+function UI:UI_format_deletion_result(data, path)
+    local lines = {
+        "CATEGORY DELETION COMPLETE",
+        string.rep("=", 50),
+        string.format("Category: %s", path or "unknown"),
+        string.format("Items deleted: %d", #(data.items or {})),
+        string.format("Categories deleted: %d", #(data.categories or {})),
+    }
+    
+    if #(data.errors or {}) > 0 then
+        table.insert(lines, "")
+        table.insert(lines, "⚠️  Errors:")
+        for _, err in ipairs(data.errors or {}) do
+            table.insert(lines, string.format("  %s", err))
+        end
+    end
+    
+    if #(data.items or {}) > 0 and #(data.items or {}) <= 20 then
+        table.insert(lines, "")
+        table.insert(lines, "Deleted items:")
+        for _, item in ipairs(data.items or {}) do
+            table.insert(lines, string.format("  [%s] %s", 
+                item.id or "?",
+                item.title or "unknown"
+            ))
+        end
+    end
+    
+    return table.concat(lines, "\r\n")
+end
+
 return UI

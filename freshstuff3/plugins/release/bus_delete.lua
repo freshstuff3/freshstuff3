@@ -1,29 +1,39 @@
--- core/business.lua
--- Business logic orchestrates core operations and fires events
----@note AI stuff
+-- plugins/release/bus_delete.lua
+-- Business logic for deletion operations
+-- Events are fired here, core operations are delegated to category/item modules
+-- Formatting is delegated to UI module
+
 local Bus = {}
---- Delete releases (business level)
+local Event = require "helpers.event"
+
+--- Delete releases (business level with events)
+--- Orchestrates deletion of one or more releases, firing pre/post events.
+--- Delegates actual deletion to Item:Item_delete core module.
+---
+---@param ids table|number IDs to delete. Can be a single ID or array of IDs.
+---@param fire_events boolean Whether to fire pre/post events (default: true)
+---@return boolean success True if operation completed (even with partial errors)
+---@return table result { deleted = table, errors = table, missing = table }
+---@return string message Human-readable summary
 function Bus:Bus_delete_releases(ids, fire_events)
-    -- fire_events defaults to true
     if fire_events == nil then fire_events = true end
-        
+    
     if type(ids) == "number" then
         ids = { ids }
     end
-        
+    
     if #ids == 0 then
-        return false, "No IDs specified"
+        return false, { deleted = {}, errors = { "No IDs specified" }, missing = {} }, "No IDs specified"
     end
-        
-    -- Collect items first (before any deletion)
+    
+    -- Collect items before deletion
     local items = {}
     local missing = {}
-        
+    
     for _, id in ipairs(ids) do
         if self._data[id] then
             table.insert(items, {
                 id = id,
-                item = self._data[id],
                 category = self._data[id].category,
                 title = self._data[id].title,
                 nick = self._data[id].nick,
@@ -33,14 +43,12 @@ function Bus:Bus_delete_releases(ids, fire_events)
             table.insert(missing, id)
         end
     end
-        
+    
     if #items == 0 then
-        return false, "No valid items found"
+        return false, { deleted = {}, errors = {}, missing = missing }, "No valid items found"
     end
-        
-    -- ============================================================
-    -- FIRE PRE-DELETE EVENTS (if enabled)
-    -- ============================================================
+    
+    -- Fire pre-delete events
     if fire_events then
         local pre_data = {
             ids = ids,
@@ -48,35 +56,31 @@ function Bus:Bus_delete_releases(ids, fire_events)
             count = #items,
             missing = missing,
         }
-            
+        
         local result = Event:fire("ItemsPreDelete", pre_data)
-            
+        
         if result.cancelled then
-            return false, string.format("Deletion cancelled: %s", 
-                result.cancel_reason or "Unknown")
+            return false, { deleted = {}, errors = {}, missing = missing }, 
+                string.format("Deletion cancelled: %s", result.cancel_reason or "Unknown")
         end
     end
-        
-    -- ============================================================
-    -- PERFORM DELETION (call core)
-    -- ============================================================
+    
+    -- Perform deletion via core
     local deleted_items = {}
     local errors = {}
-        
+    
     for _, item_info in ipairs(items) do
         local id = item_info.id
-        local success, deleted = self:Item_delete(id, self.JOURNAL_FILE)
-            
+        local success, result = self:Item_delete(id, self.JOURNAL_FILE)
+        
         if success then
-            table.insert(deleted_items, deleted)
+            table.insert(deleted_items, result)
         else
-            table.insert(errors, string.format("ID %d: %s", id, deleted))
+            table.insert(errors, { id = id, error = result })
         end
     end
-        
-    -- ============================================================
-    -- FIRE POST-DELETE EVENTS (if enabled)
-    -- ============================================================
+    
+    -- Fire post-delete events
     if fire_events and #deleted_items > 0 then
         local post_data = {
             ids = ids,
@@ -85,194 +89,165 @@ function Bus:Bus_delete_releases(ids, fire_events)
             missing = missing,
             errors = errors,
         }
-            
+        
         Event:fire("ItemsPostDelete", post_data)
     end
-        
-    if #errors > 0 then
-        return true, string.format("Deleted %d items, %d errors", 
-            #deleted_items, #errors)
-    end
-        
-    return true, string.format("Deleted %d items", #deleted_items)
+    
+    return true, { deleted = deleted_items, errors = errors, missing = missing }, 
+        string.format("Deleted %d items, %d errors", #deleted_items, #errors)
 end
 
-
---- Delete category (business level with its own events)
+--- Delete category (business level with events)
+--- Orchestrates deletion of a category and optionally its releases/subcategories.
+--- Delegates actual deletion to Category:Category_delete core module.
+---
+---@param path string Category path to delete
+---@param is_force boolean Force delete even with releases (default: false)
+---@param is_nuke boolean Delete subcategories recursively (default: false)
+---@param is_preview boolean Preview mode (default: true)
+---@return boolean success True if operation completed successfully
+---@return table result { items = table, categories = table, errors = table }
+---@return string message Human-readable summary
 function Bus:Bus_delete_category(path, is_force, is_nuke, is_preview)
-    -- ============================================================
-    -- COLLECT EVERYTHING FIRST
-    -- ============================================================
-    local state = self._category_index[path]
-    if not state then
-        return false, string.format("Category %s does not exist!", path)
+    if is_preview == nil then is_preview = true end
+    if is_force == nil then is_force = false end
+    if is_nuke == nil then is_nuke = false end
+    
+    -- Validate category using existing core validation
+    local valid, err = self:Category_process_path(path)
+    if not valid then
+        return false, { items = {}, categories = {}, errors = { err } }, err
     end
-        
-    -- Get the node
-    local node = self:Category_rebuild_node(path)
-    if not node then
-        return false, string.format("Error retrieving node for category path %s", path)
+    
+    -- Get preview data first (for events)
+    local preview_ids, preview_cats = self:Category_delete(path, "preview", "preview", is_force, is_nuke, true)
+    if not preview_ids then
+        return false, { items = {}, categories = {}, errors = { preview_cats } }, preview_cats
     end
-        
-    -- Collect all items in this category and subcategories
-    local all_ids = self:Category_get_subcat(path)
-    local items_to_delete = {}
-        
-    for _, id in ipairs(all_ids) do
-        if self._data[id] then
-            table.insert(items_to_delete, {
-                id = id,
-                item = self._data[id],
-                category = self._data[id].category,
-                title = self._data[id].title,
-                nick = self._data[id].nick,
-                when = self._data[id].when,
-            })
-        end
+    
+    -- Fire pre-delete event
+    local pre_data = {
+        path = path,
+        categories = preview_cats,
+        category_count = #preview_cats,
+        items = preview_ids,
+        item_count = #preview_ids,
+        is_force = is_force,
+        is_nuke = is_nuke,
+        is_preview = is_preview,
+    }
+    
+    local event_result = Event:fire("CategoryPreDelete", pre_data)
+    if event_result.cancelled then
+        return false, { items = {}, categories = {}, errors = { "Cancelled" } }, 
+            string.format("Deletion cancelled: %s", event_result.cancel_reason or "Unknown")
     end
-        
-    -- Check for subcategories
-    local cats_to_delete = { path }
-    local function collect_subcats(current_node, current_path)
-        for name, child in pairs(current_node) do
-            if name ~= "_releases" then
-                local full_path = current_path .. "/" .. name
-                table.insert(cats_to_delete, full_path)
-                collect_subcats(child, full_path)
-            end
-        end
-    end
-    collect_subcats(node, path)
-        
-    -- ============================================================
-    -- VALIDATE
-    -- ============================================================
-    local has_subcats = #cats_to_delete > 1
-        
-    if has_subcats and not is_nuke then
-        return false, string.format(
-            "❌ Category %s has subcategories. Use --nuke to delete recursively.", path
-        )
-    end
-        
-    if #items_to_delete > 0 and not is_force and not is_nuke then
-        return false, string.format(
-            "❌ Category %s has %d releases. Use --force to delete with releases.", 
-            path, #items_to_delete
-        )
-    end
-        
-    -- ============================================================
-    -- PRE-DELETE EVENT (Category-specific)
-    -- ============================================================
-    if not is_preview then
-        local pre_data = {
-            path = path,
-            categories = cats_to_delete,
-            category_count = #cats_to_delete,
-            items = items_to_delete,
-            item_count = #items_to_delete,
-            is_force = is_force,
-            is_nuke = is_nuke,
-        }
-            
-    local result = Event:Event_fire("CategoryPreDelete", pre_data)
-            
-        if result.cancelled then
-            return false, string.format("Deletion cancelled: %s", 
-                result.cancel_reason or "Unknown")
-        end
-    end
-        
-    -- ============================================================
-    -- PERFORM DELETION
-    -- ============================================================
+    
+    -- Preview mode
     if is_preview then
-        -- Preview mode: just return what would be deleted
-        return items_to_delete, cats_to_delete
+        return true, { 
+            items = preview_ids, 
+            categories = preview_cats, 
+            errors = {} 
+        }, string.format("PREVIEW: %d items in %d categories", #preview_ids, #preview_cats)
     end
-        
-    -- Delete items from _data (using core item deletion)
-    local deleted_items = {}
-    local errors = {}
-        
-    for _, item_info in ipairs(items_to_delete) do
-        local success, deleted = self:Item_delete(item_info.id, self.JOURNAL_FILE)
-        if success then
-            table.insert(deleted_items, deleted)
-        else
-            table.insert(errors, string.format("ID %d: %s", item_info.id, deleted))
-        end
+    
+    -- Perform actual deletion
+    local success, deleted_items, deleted_cats, errors = self:Category_delete(
+        path, 
+        self.TEST_CATEGORY,
+        self.JOURNAL_FILE,
+        is_force, 
+        is_nuke, 
+        false
+    )
+    
+    if not success then
+        return false, { items = {}, categories = {}, errors = { deleted_items } }, deleted_items
     end
-        
-    -- Delete categories from tree (bottom-up)
-    table.sort(cats_to_delete, function(a, b)
-        local depth_a = #self:Category_split_path(a)
-        local depth_b = #self:Category_split_path(b)
-         return depth_a > depth_b
-    end)
-        
-    for _, cat_path in ipairs(cats_to_delete) do
-        self._category_index[cat_path] = nil
-        self:Category_delete_node(cat_path)
-    end
-        
-    -- Serialize
-    self:Category_serialize(self.TEST_CATEGORY)
-        
-    --- ============================================================
-    --- POST-DELETE EVENT (Category-specific)
-    --- ============================================================
+    
+    -- Fire post-delete event
     local post_data = {
         path = path,
-        categories = cats_to_delete,
-        category_count = #cats_to_delete,
-        items = deleted_items,
-        item_count = #deleted_items,
+        categories = deleted_cats or {},
+        category_count = #(deleted_cats or {}),
+        items = deleted_items or {},
+        item_count = #(deleted_items or {}),
         is_force = is_force,
         is_nuke = is_nuke,
         errors = errors,
     }
-        
+    
     Event:fire("CategoryPostDelete", post_data)
-        
-    if #errors > 0 then
-        return true, string.format("Deleted category %s with %d items (%d errors)", 
-            path, #deleted_items, #errors)
-    end
-        
-    return true, string.format("Deleted category %s with %d items", path, #deleted_items)
+    
+    return true, { 
+        items = deleted_items or {}, 
+        categories = deleted_cats or {}, 
+        errors = errors or {} 
+    }, string.format("Deleted %d items from %d categories", 
+        #(deleted_items or {}), 
+        #(deleted_cats or {})
+    )
 end
 
-    --- Move releases (business level)
+--- Move releases (business level with events)
+--- Orchestrates moving one or more releases to a new category.
+--- Delegates actual move to Item:Item_move_id core module.
+---
+---@param ids table|number IDs to move
+---@param new_path string Target category path
+---@return boolean success True if ALL moves succeeded
+---@return table result { results = table, errors = table, moved = table }
 function Bus:Bus_move_releases(ids, new_path)
     if type(ids) == "number" then
         ids = { ids }
     end
-        
+    
+    if #ids == 0 then
+        return false, { results = {}, errors = { "No IDs specified" }, moved = {} }
+    end
+    
+    -- Validate target category using existing core validation
+    local valid, err = self:Category_process_path(new_path)
+    if not valid then
+        return false, { results = {}, errors = { err }, moved = {} }
+    end
+    
     local results = {}
     local errors = {}
-        
+    local moved_items = {}
+    
     for _, id in ipairs(ids) do
-         local success, result = self:Item_move(id, new_path, self.JOURNAL_FILE)
-        if success then
-            table.insert(results, result)
+        if not self._data[id] then
+            table.insert(errors, string.format("ID %d does not exist", id))
         else
-            table.insert(errors, result)
+            local old_category = self._data[id].category
+            local success, result = self:Item_move_id(id, new_path, self.JOURNAL_FILE)
+            if success then
+                table.insert(results, string.format("[%d] %s -> %s", id, old_category, new_path))
+                table.insert(moved_items, {
+                    id = id,
+                    old_category = old_category,
+                    new_category = new_path,
+                })
+            else
+                table.insert(errors, string.format("ID %d: %s", id, result))
+            end
         end
     end
-        
+    
     -- Fire move event if any succeeded
-    if #results > 0 then
+    if #moved_items > 0 then
         Event:fire("ItemsMoved", {
             ids = ids,
+            moved_items = moved_items,
             results = results,
             errors = errors,
             new_path = new_path,
         })
-     end
-        
-    return #errors == 0, { results = results, errors = errors }
+    end
+    
+    return #errors == 0, { results = results, errors = errors, moved = moved_items }
 end
 
 return Bus
