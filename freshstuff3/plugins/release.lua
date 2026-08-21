@@ -9,7 +9,7 @@ if package.config:sub(1,1) == "\\" then
     category = base_path.."data\\categories.dat"
 else
     -- Running on Linux or macOS
-    base_path = "/freshstuff3/"
+    base_path = "/freshstuff3/freshstuff3/"
     journal = base_path.."data/journals/freshstuff3.journal"
     category = base_path.."data/categories.dat"
 end

@@ -2,8 +2,8 @@
 -- Entry point for freshstuff3
 ---@todo move this into host app and hardcode for interpreter
 --- since there is no way a lua script can tell its own path, we have to hardcode it here for now
-base_path = "C:\\freshstuff3\\freshstuff3\\"
-package.path = package.path .. string.format(";%s?.lua", base_path)
+--base_path = "C:\\freshstuff3\\freshstuff3\\"
+--package.path = package.path .. string.format(";%s?.lua", base_path)
 -- ============================================================================
 -- Load AllStuff
 --- Loading sequence:
@@ -38,7 +38,7 @@ if package.config:sub(1,1) == "\\" then
     base_path = "C:\\freshstuff3\\freshstuff3\\"
 else
     -- Running on Linux or macOS
-    base_path = "/freshstuff3/"
+    base_path = "/freshstuff3/freshstuff3/"
 end
 
 package.path = package.path .. string.format(";%s?.lua", base_path)
