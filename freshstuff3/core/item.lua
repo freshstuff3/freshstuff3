@@ -42,7 +42,6 @@ end
 --- Category must exist
 ---  
 --- @param rel_object table cat, nick, title, timestamp
---- @param journal_path? string Journal path. No journaling takes place if unspecified.
 --- @return boolean success 
 --- @return string? error Error message in case of failure
 --- 
