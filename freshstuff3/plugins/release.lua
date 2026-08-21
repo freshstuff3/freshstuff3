@@ -32,6 +32,7 @@ AllStuff = Init:create_instance()
 -- limiting this script file to command/event registration
 -- 
 AllStuff:merge('plugins.release.business')
+AllStuff:merge('plugins.release.bus_delete')
 
 -- Declare category and journal file (OPTIONAL)
 AllStuff.JOURNAL_FILE = base_path.."data/journals/freshstuff3.journal"
@@ -110,146 +111,146 @@ AllStuff:data_init(AllStuff.JOURNAL_FILE, AllStuff.TEST_CATEGORY)
 ---       Show statistics (total items, categories, etc.)
 
 AllStuff._cmd_handlers = {
-["rel.show"] = { 
+    ["rel.show"] = { 
 
----@todo CONFIG_VAR
-aliases = { "AllStuff", "rel.tree" },
+    ---@todo CONFIG_VAR
+    aliases = { "releases", "rel.tree" },
 
----@todo CONFIG_VAR
-level = 1,
+    ---@todo CONFIG_VAR
+    level = 1,
 
-func = function(self, str)
-    str = str or ""
-    str = str:gsub("^%s+", ""):gsub("%s+$", "")
+    func = function(self, str)
+        str = str or ""
+        str = str:gsub("^%s+", ""):gsub("%s+$", "")
 
-        -- Parse str
-        if str == "" then
-            return self:Bus_show_new(10)
-        end
-        
-        if str == "new" then
-            return self:Bus_show_new(25)
-        end
-        
-        if str == "all" then
-            return self:Bus_show_new(#self._data)
-        end
-        
-        local num = tonumber(str)
-        if num then
-            return self:Bus_show_new(num)
-        end
-        
-        local tm = str:match("^(%d+[dwm])$")
-        if tm then
-            return self:Bus_show_newer_than(tm)
-        end
-        ---@todo: sanitise
-        if self._category_index[str] then
-            return self:Bus_show_in_category(str)
-        end
+            -- Parse str
+            if str == "" then
+                return self:Bus_show_new(10)
+            end
+            
+            if str == "new" then
+                return self:Bus_show_new(25)
+            end
+            
+            if str == "all" then
+                return self:Bus_show_new(#self._data)
+            end
+            
+            local num = tonumber(str)
+            if num then
+                return self:Bus_show_new(num)
+            end
+            
+            local tm = str:match("^(%d+[dwm])$")
+            if tm then
+                return self:Bus_show_newer_than(tm)
+            end
+            ---@todo: sanitise
+            if self._category_index[str] then
+                return self:Bus_show_in_category(str)
+            end
 
-        if next(self:UI_split_ids(str)) then
-            return self:Bus_show_range(str)
-        end
-        
-        return self:Bus_search(str)
-end
-},
-
-
-
-["rel.md"] = {
-
----@todo CONFIG_VAR
-aliases = { "rel-in-markdown" },
-
----@todo CONFIG_VAR
-level = 1,
-
---- Markdown release list
----@param str string 
----    The raw string separated from preceding command by whitespace(s).
---- 
-func = function (self, str)
-    local format = "md"
-    str = str or ""
-    str = str:gsub("^%s+", ""):gsub("%s+$", "")
-
-        -- Parse str
-        if str == "" then
-            return self:Bus_show_new(10, format)
-        end
-        
-        if str == "new" then
-            return self:Bus_show_new(25, format)
-        end
-        
-        if str == "all" then
-            return self:Bus_show_new(#self._data, format)
-        end
-        
-        local num = tonumber(str)
-        if num then
-            return self:Bus_show_new(num, format)
-        end
-        
-        local tm = str:match("^(%d+[dwm])$")
-        if tm then
-            return self:Bus_show_newer_than(tm, format)
-        end
-        ---@todo sanitise
-        if self._category_index[str] then
-            return self:Bus_show_in_category(str, format)
-        end
-        if next(self:UI_split_ids(str)) then
-            return self:Bus_show_range(str, format)
-        end
-        return self:Bus_search(str)
-end
-},
-
---- Details of self
---- 
----@param str string 
----    The raw string separated from preceding command by whitespace(s).
---- 
-["rel.details"] = {
----@todo config
-level = 1,
-
-aliases = { "reldetails" },
-func = function(self, str)
-    return self:Bus_show_range(str, "detail")
-end
-},
-
---- Fake data generator
---- 
----@param number integer 
----    Desired number of fake items to be created.
---- 
-["rel.fake"] = {
-
-aliases = { "fakerel" },
-
-level = 1,  
-
-func = function(self, number)
-    local count = tonumber(number) or 100
-    if count < 1 then
-        return "Count must be a positive number"
+            if next(self:UI_split_ids(str)) then
+                return self:Bus_show_range(str)
+            end
+            
+            return self:Bus_search(str)
     end
-    if count > 10000 then
-        return "Maximum 10000 self allowed"
+    },
+
+
+
+    ["rel.md"] = {
+
+    ---@todo CONFIG_VAR
+    aliases = { "relmd" },
+
+    ---@todo CONFIG_VAR
+    level = 1,
+
+    --- Markdown release list
+    ---@param str string 
+    ---    The raw string separated from preceding command by whitespace(s).
+    --- 
+    func = function (self, str)
+        local format = "md"
+        str = str or ""
+        str = str:gsub("^%s+", ""):gsub("%s+$", "")
+
+            -- Parse str
+            if str == "" then
+                return self:Bus_show_new(10, format)
+            end
+            
+            if str == "new" then
+                return self:Bus_show_new(25, format)
+            end
+            
+            if str == "all" then
+                return self:Bus_show_new(#self._data, format)
+            end
+            
+            local num = tonumber(str)
+            if num then
+                return self:Bus_show_new(num, format)
+            end
+            
+            local tm = str:match("^(%d+[dwm])$")
+            if tm then
+                return self:Bus_show_newer_than(tm, format)
+            end
+            ---@todo sanitise
+            if self._category_index[str] then
+                return self:Bus_show_in_category(str, format)
+            end
+            if next(self:UI_split_ids(str)) then
+                return self:Bus_show_range(str, format)
+            end
+            return self:Bus_search(str)
     end
-    local success, msg = self:Item_fake_db(count)
-    if not success then
-        return "Error: " .. msg
+    },
+
+    --- Details of self
+    --- 
+    ---@param str string 
+    ---    The raw string separated from preceding command by whitespace(s).
+    --- 
+    ["rel.details"] = {
+    ---@todo config
+    level = 1,
+
+    aliases = { "reldetails" },
+    func = function(self, str)
+        return self:Bus_show_range(str, "detail")
     end
-    return msg
-end
-}
+    },
+
+    --- Fake data generator
+    --- 
+    ---@param number integer 
+    ---    Desired number of fake items to be created.
+    --- 
+    ["rel.fake"] = {
+
+    aliases = { "fakerel" },
+
+    level = 1,  
+
+    func = function(self, number)
+        local count = tonumber(number) or 100
+        if count < 1 then
+            return "Count must be a positive number"
+        end
+        if count > 10000 then
+            return "Maximum 10000 self allowed"
+        end
+        local success, msg = self:Item_fake_db(count)
+        if not success then
+            return "Error: " .. msg
+        end
+        return msg
+    end
+    }
 }
 
 --- Store the above in package.loaded upon require

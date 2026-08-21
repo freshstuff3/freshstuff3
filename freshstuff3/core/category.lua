@@ -1,8 +1,9 @@
--- core/Category_lua
-
+--- core/category.lua
 local Category = {}
-
+--- 
 --- # CATEGORY MANAGEMENT CORE MODULE FOR FRESHSTUFF3
+---
+---
 ---
 --- ## I. CRUD OPERATIONS FOR CATEGORIES
 --- 
@@ -196,7 +197,6 @@ end
 ---@todo Add dry-run with detailed summary (items, categories, subcategories)
 ---@todo Add progress indication for large deletions (1000+ items)
 ---@todo Add validation to prevent deleting root categories (optional)
----@todo Add logging of deletion operations for audit trail
 ---@todo Consider moving deleted items to a "trash" category instead of permanent deletion
 ---@todo Add confirmation prompt for nuke deletions (safety) -- for Lua only
 ---@todo Update all parent categories' dirty flags after deletion -- taken care of by Item:add // b_e

@@ -12,6 +12,8 @@ local Bus = {}
 ---@param sort_order string Sort order
 ---@return string result Formatted output
 
+local Event = require "helpers.event"
+
 function Bus:Bus_search(query, format, sort_order) 
     local result = {        
         string.rep("==", 50),
@@ -42,14 +44,12 @@ end
 --- - `!rel.cat.delforce` - Delete category and subcategories. Will not delete anything if category has subcategories. Optional --imeanit switch, defaults to preview
 --- - `!rel.cat.nuke` - Delete category *also deleting its releases and suncategories*. Optional --imeanit switch, defaults to preview
 ---@param path string Category path
----@param category_file string Category file
----@param journal_file string Journmal file
 ---@param is_force? boolean Delete category with releases if it has no subcategories
 ---@param is_nuke? boolean Delete category with releases if it has no subcategories
 ---@param is_preview? boolean WWhether we are doing a dry run. If unspecified, it's a dry run.
 ---@return string|false response Formatted ouput or false on error
 ---@return string? result Error message
-function Bus:Bus_del_category(path, category_file, journal_file, is_force, is_nuke, is_preview)
+function Bus:Bus_del_category(path, is_force, is_nuke, is_preview)
     is_preview = (is_preview == nil) and true or is_preview
     
     if is_preview then
@@ -61,7 +61,7 @@ function Bus:Bus_del_category(path, category_file, journal_file, is_force, is_nu
     end
     
     -- Full deletion
-    local ids, result = self:Category_delete(path, category_file, journal_file, is_force, is_nuke, false)
+    local ids, result = self:Category_delete(path, self.TEST_CATEGORY, self.JOURNAL_FILE, is_force, is_nuke, false)
     if not ids then
         return false, result
     end
@@ -263,7 +263,7 @@ function Bus:Bus_add(nick, title, path)
             title = title,
             category = clean_path,
             when = os.time()
-        }, JOURNAL_FILE)
+        }, self.JOURNAL_FILE)
         return self:UI_render(#self._data, "detail")
     else
         return (string.format("Category %s does not exist, create it first!", clean_path))
@@ -278,7 +278,7 @@ function Bus:Bus_del(ids) -- todo: create backup
     if type (ids) == "number" then ids = { ids } end
     local succeeded, failed = { "SUCCESSFUL DELETE"}, { "FAILED DELETE" }
     for _, id in ipairs(ids) do
-       local succ, err = self:Item_delete(id, JOURNAL_FILE)
+       local succ, err = self:Item_delete(id, self.JOURNAL_FILE)
         if not succ then 
             table.insert(failed, 
             string.format("Deletion of ID %d failed with error %s", 
@@ -301,7 +301,7 @@ end
 ---@param new_path string
 ---@return string result
 
-function Bus:Bus_move(ids, new_path, journal_file)
+function Bus:Bus_move(ids, new_path)
     if type(ids) == "number" then
         ids = { ids }
     end
@@ -316,7 +316,7 @@ function Bus:Bus_move(ids, new_path, journal_file)
             end
             local result = {}
             for _, id in ipairs(ids) do
-                local succ, err = self:Item_move_id(id, p, journal_file)
+                local succ, err = self:Item_move_id(id, p, self.JOURNAL_FILE)
                 if succ then
                     table.insert(result,
                     string.format("Moved id %d from %s to %s",
@@ -570,8 +570,8 @@ end
 -- Business logic orchestrates core operations and fires events
 ---@note AI stuff
 
-    --- Delete releases (business level)
-function Bus:Bus_delete_releases(ids, journal_file, fire_events)
+--- Delete releases (business level)
+function Bus:Bus_delete_releases(ids, fire_events)
     -- fire_events defaults to true
     if fire_events == nil then fire_events = true end
         
@@ -617,7 +617,7 @@ function Bus:Bus_delete_releases(ids, journal_file, fire_events)
             missing = missing,
         }
             
-        local result = self:Event_fire("ItemsPreDelete", pre_data)
+        local result = Event:fire("ItemsPreDelete", pre_data)
             
         if result.cancelled then
             return false, string.format("Deletion cancelled: %s", 
@@ -633,7 +633,7 @@ function Bus:Bus_delete_releases(ids, journal_file, fire_events)
         
     for _, item_info in ipairs(items) do
         local id = item_info.id
-        local success, deleted = self:Item_delete(id, journal_file)
+        local success, deleted = self:Item_delete(id, self.JOURNAL_FILE)
             
         if success then
             table.insert(deleted_items, deleted)
@@ -654,7 +654,7 @@ function Bus:Bus_delete_releases(ids, journal_file, fire_events)
             errors = errors,
         }
             
-        self:Event_fire("ItemsPostDelete", post_data)
+        Event:fire("ItemsPostDelete", post_data)
     end
         
     if #errors > 0 then
@@ -667,7 +667,7 @@ end
 
 
 --- Delete category (business level with its own events)
-function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is_nuke, is_preview)
+function Bus:Bus_delete_category(path, is_force, is_nuke, is_preview)
     -- ============================================================
     -- COLLECT EVERYTHING FIRST
     -- ============================================================
@@ -744,7 +744,7 @@ function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is
             is_nuke = is_nuke,
         }
             
-    local result = self:Event_fire("CategoryPreDelete", pre_data)
+    local result = Event:Event_fire("CategoryPreDelete", pre_data)
             
         if result.cancelled then
             return false, string.format("Deletion cancelled: %s", 
@@ -765,7 +765,7 @@ function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is
     local errors = {}
         
     for _, item_info in ipairs(items_to_delete) do
-        local success, deleted = self:Item_delete(item_info.id, journal_file)
+        local success, deleted = self:Item_delete(item_info.id, self.JOURNAL_FILE)
         if success then
             table.insert(deleted_items, deleted)
         else
@@ -786,7 +786,7 @@ function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is
     end
         
     -- Serialize
-    self:Category_serialize(category_file)
+    self:Category_serialize(self.TEST_CATEGORY)
         
     --- ============================================================
     --- POST-DELETE EVENT (Category-specific)
@@ -802,7 +802,7 @@ function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is
         errors = errors,
     }
         
-    self:Event_fire("CategoryPostDelete", post_data)
+    Event:fire("CategoryPostDelete", post_data)
         
     if #errors > 0 then
         return true, string.format("Deleted category %s with %d items (%d errors)", 
@@ -813,34 +813,34 @@ function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is
 end
 
     --- Move releases (business level)
-function Bus:Bus_move_releases(ids, new_path, journal_file)
-        if type(ids) == "number" then
-            ids = { ids }
-        end
-        
-        local results = {}
-        local errors = {}
-        
-        for _, id in ipairs(ids) do
-            local success, result = self:Item_move(id, new_path, journal_file)
-            if success then
-                table.insert(results, result)
-            else
-                table.insert(errors, result)
-            end
-        end
-        
-        -- Fire move event if any succeeded
-        if #results > 0 then
-            self:Event_fire("ItemsMoved", {
-                ids = ids,
-                results = results,
-                errors = errors,
-                new_path = new_path,
-            })
-        end
-        
-        return #errors == 0, { results = results, errors = errors }
+function Bus:Bus_move_releases(ids, new_path)
+    if type(ids) == "number" then
+        ids = { ids }
     end
+        
+    local results = {}
+    local errors = {}
+        
+    for _, id in ipairs(ids) do
+         local success, result = self:Item_move(id, new_path, self.JOURNAL_FILE)
+        if success then
+            table.insert(results, result)
+        else
+            table.insert(errors, result)
+        end
+    end
+        
+    -- Fire move event if any succeeded
+    if #results > 0 then
+        Event:fire("ItemsMoved", {
+            ids = ids,
+            results = results,
+            errors = errors,
+            new_path = new_path,
+        })
+     end
+        
+    return #errors == 0, { results = results, errors = errors }
+end
 
 return Bus

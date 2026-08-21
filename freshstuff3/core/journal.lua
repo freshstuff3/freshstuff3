@@ -36,17 +36,6 @@ local Journal = {}
 --- @param str string The line to write
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
-function Journal:Journal_append_old(filename, data)
-     local f, err = io.open(filename,"a+b")
-    if f then
-        f:write(msgpack.pack(data))
-        f:flush(); f:close()
-        return true
-    else 
-        return false, err
-    end
-end
-
 function Journal:Journal_append(filename, data)
     print("Writing to journal:", filename, "action:", data.action)  -- DEBUG
     local f, err = io.open(filename,"a+b")
@@ -156,54 +145,6 @@ function Journal:Journal_compact(journal_file)
     -- Write succeeded, replace previous journal file with temp
     os.rename(temp, journal_file)
     return true, nil
-end
-
---- JOURNAL REPLAY
---- 
---- @param journal_file string Journal file to be used
---- @return table _data  Returns the data after replay, in an array, or 
---- empty table on file open failure/in case of an empty or nonexistent file.
---- @return table ret2 Returns list of failed single items on an 
---- otherwise successful replay or error string added to array or error.
---- On total success, returns empty table
---- 
-function Journal:Journal_replay_old(journal_file)
-    assert(journal_file ~= nil,
-             "Journal file not specfied")
-    local f, err = io.open(journal_file, "rb")
-    if f then
-        local _data = {}
-        local failed = {}
-        local content = f:read("*all")
-        f:close()
-        local pos = 1
-        while pos <= #content do
-            local success, data, new_pos = pcall(msgpack.unpack, content, pos)
-            if success and data then
-                if data.action == "add" then
-                    data.action = nil
-                    table.insert(_data, data)
-                elseif data.action == "delete" then
-                    table.remove(_data, data.id)
-                elseif data.action == "move" then
-                    if _data[data.id] then
-                        _data[data.id].category = data.new_category
-                    else
-                        table.insert(failed, "Move failed: ID "..data.id.." not found")
-                    end
-                else
-                    table.insert(failed, "Unknown action: "..tostring(data.action))
-                end
-                pos = new_pos or pos + 1
-            else
-                table.insert(failed, "Failed to parse at position "..pos)
-                break
-            end
-        end
-        return _data, failed
-    else
-        return {}, { ""..err.."" }
-    end
 end
 
 --- JOURNAL REPLAY
