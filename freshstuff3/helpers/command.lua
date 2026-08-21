@@ -1,9 +1,7 @@
 -- core/commands.lua
 -- Global command system - scan once on init, then use cache
 
-local Commands = {}
-
-_registry = {},  -- command_name -> { instance, handler, level, aliases }
+local Commands = { _registry = {} }  -- command_name -> { instance, handler, level, aliases }
 
 ---@note should be required inside hsotapp main stack
 function Commands:init()
@@ -55,7 +53,7 @@ function Commands:execute(command, params, user)
     end
     
     return true, result
-end,
+end
 
 function Commands:list()
     local cmds = {}

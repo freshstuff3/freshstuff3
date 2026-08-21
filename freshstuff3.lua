@@ -2,7 +2,7 @@
 -- Entry point for freshstuff3
 ---@todo move this into host app and hardcode for interpreter
 --- since there is no way a lua script can tell its own path, we have to hardcode it here for now
-base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
+base_path = "C:/freshstuff3/"
 package.path = package.path .. string.format(";%s?.lua", base_path)
 -- ============================================================================
 -- Load AllStuff
