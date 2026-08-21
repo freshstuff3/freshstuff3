@@ -1,10 +1,21 @@
 -- plugins/release.lua
 -- Business logic and frontend for freshstuff3 core fucntionality
 -- This plugin cannot be disabled.
-local base_path = "/home/szg/ptokax-config/scripts/freshstuff3/"
+local base_path, journal, category
+if package.config:sub(1,1) == "\\" then
+    -- Running on Windows
+    base_path = "C:\\freshstuff3\\freshstuff3\\"
+    journal = base_path.."data\\journals\\freshstuff3.journal"
+    category = base_path.."data\\categories.dat"
+else
+    -- Running on Linux or macOS
+    base_path = "/freshstuff3/"
+    journal = base_path.."data/journals/freshstuff3.journal"
+    category = base_path.."data/categories.dat"
+end
 
 --
--- First we load item manipulation fuctionality into our namespace
+-- First we load item manipulation functionality into our namespace
 
 -- local AllStuff = Init:load_plugin("release")
 
@@ -35,12 +46,11 @@ AllStuff:merge('plugins.release.business')
 AllStuff:merge('plugins.release.bus_delete')
 
 -- Declare category and journal file (OPTIONAL)
-AllStuff.JOURNAL_FILE = base_path.."data/journals/freshstuff3.journal"
-AllStuff.TEST_CATEGORY = base_path.."data/categories.dat"
+AllStuff.JOURNAL_FILE = journal
+AllStuff.TEST_CATEGORY = category
 
 -- Initialise data (OPTIONAL)
 AllStuff:data_init(AllStuff.JOURNAL_FILE, AllStuff.TEST_CATEGORY)
-
 ---
 --- END OPTIONAL SECTION
 
@@ -244,7 +254,7 @@ AllStuff._cmd_handlers = {
         if count > 10000 then
             return "Maximum 10000 self allowed"
         end
-        local success, msg = self:Item_fake_db(count)
+        local success, msg = self:Item_fake_database(count)
         if not success then
             return "Error: " .. msg
         end

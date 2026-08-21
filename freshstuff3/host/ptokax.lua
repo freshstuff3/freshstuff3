@@ -24,6 +24,11 @@ local Init = require "helpers.init"
 function OnStartup()
     if type(Core) ~= "table" then
         Init:load_plugins()
+        if package.config:sub(1,1) == "\\" then
+            -- Running on Windows
+            os.execute("chcp 65001 > nul 2>&1")
+            print("🔧 Console set to UTF-8")
+        end
         Init:open_lua_shell()
     else
         SetTimer(1000)

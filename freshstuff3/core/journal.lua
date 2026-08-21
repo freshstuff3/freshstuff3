@@ -38,7 +38,7 @@ local Journal = {}
 --- @return string? err Error message in case of failure
 function Journal:Journal_append(filename, data)
     print("Writing to journal:", filename, "action:", data.action)  -- DEBUG
-    local f, err = io.open(filename,"a+b")
+    local f, err = io.open(filename,"ab")
     if f then
         local packed = msgpack.pack(data)
         print("Packed size:", #packed, "bytes")  -- DEBUG
@@ -127,8 +127,9 @@ end
 function Journal:Journal_compact(journal_file)
     assert(journal_file ~= nil, "Journal file not specified!")
     -- Write to temp file first
-    local temp = os.tmpname()
-    local f, err = io.open(temp, "w+b")
+        local temp = journal_file .. ".compact.tmp" --os.tmpname()
+    
+    local f, err = io.open(temp, "wb")
     if not f then return false, err end
     for id, obj in ipairs(self._data) do
         local data = {

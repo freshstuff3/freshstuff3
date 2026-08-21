@@ -120,6 +120,7 @@ function Init:create_instance()
             tonumber = tonumber,
             OnTimer = OnTimer,
             ChatArrival = ChatArrival,
+            io = io,
         }
         
         print("FreshStuff3 Interactive Shell")
@@ -190,9 +191,9 @@ function Init:create_instance()
     end
 
 --- Attach data initialisation function to instance for plugins that require it
-        function obj:data_init(journal_file, category_file)
+        function obj:data_init()
         -- Populate _data first
-            local success, err = self:Item_init(journal_file)
+            local success, err = self:Item_init(self.JOURNAL_FILE)
             if not success then
                 self._data = {}
                 return false, "ERROR: Item_init failed: "..err
@@ -201,7 +202,7 @@ function Init:create_instance()
             ---
             --- Now initialise categories
             ---
-            self:Category_init(category_file)
+            self:Category_init(self.TEST_CATEGORY)
 
             --- 
             --- Protect _cmd_handlers from accidental overwrites

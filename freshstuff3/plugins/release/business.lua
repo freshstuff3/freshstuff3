@@ -280,7 +280,7 @@ end]]
 ---@param sort_order? string
 ---@return string|false result Formatted tree with header indicating "LATEST N" or "ALL ITEMS"
 ---
-function Bus:Bus_show_new(number, format, sort_order)
+--[[function Bus:Bus_show_new(number, format, sort_order)
     format = format or "tree"
     -- validity of number is checked by now
     assert (number ~= nil and self ~= nil, "Number or source "..
@@ -314,6 +314,44 @@ function Bus:Bus_show_new(number, format, sort_order)
         return table.concat(result, "\r\n")
     end 
     return false
+end]]
+
+function Bus:Bus_show_new(number, format, sort_order)
+    format = format or "tree"
+    
+    -- Normalize input
+    if type(number) == "string" and number:lower() == "all" then
+        number = 999999
+    end
+    number = tonumber(number) or 10
+    
+    if number <= 0 then number = number * -1 end -- make it positive
+
+    local total = #self._data
+    
+    -- ✅ Check for empty database
+    if total == 0 then
+        return "📭 No releases found in the database.\n" ..
+               "   Use `!rel.add <category> <title> [nick]` to add a release.\n" ..
+               "   Use `!rel.fake <n>` to generate fake data for testing."
+    end
+    
+    local count = math.min(number, total)
+    local ids = {}
+    for i = 1, count do
+        table.insert(ids, total - count + i)
+    end
+    
+    local header = (count >= total) 
+        and string.format("\r\n\r\nALL THE ITEMS ( TOTAL: %d )\r\n\r\n", total)
+        or string.format("\r\n\r\nLATEST %d ITEMS\r\n\r\n", count)
+    
+    local rendered = self:UI_render(ids, format, sort_order)
+    if not rendered then
+        return "⚠️  Failed to render results."
+    end
+    
+    return header .. rendered
 end
 
 --- SHOW RELEASES BY CATEGORY
