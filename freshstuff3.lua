@@ -32,6 +32,7 @@ package.path = package.path .. string.format(";%s?.lua", base_path)
 ---
 --- But first, we need to detect OS and set the base path accordingly
 --- Temporary for now, will move to host app and hardcode for interpreter
+local base_path
 if package.config:sub(1,1) == "\\" then
     -- Running on Windows
     base_path = "C:\\freshstuff3\\freshstuff3\\"
