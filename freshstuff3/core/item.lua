@@ -1,7 +1,7 @@
 -- core/item.lua
 ---@todo assertions for passed variables
 ---
-return {
+local Item = {}
 --- # INDIVIDUAL ITEM MANUPULATION FOR FRESHSTUFF3
 --- 
 --- CRUD operations on items
@@ -13,7 +13,8 @@ return {
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
 --- 
-Item_init = function (self, file)
+--[[
+function Item:Item_init(file)
     assert(file ~= nil and file ~= "", "Journal file not specified!")
     -- Replay the file
     local result, failed = self:Journal_replay(file)
@@ -33,7 +34,32 @@ Item_init = function (self, file)
     end
     -- If we are here, journal replay has failed
     return false, failed
-end,
+end]]
+
+function Item:Item_init(file)
+    assert(file ~= nil and file ~= "", "Journal file not specified!")
+    
+    -- Create a journal instance    
+    -- Replay the file
+    local result, failed = self:Journal_replay(file)
+    
+    if not result or #result == 0 then
+        -- No data or empty journal, initialize empty
+        self._data = {}
+        return true, nil
+    end
+    
+    -- Compact the journal (pass the data as self)
+    local compact_self = { _data = result }
+    local succ, err = self.Journal_compact(compact_self, file)
+    
+    if succ then
+        self._data = result
+        return true, failed
+    else
+        return false, err
+    end
+end
 
 --- ## ADD/CREATE DATA ITEM
 --- 
@@ -44,7 +70,7 @@ end,
 --- @return boolean success 
 --- @return string? error Error message in case of failure
 --- 
-Item_add = function (self, rel_object, journal_path)
+function Item:Item_add(rel_object, journal_path)
     assert(rel_object ~= nil, "Release object unspecified!")
     if not self._category_index[rel_object.category] then
         return false, "Category does not exist! Needs to be created first..."
@@ -62,7 +88,7 @@ Item_add = function (self, rel_object, journal_path)
         return succ, err
     end
     return true
-end,
+end
 
 --- ## MOVE ITEM BETWEEN CATEGORIES
 ---
@@ -73,7 +99,7 @@ end,
 --- on serialisation failure
 --- @return string? err If serialisation failed, returns the error message
 --- 
-Item_move_id = function (self, id, path, journal_file)   
+function Item:Item_move_id(id, path, journal_file)   
 -- TODO: check if the old category will become empty after move --- WHY???
 -- WE ARE REBUILDING WHEN QUERIED
     if not self._category_index[path] then
@@ -94,7 +120,7 @@ Item_move_id = function (self, id, path, journal_file)
         return self:Journal_append_move(id, path, journal_file)
     end
     return true
-end,
+end
 
 --- ## DELETE DATA ITEM 
 --- 
@@ -106,7 +132,7 @@ end,
 ---@return boolean success True on success
 ---@return string? err Error message
 ---
-Item_delete = function (self, id, journal_path)
+function Item:Item_delete(id, journal_path)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
@@ -129,7 +155,7 @@ Item_delete = function (self, id, journal_path)
         return self:Journal_append_del(id, journal_path)
     end
     return true, nil
-end,
+end
 
 --- ## VALIDATE DATA ITEM 
 --- 
@@ -140,7 +166,7 @@ end,
 ---@return boolean success If true, validation succeeded
 ---@return string? err error message, if validation failed
 ---
-Item_validate_title = function (self, item)
+function Item:Item_validate_title(item)
     -- sanitize: not needed
     ---@todo : config variable for FORBIDDEN
     -- local FORBIDDEN = require "config".FORBIDDEN or {}
@@ -164,7 +190,7 @@ Item_validate_title = function (self, item)
         end
     end 
     return true 
-end,
+end
 
 
 --- ## ITEM SEARCH
@@ -176,7 +202,7 @@ end,
 ---@return table result_cat Results in categories.
 ---     Returns empty tables if no items.
 --- 
-Item_search = function(self, query)
+function Item:Item_search(query)
     assert(type(query) == "string" and query ~= "", "Invalid search query!")
     local result, result_cat  = {}, {}
     if not query:find("%s+") then
@@ -196,7 +222,7 @@ Item_search = function(self, query)
         end
     end
     return result, result_cat
-end,
+end
 
 --- ## FAKE DB GENERATOR
 --- 
@@ -208,7 +234,7 @@ end,
 ---@return boolean success
 ---@return string | nil error
 ---
-Item_fake_database = function (self, count)
+function Item:Item_fake_database(count)
     if not count or count < 1 then
         return false, "Count must be a positive number"
     end
@@ -339,7 +365,7 @@ Item_fake_database = function (self, count)
         }
         
         -- ✅ Temporarily disable journaling
-        local success, err = self:Item_add(release)
+        local success, err = self:Item_add(release, self.JOURNAL_FILE)
         
         if not success then
             return false, "Failed to add release: " .. err
@@ -348,5 +374,5 @@ Item_fake_database = function (self, count)
     
     return true, string.format("Generated %d fake releases", #self._data)
 end
-}
 
+return Item

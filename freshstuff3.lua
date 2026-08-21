@@ -29,5 +29,5 @@ package.path = package.path .. string.format(";%s?.lua", base_path)
 
 --- We load ptokax.lua and fall back to shell therein
 --- Obviously for verlihub, if/then/else will be used to detect host and load plugins accordingly 
-require "host.ptokax"; if type(Core) ~= "table" then --OnStartup() end
-print (string.dump(OnStartup)) end
+require "host.ptokax"; if type(Core) ~= "table" then OnStartup() end
+--print (string.dump(OnStartup)) end

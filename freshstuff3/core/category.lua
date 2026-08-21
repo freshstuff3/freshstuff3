@@ -1,6 +1,6 @@
 -- core/Category_lua
 
-return {
+local Category = {}
 
 --- # CATEGORY MANAGEMENT CORE MODULE FOR FRESHSTUFF3
 ---
@@ -40,7 +40,7 @@ return {
 ---@param filename string Path to the categories file (e.g., "data/categories.lua")
 ---@todo If file loading fails, create from scratch from _data
 ---@todo Add validation: ensure _data is not nil before iterating---@todo Add support for migrating old category formats (if needed)
-Category_init = function(self, category_file)
+function Category:Category_init(category_file)
     self._category_index, self._category_tree = {}, {}
     
     -- Load from file
@@ -108,7 +108,7 @@ Category_init = function(self, category_file)
                 return nil, "Serialization failed: " .. err
         end   
     end
-end,
+end
 
 --- ### DELETE CATEGORY
 ---
@@ -200,7 +200,7 @@ end,
 ---@todo Consider moving deleted items to a "trash" category instead of permanent deletion
 ---@todo Add confirmation prompt for nuke deletions (safety) -- for Lua only
 ---@todo Update all parent categories' dirty flags after deletion -- taken care of by Item:add // b_e
-Category_delete = function (self, path, category_file, journal_file, is_force, is_nuke, is_preview)
+function Category:Category_delete(path, category_file, journal_file, is_force, is_nuke, is_preview)
     assert(path ~= nil and category_file ~= nil, "Unspecified path and/or category file!")
     
     local state = self._category_index[path]
@@ -267,7 +267,7 @@ Category_delete = function (self, path, category_file, journal_file, is_force, i
         return to_del, cats_to_delete
     end
     
-    -- ✅ FIX: Delete categories from tree (bottom-up - deepest first)
+    -- FIX: Delete categories from tree (bottom-up - deepest first)
     -- Sort by depth (deepest first)
     table.sort(cats_to_delete, function(a, b)
         local depth_a = #self:Category_split_path(a)
@@ -305,7 +305,7 @@ Category_delete = function (self, path, category_file, journal_file, is_force, i
     end
     
     return {}, string.format("Empty category %s deleted!", path)
-end,
+end
 
 --- ### CREATE CATEGORY
 --- 
@@ -316,7 +316,7 @@ end,
 --- @return string? error Upon failure, returns error message.
 --- 
 --- 
-Category_create = function (self, path, category_file)
+function Category:Category_create(path, category_file)
     assert(path ~= nil and path ~= "", "❌ Category unspecified!")
 
     if self._category_index[path] then
@@ -354,7 +354,7 @@ Category_create = function (self, path, category_file)
     -- Roll back if we got here
     self._category_index[path] = nil
     return false, "❌ Failed to create category: " .. path
-end,
+end
 
 --- ### CATEGORY PATH SANITISER/VALIDATOR
 ---
@@ -382,7 +382,7 @@ end,
 ---@return string|false success False on error, true if category exists
 ---@return string result Sanitized path on success, error message on failure
 ---@todo Consider case sensitivity option (optional, default: case-sensitive)
-Category_process_path = function (self, path)
+function Category:Category_process_path(path)
     assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     -- string longer than 70 chars
     -- This should be hardcoded as for messages (ie. expected use case), 
@@ -413,7 +413,7 @@ Category_process_path = function (self, path)
         )
     end
     return true, path 
-end,
+end
 
 --- ### SAVE CATEGORIES TO FILE
 ---
@@ -449,7 +449,7 @@ end,
 ---@todo Add validation: ensure _category_index is not empty before saving
 ---@todo Add logging: when save happens, how many categories saved
 ---@todo Add error recovery: if save fails, keep existing file intact
-Category_serialize = function (self, filename)
+function Category:Category_serialize(filename)
     -- File does not have to exist.
     assert(filename ~= nil and filename ~= "", "❌ File name unspecified!")
     local tmp = filename -- os.tmpname()
@@ -466,7 +466,7 @@ Category_serialize = function (self, filename)
         return true
     end
     return false, err -- serialisation failed
-end,
+end
 
 --- ###  GET ITEMS (NON-RECURSIVE) 
 --- 
@@ -474,13 +474,13 @@ end,
 --- 
 --- @param path string The category path
 --- @return table IDs Array of release IDs at this category
-Category_get_no_subcat = function(self, path)
+function Category:Category_get_no_subcat(path)
     assert(path ~= nil and path ~="" ,"Path unspecified!")
     -- No state checking. rebuild_node returns anyway if no rebuild needed
     local result = self:Category_rebuild_node(path)
     if not result then return {} end
     return result._releases
-end,
+end
 
 --- ###  GET ITEMS (RECURSIVE) 
 --- 
@@ -491,7 +491,7 @@ end,
 --- @return table|false result 
 --- - Array of all release IDs found. 
 --- - False on failed retrieval
-Category_get_subcat = function(self, path)
+function Category:Category_get_subcat(path)
     assert(path ~= nil and path ~= "", "Path unspecified!")
     
     local result = self:Category_rebuild_node(path)
@@ -527,7 +527,7 @@ Category_get_subcat = function(self, path)
     end
     collect(result)
     return list
-end,
+end
 
 --- ### RENAME CATEGORY
 ---
@@ -574,7 +574,7 @@ end,
 ---@todo Handle concurrent operations (lock category during rename)
 ---@todo Add support for renaming top-level categories (currently allowed)
 ---@todo Consider updating category_index for all subcategories if recursive rename is implemented
-Category_rename = function(self, old_path, new_path, journal_file, category_file)
+function Category:Category_rename(old_path, new_path, journal_file, category_file)
     if self._category_index[new_path] then
         return false, "❌ Target category already exists."
     elseif not self._category_index[old_path] then
@@ -627,7 +627,7 @@ Category_rename = function(self, old_path, new_path, journal_file, category_file
         end
     end
     return node_new._releases, node_old._releases
-end,
+end
 
 --- # CATEGORY TREE LOGIC
 --- 
@@ -685,7 +685,7 @@ end,
 --- 
 --- @param path string Category path to rebuild
 --- @return table|boolean node Returns the rebuilt node on success, false if not found
-Category_rebuild_node = function(self, path)
+function Category:Category_rebuild_node(path)
     assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     
     local entry = self._category_index[path]
@@ -716,14 +716,14 @@ Category_rebuild_node = function(self, path)
     -- Update state
     entry.dirty = false
     return node
-end,
+end
 
 --- ### Split category path into parts
 --- 
 --- @param path string category path
 --- @return table|false parts Returns an array of parts, 
---- ordered fromm top level downwards.
-Category_split_path = function (self, path)
+---     ordered fromm top level downwards.
+function Category:Category_split_path(path)
     assert(type(path) =="string" and path ~= "", "Invalid or no path" )
     -- Check if top-level category
     if not path:find("/") then; return { path }; end
@@ -733,12 +733,12 @@ Category_split_path = function (self, path)
         table.insert(parts, part)
     end
     return parts
-end,
+end
 
 --- ### Delete node from category tree
 --- 
 --- @param path string Category path
-Category_delete_node = function (self, path)
+function Category:Category_delete_node(path)
     if not path or path == "" then return false end
     
     local parts = self:Category_split_path(path)
@@ -758,13 +758,13 @@ Category_delete_node = function (self, path)
     local name = parts[#parts]
     parent[name] = nil
     return true
-end,
+end
 
 --- ### Mark parents of given category path's respective node dirty in tree
 --- 
 --- @param path string Category path
 --- 
-Category_mark_parents_dirty = function (self, path)
+function Category:Category_mark_parents_dirty(path)
     local parts, err = self:Category_split_path(path)
     if not parts then return false, err end
     for i = 1, #parts - 1 do
@@ -774,7 +774,7 @@ Category_mark_parents_dirty = function (self, path)
         end
     end
     return true
-end,
+end
 
 --- ### Get node
 ---
@@ -805,7 +805,7 @@ end,
 ---@todo Add support for case-insensitive matching (optional, configurable)
 ---@todo Add support for path validation before traversal (ensure no empty segments)
 ---@todo Return more detailed error information (e.g., which segment failed)
-Category_get_node = function (self, path)
+function Category:Category_get_node(path)
     -- Throw error in case of missing parameters
     assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     -- Check if path top-level. If yes, GTFO
@@ -828,10 +828,10 @@ Category_get_node = function (self, path)
         current = current[part]
     end
     return current
-end,
+end
 
 -- Helper: Ensure all parent categories exist in both tree and index
-Category_ensure_path = function (self, path)
+function Category:Category_ensure_path(path)
     local parts = self:Category_split_path(path)
     local current_path = ""
     
@@ -849,13 +849,14 @@ Category_ensure_path = function (self, path)
         end
     end
     return true
-end,
+end
 
-Tree_ensure_path = function (self, path); return self:Category_ensure_path(self, path); end,
-Tree_get_node = function (self, path); return self:Category_get_node(self, path); end,
-Tree_mark_parents_dirty = function (self, path); return self:Category_mark_parents_dirty(self, path); end,
-Tree_rebuild_node = function (self, path); return self:Category_rebuild_node(self, path); end,
-Tree_delete_node = function (self, path); return self:Category_delete_node(self, path); end,
-Tree_split_path = function (self, path); return self:Category_split_path(self, path); end,
+---@todo rename relevant Category_ funcs to Tree_ funcs and move to CatTree namespace/file
+Category.Tree_ensure_path = Category.Category_ensure_path
+Category.Tree_get_node = Category.Category_get_node
+Category.Tree_mark_parents_dirty = Category.Category_mark_parents_dirty
+Category.Tree_rebuild_node = Category.Category_rebuild_node
+Category.Tree_delete_node = Category.Category_delete_node
+Category.Tree_split_path = Category.Category_split_path
 
-}
+return Category

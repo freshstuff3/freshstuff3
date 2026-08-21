@@ -1,12 +1,10 @@
 -- core/events.lua
 -- Global event system - nothing instance-specific
 
-return
-{
-_registry = {},  -- event_name -> list of { instance, handler, priority }
+local Event = {}
+Event._registry = {}  -- event_name -> list of { instance, handler, priority }
 
-init = function(self)
-    
+function Event:init()
     for module_name, module in pairs(package.loaded) do
         if module_name:match("^plugins%.%S+$") then
             if type(module) == "table" and module._event_handlers then
@@ -15,7 +13,7 @@ init = function(self)
             end
         end
     end
-end,
+end
 --[[
 -- Registration
 xxx._event_handlers = {
@@ -44,7 +42,7 @@ xxx._event_handlers = {
 }
 ]]
 
-_register_plugin = function(self, plugin)
+function Event:_register_plugin(plugin)
     for event_name, handlers in pairs(plugin._event_handlers) do
         for _, h in ipairs(handlers) do
             if type(h) == "table" and type(h.func) == "function" then
@@ -66,9 +64,9 @@ _register_plugin = function(self, plugin)
             end
         end
     end
-end,
+end
 
-fire = function (self, event_name, data)
+function Event:fire(event_name, data)
     
     local handlers = self._registry[event_name]
     if not handlers or #handlers == 0 then
@@ -103,8 +101,8 @@ fire = function (self, event_name, data)
         cancelled = cancelled,
         cancel_reason = cancel_reason,
     }
-end,
+end
 
 ---@todo need separate timer fire for multitimer
+return Event
 
-}

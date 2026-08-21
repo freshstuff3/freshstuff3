@@ -1,12 +1,12 @@
 -- core/commands.lua
 -- Global command system - scan once on init, then use cache
 
-return {
+local Commands = {}
 
 _registry = {},  -- command_name -> { instance, handler, level, aliases }
 
 ---@note should be required inside hsotapp main stack
-init = function (self)
+function Commands:init()
     for module_name, module in pairs(package.loaded) do
         if module_name:match("^plugins%.%S+$") then
             if type(module) == "table" and module._cmd_handlers then
@@ -14,10 +14,10 @@ init = function (self)
             end
         end
     end
-end,
+end
 
 
-_register_plugin = function(self, plugin)
+function Commands:_register_plugin(plugin)
     for cmd_name, cmd_def in pairs(plugin._cmd_handlers) do
         if type(cmd_def) == "table" and type(cmd_def.func) == "function" then
             self._registry[cmd_name] = {
@@ -41,9 +41,9 @@ _register_plugin = function(self, plugin)
             end
         end
     end
-end,
+end
 
-execute = function (self, command, params, user)
+function Commands:execute(command, params, user)
     local entry = self._registry[command]
     if not entry then
         return false, "Unknown command: " .. command
@@ -57,7 +57,7 @@ execute = function (self, command, params, user)
     return true, result
 end,
 
-list = function(self)
+function Commands:list()
     local cmds = {}
     for name, entry in pairs(self._registry) do
         if not entry.is_alias then
@@ -66,7 +66,8 @@ list = function(self)
     end
     table.sort(cmds)
     return cmds
-end,
+end
 
-}
+return Commands
+
 

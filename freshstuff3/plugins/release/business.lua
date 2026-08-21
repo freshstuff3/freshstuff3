@@ -1,4 +1,4 @@
-return {
+local Bus = {}
 --- # BUSINESS LOGIC FOR FRESHSTUFF3
 --- 
 --- ## Search and display results (business logic)
@@ -11,7 +11,8 @@ return {
 ---@param format string "tree", "md" etc
 ---@param sort_order string Sort order
 ---@return string result Formatted output
-Bus_search = function(self, query, format, sort_order) 
+
+function Bus:Bus_search(query, format, sort_order) 
     local result = {        
         string.rep("==", 50),
         string.format("🔎 SEARCH RESULTS\r\n🧐 QUERY: %s", query),
@@ -32,7 +33,7 @@ Bus_search = function(self, query, format, sort_order)
         self:UI_render(rel, format, sort_order) or "Rendering error")
     end
     return table.concat(result, "\r\n")
-end,
+end
 
 --- ## Delete category
 --- 
@@ -48,7 +49,7 @@ end,
 ---@param is_preview? boolean WWhether we are doing a dry run. If unspecified, it's a dry run.
 ---@return string|false response Formatted ouput or false on error
 ---@return string? result Error message
-Bus_del_category = function(self, path, category_file, journal_file, is_force, is_nuke, is_preview)
+function Bus:Bus_del_category(path, category_file, journal_file, is_force, is_nuke, is_preview)
     is_preview = (is_preview == nil) and true or is_preview
     
     if is_preview then
@@ -92,7 +93,7 @@ Bus_del_category = function(self, path, category_file, journal_file, is_force, i
     end
     
     return table.concat(msg, "\r\n")
-end,
+end
 
 --- ## Delete category (preview/dry run wrapper)
 --- 
@@ -111,7 +112,7 @@ end,
 ---@param is_nuke? boolean Deep-delete category even if it has items and/or subcategories. Needs `force` to be `true`
 ---@return string|boolean err Returns list of categories to be deleted if preview or error string on failure.
 ---@return string err Returns list of categories to be deleted if preview or error string on failure.
-Bus_del_category_drill = function(self, path, is_force, is_nuke)
+function Bus:Bus_del_category_drill(path, is_force, is_nuke)
     local ids, result = self:Category_delete(path, "preview", "preview", is_force, is_nuke, true)
     if not ids then
         return false, result
@@ -149,7 +150,7 @@ Bus_del_category_drill = function(self, path, is_force, is_nuke)
     end
     
     return true, table.concat(msg, "\r\n")
-end,
+end
 --- Show category tree with count but not individual releases
 --- 
 --- Starts from root when path is nil.
@@ -160,7 +161,7 @@ end,
 ---@todo Implement: get category count
 ---@todo Implement: get subcategory count
 ---@todo Implement: show category info with release count
-Bus_show_category_tree = function(self, path)
+function Bus:Bus_show_category_tree(path)
     if path then
         local p, ret = self:Category_process_path(path)
         if p then
@@ -172,7 +173,7 @@ Bus_show_category_tree = function(self, path)
     else
         return self:UI_render_category_tree()
     end
-end,
+end
 
 
 --- Show release details
@@ -185,7 +186,7 @@ end,
 ---@todo Implement: get release from source_of_truth._data[id]
 ---@todo Implement: format: ID, Title, Category, Nick, Date
 ---@todo Implement: return "Release not found" if missing
-Bus_show_details = function(self, ids, format, sort_order)
+function Bus:Bus_show_details(ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
@@ -193,7 +194,7 @@ Bus_show_details = function(self, ids, format, sort_order)
         return "Invalid ID format"
     end
     return self:UI_render(ids, format, sort_order) or "invalid sort order"
-end,
+end
 
 --- Get IDs for items newer than a specified timeframe
 --- 
@@ -210,7 +211,7 @@ end,
 --- @return table|false ids Array of release IDs newer than the cutoff
 --- or false on invalid string
 --- 
-Bus_create_category = function(self, path)
+function Bus:Bus_create_category(path)
     if path and type (path) == "string" then
         local p, err = self:Category_process_path(path)
         if p then
@@ -222,7 +223,7 @@ Bus_create_category = function(self, path)
     else
         return false, "No path specified"
     end
-end,
+end
 
 ---Rename a category
 ---
@@ -230,7 +231,7 @@ end,
 ---@param new_path string
 ---@param format? string
 ---@param sort_order? string
-Bus_rename_category = function (self, old_path, new_path, format, sort_order)
+function Bus:Bus_rename_category(old_path, new_path, format, sort_order)
     local result = { 
         "Category rename operation - results",
         string.format("Renaming category %s to %s", old_path, new_path) 
@@ -243,7 +244,7 @@ Bus_rename_category = function (self, old_path, new_path, format, sort_order)
         table.insert(result, string.format ("Moved %d items", #new))
     end
     return(table.concat(result, "\r\n"))
-end,
+end
 
 ---Add a release
 ---
@@ -251,7 +252,7 @@ end,
 ---@param title string
 ---@param path string
 ---@return string result
-Bus_add = function(self, nick, title, path)
+function Bus:Bus_add(nick, title, path)
     local x, clean_path = self:Category_process_path(path)
     if not x then return clean_path end
     local t, err = self:Item_validate_title(title)
@@ -267,13 +268,13 @@ Bus_add = function(self, nick, title, path)
     else
         return (string.format("Category %s does not exist, create it first!", clean_path))
     end
-end,
+end
 
 ---Delete a release
 ---
 ---@param ids table
 ---@return string result
-Bus_del = function(self, ids) -- todo: create backup
+function Bus:Bus_del(ids) -- todo: create backup
     if type (ids) == "number" then ids = { ids } end
     local succeeded, failed = { "SUCCESSFUL DELETE"}, { "FAILED DELETE" }
     for _, id in ipairs(ids) do
@@ -292,7 +293,7 @@ Bus_del = function(self, ids) -- todo: create backup
         end
     end
     return table.concat(succeeded, "\r\n") .."\r\n".. table.concat(failed, "\r\n")
-end,
+end
 
 ---Move one or more release
 ---
@@ -300,7 +301,7 @@ end,
 ---@param new_path string
 ---@return string result
 
-Bus_move = function(self, ids, new_path, journal_file)
+function Bus:Bus_move(ids, new_path, journal_file)
     if type(ids) == "number" then
         ids = { ids }
     end
@@ -338,7 +339,7 @@ Bus_move = function(self, ids, new_path, journal_file)
     else
         return false, "No/invalid path specified"
     end
-end,
+end
 
 --- GET NEW RELEASES
 ---
@@ -378,7 +379,7 @@ end,
 ---@param format? string
 ---@param sort_order? string
 ---@return string|false result Formatted tree with header indicating "LATEST N" or "ALL ITEMS"
-Bus_show_new = function (self, number, format, sort_order)
+function Bus:Bus_show_new(number, format, sort_order)
     format = format or "tree"
     -- validity of number is checked by now
     assert (number ~= nil and self ~= nil, "Number or source "..
@@ -412,7 +413,7 @@ Bus_show_new = function (self, number, format, sort_order)
         return table.concat(result, "\r\n")
     end 
     return false
-end,
+end
 
 --- SHOW RELEASES BY CATEGORY
 ---
@@ -441,7 +442,7 @@ end,
 ---@return string|false result Formatted tree showing releases grouped by category 
 --- or false if category does not exist
 ---@todo --no-subcat switch
-Bus_show_in_category = function(self, path, format, sort_order)
+function Bus:Bus_show_in_category(path, format, sort_order)
     format = format or "tree"
     if self._category_index[path] ~=nil then
         local result
@@ -454,7 +455,7 @@ Bus_show_in_category = function(self, path, format, sort_order)
         end
         return result
     else return "Non-existent category: " .. path end
-end,
+end
 
 --- ## Show a range of releases
 --- 
@@ -467,7 +468,7 @@ end,
 ---@param str string String to be processed.
 ---@param format? string "tree", "md" etc. Falls back to "tree".
 ---@param sort_order? string  Sort order
-Bus_show_range = function(self, str, format, sort_order)
+function Bus:Bus_show_range(str, format, sort_order)
     format = format or "tree"
     if tonumber (str) then -- single item, give details
        return self:UI_render({ tonumber(str) },
@@ -480,7 +481,7 @@ Bus_show_range = function(self, str, format, sort_order)
             return self:UI_render(ids, format, sort_order)
         end
     end
-end,
+end
 
 --- Displays releases added within a specified time window.
 --- 
@@ -516,7 +517,7 @@ end,
 ---@todo : 
 ---    - If timeframe is empty or invalid, fallback to default (e.g., "7d")
 
-Bus_show_newer_than = function(self, time_window, format, sort_order)
+function Bus:Bus_show_newer_than(time_window, format, sort_order)
     time_window = time_window:lower()
     format = format or "tree"
     
@@ -563,256 +564,256 @@ Bus_show_newer_than = function(self, time_window, format, sort_order)
     end
     
     return self:UI_render(ids, format, sort_order)
-end,
+end
 
 -- core/business.lua
 -- Business logic orchestrates core operations and fires events
 ---@note AI stuff
 
     --- Delete releases (business level)
-Bus_delete_releases = function(self, ids, journal_file, fire_events)
-        -- fire_events defaults to true
-        if fire_events == nil then fire_events = true end
+function Bus:Bus_delete_releases(ids, journal_file, fire_events)
+    -- fire_events defaults to true
+    if fire_events == nil then fire_events = true end
         
-        if type(ids) == "number" then
-            ids = { ids }
+    if type(ids) == "number" then
+        ids = { ids }
+    end
+        
+    if #ids == 0 then
+        return false, "No IDs specified"
+    end
+        
+    -- Collect items first (before any deletion)
+    local items = {}
+    local missing = {}
+        
+    for _, id in ipairs(ids) do
+        if self._data[id] then
+            table.insert(items, {
+                id = id,
+                item = self._data[id],
+                category = self._data[id].category,
+                title = self._data[id].title,
+                nick = self._data[id].nick,
+                when = self._data[id].when,
+            })
+        else
+            table.insert(missing, id)
         end
+    end
         
-        if #ids == 0 then
-            return false, "No IDs specified"
-        end
+    if #items == 0 then
+        return false, "No valid items found"
+    end
         
-        -- Collect items first (before any deletion)
-        local items = {}
-        local missing = {}
-        
-        for _, id in ipairs(ids) do
-            if self._data[id] then
-                table.insert(items, {
-                    id = id,
-                    item = self._data[id],
-                    category = self._data[id].category,
-                    title = self._data[id].title,
-                    nick = self._data[id].nick,
-                    when = self._data[id].when,
-                })
-            else
-                table.insert(missing, id)
-            end
-        end
-        
-        if #items == 0 then
-            return false, "No valid items found"
-        end
-        
-        -- ============================================================
-        -- FIRE PRE-DELETE EVENTS (if enabled)
-        -- ============================================================
-        if fire_events then
-            local pre_data = {
-                ids = ids,
-                items = items,
-                count = #items,
-                missing = missing,
-            }
+    -- ============================================================
+    -- FIRE PRE-DELETE EVENTS (if enabled)
+    -- ============================================================
+    if fire_events then
+        local pre_data = {
+            ids = ids,
+            items = items,
+            count = #items,
+            missing = missing,
+        }
             
-            local result = self:Event_fire("ItemsPreDelete", pre_data)
+        local result = self:Event_fire("ItemsPreDelete", pre_data)
             
-            if result.cancelled then
-                return false, string.format("Deletion cancelled: %s", 
-                    result.cancel_reason or "Unknown")
-            end
+        if result.cancelled then
+            return false, string.format("Deletion cancelled: %s", 
+                result.cancel_reason or "Unknown")
         end
+    end
         
-        -- ============================================================
-        -- PERFORM DELETION (call core)
-        -- ============================================================
-        local deleted_items = {}
-        local errors = {}
+    -- ============================================================
+    -- PERFORM DELETION (call core)
+    -- ============================================================
+    local deleted_items = {}
+    local errors = {}
         
-        for _, item_info in ipairs(items) do
-            local id = item_info.id
-            local success, deleted = self:Item_delete(id, journal_file)
+    for _, item_info in ipairs(items) do
+        local id = item_info.id
+        local success, deleted = self:Item_delete(id, journal_file)
             
-            if success then
-                table.insert(deleted_items, deleted)
-            else
-                table.insert(errors, string.format("ID %d: %s", id, deleted))
-            end
+        if success then
+            table.insert(deleted_items, deleted)
+        else
+            table.insert(errors, string.format("ID %d: %s", id, deleted))
         end
+    end
         
-        -- ============================================================
-        -- FIRE POST-DELETE EVENTS (if enabled)
-        -- ============================================================
-        if fire_events and #deleted_items > 0 then
-            local post_data = {
-                ids = ids,
-                items = deleted_items,
-                count = #deleted_items,
-                missing = missing,
-                errors = errors,
-            }
-            
-            self:Event_fire("ItemsPostDelete", post_data)
-        end
-        
-        if #errors > 0 then
-            return true, string.format("Deleted %d items, %d errors", 
-                #deleted_items, #errors)
-        end
-        
-        return true, string.format("Deleted %d items", #deleted_items)
-    end,
-
-    --- Delete category (business level)
-     --- Delete category (business level with its own events)
-    Bus_delete_category = function(self, path, category_file, journal_file, is_force, is_nuke, is_preview)
-        -- ============================================================
-        -- COLLECT EVERYTHING FIRST
-        -- ============================================================
-        local state = self._category_index[path]
-        if not state then
-            return false, string.format("Category %s does not exist!", path)
-        end
-        
-        -- Get the node
-        local node = self:Category_rebuild_node(path)
-        if not node then
-            return false, string.format("Error retrieving node for category path %s", path)
-        end
-        
-        -- Collect all items in this category and subcategories
-        local all_ids = self:Category_get_subcat(path)
-        local items_to_delete = {}
-        
-        for _, id in ipairs(all_ids) do
-            if self._data[id] then
-                table.insert(items_to_delete, {
-                    id = id,
-                    item = self._data[id],
-                    category = self._data[id].category,
-                    title = self._data[id].title,
-                    nick = self._data[id].nick,
-                    when = self._data[id].when,
-                })
-            end
-        end
-        
-        -- Check for subcategories
-        local cats_to_delete = { path }
-        local function collect_subcats(current_node, current_path)
-            for name, child in pairs(current_node) do
-                if name ~= "_releases" then
-                    local full_path = current_path .. "/" .. name
-                    table.insert(cats_to_delete, full_path)
-                    collect_subcats(child, full_path)
-                end
-            end
-        end
-        collect_subcats(node, path)
-        
-        -- ============================================================
-        -- VALIDATE
-        -- ============================================================
-        local has_subcats = #cats_to_delete > 1
-        
-        if has_subcats and not is_nuke then
-            return false, string.format(
-                "❌ Category %s has subcategories. Use --nuke to delete recursively.", path
-            )
-        end
-        
-        if #items_to_delete > 0 and not is_force and not is_nuke then
-            return false, string.format(
-                "❌ Category %s has %d releases. Use --force to delete with releases.", 
-                path, #items_to_delete
-            )
-        end
-        
-        -- ============================================================
-        -- PRE-DELETE EVENT (Category-specific)
-        -- ============================================================
-        if not is_preview then
-            local pre_data = {
-                path = path,
-                categories = cats_to_delete,
-                category_count = #cats_to_delete,
-                items = items_to_delete,
-                item_count = #items_to_delete,
-                is_force = is_force,
-                is_nuke = is_nuke,
-            }
-            
-            local result = self:Event_fire("CategoryPreDelete", pre_data)
-            
-            if result.cancelled then
-                return false, string.format("Deletion cancelled: %s", 
-                    result.cancel_reason or "Unknown")
-            end
-        end
-        
-        -- ============================================================
-        -- PERFORM DELETION
-        -- ============================================================
-        if is_preview then
-            -- Preview mode: just return what would be deleted
-            return items_to_delete, cats_to_delete
-        end
-        
-        -- Delete items from _data (using core item deletion)
-        local deleted_items = {}
-        local errors = {}
-        
-        for _, item_info in ipairs(items_to_delete) do
-            local success, deleted = self:Item_delete(item_info.id, journal_file)
-            if success then
-                table.insert(deleted_items, deleted)
-            else
-                table.insert(errors, string.format("ID %d: %s", item_info.id, deleted))
-            end
-        end
-        
-        -- Delete categories from tree (bottom-up)
-        table.sort(cats_to_delete, function(a, b)
-            local depth_a = #self:Category_split_path(a)
-            local depth_b = #self:Category_split_path(b)
-            return depth_a > depth_b
-        end)
-        
-        for _, cat_path in ipairs(cats_to_delete) do
-            self._category_index[cat_path] = nil
-            self:Category_delete_node(cat_path)
-        end
-        
-        -- Serialize
-        self:Category_serialize(category_file)
-        
-        -- ============================================================
-        -- POST-DELETE EVENT (Category-specific)
-        -- ============================================================
+    -- ============================================================
+    -- FIRE POST-DELETE EVENTS (if enabled)
+    -- ============================================================
+    if fire_events and #deleted_items > 0 then
         local post_data = {
+            ids = ids,
+            items = deleted_items,
+            count = #deleted_items,
+            missing = missing,
+            errors = errors,
+        }
+            
+        self:Event_fire("ItemsPostDelete", post_data)
+    end
+        
+    if #errors > 0 then
+        return true, string.format("Deleted %d items, %d errors", 
+            #deleted_items, #errors)
+    end
+        
+    return true, string.format("Deleted %d items", #deleted_items)
+end
+
+
+--- Delete category (business level with its own events)
+function Bus:Bus_delete_category(path, category_file, journal_file, is_force, is_nuke, is_preview)
+    -- ============================================================
+    -- COLLECT EVERYTHING FIRST
+    -- ============================================================
+    local state = self._category_index[path]
+    if not state then
+        return false, string.format("Category %s does not exist!", path)
+    end
+        
+    -- Get the node
+    local node = self:Category_rebuild_node(path)
+    if not node then
+        return false, string.format("Error retrieving node for category path %s", path)
+    end
+        
+    -- Collect all items in this category and subcategories
+    local all_ids = self:Category_get_subcat(path)
+    local items_to_delete = {}
+        
+    for _, id in ipairs(all_ids) do
+        if self._data[id] then
+            table.insert(items_to_delete, {
+                id = id,
+                item = self._data[id],
+                category = self._data[id].category,
+                title = self._data[id].title,
+                nick = self._data[id].nick,
+                when = self._data[id].when,
+            })
+        end
+    end
+        
+    -- Check for subcategories
+    local cats_to_delete = { path }
+    local function collect_subcats(current_node, current_path)
+        for name, child in pairs(current_node) do
+            if name ~= "_releases" then
+                local full_path = current_path .. "/" .. name
+                table.insert(cats_to_delete, full_path)
+                collect_subcats(child, full_path)
+            end
+        end
+    end
+    collect_subcats(node, path)
+        
+    -- ============================================================
+    -- VALIDATE
+    -- ============================================================
+    local has_subcats = #cats_to_delete > 1
+        
+    if has_subcats and not is_nuke then
+        return false, string.format(
+            "❌ Category %s has subcategories. Use --nuke to delete recursively.", path
+        )
+    end
+        
+    if #items_to_delete > 0 and not is_force and not is_nuke then
+        return false, string.format(
+            "❌ Category %s has %d releases. Use --force to delete with releases.", 
+            path, #items_to_delete
+        )
+    end
+        
+    -- ============================================================
+    -- PRE-DELETE EVENT (Category-specific)
+    -- ============================================================
+    if not is_preview then
+        local pre_data = {
             path = path,
             categories = cats_to_delete,
             category_count = #cats_to_delete,
-            items = deleted_items,
-            item_count = #deleted_items,
+            items = items_to_delete,
+            item_count = #items_to_delete,
             is_force = is_force,
             is_nuke = is_nuke,
-            errors = errors,
         }
-        
-        self:Event_fire("CategoryPostDelete", post_data)
-        
-        if #errors > 0 then
-            return true, string.format("Deleted category %s with %d items (%d errors)", 
-                path, #deleted_items, #errors)
+            
+    local result = self:Event_fire("CategoryPreDelete", pre_data)
+            
+        if result.cancelled then
+            return false, string.format("Deletion cancelled: %s", 
+                result.cancel_reason or "Unknown")
         end
+    end
         
-        return true, string.format("Deleted category %s with %d items", path, #deleted_items)
-    end,
+    -- ============================================================
+    -- PERFORM DELETION
+    -- ============================================================
+    if is_preview then
+        -- Preview mode: just return what would be deleted
+        return items_to_delete, cats_to_delete
+    end
+        
+    -- Delete items from _data (using core item deletion)
+    local deleted_items = {}
+    local errors = {}
+        
+    for _, item_info in ipairs(items_to_delete) do
+        local success, deleted = self:Item_delete(item_info.id, journal_file)
+        if success then
+            table.insert(deleted_items, deleted)
+        else
+            table.insert(errors, string.format("ID %d: %s", item_info.id, deleted))
+        end
+    end
+        
+    -- Delete categories from tree (bottom-up)
+    table.sort(cats_to_delete, function(a, b)
+        local depth_a = #self:Category_split_path(a)
+        local depth_b = #self:Category_split_path(b)
+         return depth_a > depth_b
+    end)
+        
+    for _, cat_path in ipairs(cats_to_delete) do
+        self._category_index[cat_path] = nil
+        self:Category_delete_node(cat_path)
+    end
+        
+    -- Serialize
+    self:Category_serialize(category_file)
+        
+    --- ============================================================
+    --- POST-DELETE EVENT (Category-specific)
+    --- ============================================================
+    local post_data = {
+        path = path,
+        categories = cats_to_delete,
+        category_count = #cats_to_delete,
+        items = deleted_items,
+        item_count = #deleted_items,
+        is_force = is_force,
+        is_nuke = is_nuke,
+        errors = errors,
+    }
+        
+    self:Event_fire("CategoryPostDelete", post_data)
+        
+    if #errors > 0 then
+        return true, string.format("Deleted category %s with %d items (%d errors)", 
+            path, #deleted_items, #errors)
+    end
+        
+    return true, string.format("Deleted category %s with %d items", path, #deleted_items)
+end
 
     --- Move releases (business level)
-    Bus_move_releases = function(self, ids, new_path, journal_file)
+function Bus:Bus_move_releases(ids, new_path, journal_file)
         if type(ids) == "number" then
             ids = { ids }
         end
@@ -840,5 +841,6 @@ Bus_delete_releases = function(self, ids, journal_file, fire_events)
         end
         
         return #errors == 0, { results = results, errors = errors }
-    end,
-}
+    end
+
+return Bus
