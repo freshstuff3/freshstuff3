@@ -50,7 +50,7 @@ AllStuff.JOURNAL_FILE = journal
 AllStuff.TEST_CATEGORY = category
 
 -- Initialise data (OPTIONAL)
-AllStuff:data_init(AllStuff.JOURNAL_FILE, AllStuff.TEST_CATEGORY)
+AllStuff:data_init()
 ---
 --- END OPTIONAL SECTION
 

@@ -449,10 +449,11 @@ end
 ---@todo Add validation: ensure _category_index is not empty before saving
 ---@todo Add logging: when save happens, how many categories saved
 ---@todo Add error recovery: if save fails, keep existing file intact
-function Category:Category_serialize(filename)
+--[[function Category:Category_serialize()
     -- File does not have to exist.
-    assert(filename ~= nil and filename ~= "", "❌ File name unspecified!")
-    local tmp = filename -- os.tmpname()
+    ---@todo add atomic write
+    assert(self.TEST_CATEGORY ~= nil and self.TEST_CATEGORY ~= "", "❌ Test category unspecified!")
+    local tmp = self.TEST_CATEGORY..".tmp"
     local f, err = io.open (tmp, "w+")
     if f then
         f:write("return {\n")  
@@ -465,9 +466,53 @@ function Category:Category_serialize(filename)
         --os.rename(tmp, filename)
         return true
     end
-    return false, err -- serialisation failed
+    local rem = os.remove(self.TEST_CATEGORY)
+    if not rem then os.execute("del "..self.TEST_CATEGORY) end
+    local ren = os.rename(tmp, self.TEST_CATEGORY)
+    if not ren then os.execute("rename "..tmp.." "..self.TEST_CATEGORY) end
+    return true
+end]]
+function Category:Category_serialize()
+    -- File does not have to exist.
+    ---@todo add atomic write
+    assert(self.TEST_CATEGORY ~= nil and self.TEST_CATEGORY ~= "", "❌ Category file unspecified!")
+    local tmp = self.TEST_CATEGORY..".tmp"
+    local f, err = io.open (tmp, "w+")
+    if f then
+        f:write("return {\n")  
+        for path, _ in pairs(self._category_index) do
+            f:write ("[\""..path.."\"] = {},\r\n")
+        end
+        f:write("}\n")
+        f:flush()
+        f:close()
+        
+        -- Attempt to rename tmp to target
+        local ren = os.rename(tmp, self.TEST_CATEGORY)
+        if not ren then 
+            -- On Windows, rename might fail if file exists, try deleting target first
+            local rem = os.remove(self.TEST_CATEGORY)
+            if not rem then 
+                os.execute("del "..self.TEST_CATEGORY) 
+            end
+            ren = os.rename(tmp, self.TEST_CATEGORY)
+            if not ren then
+                os.execute("rename "..tmp.." "..self.TEST_CATEGORY)
+            end
+        end
+        
+        -- Clean up temporary file if it still exists
+        local rem_tmp = os.remove(tmp)
+        if not rem_tmp then
+            os.execute("del "..tmp)
+        end
+        
+        return true
+    end
+    
+    -- Handle case where file couldn't be opened
+    return false
 end
-
 --- ###  GET ITEMS (NON-RECURSIVE) 
 --- 
 --- Returns all items at a specific category node, not including subcategories
@@ -564,7 +609,6 @@ end
 ---
 ---@param old_path string Current category path (must exist, must be leaf)
 ---@param new_path string New category path (must not exist)
----@param journal_file string Path to journal file for journalling moves
 ---@return table|false node_new The new category node on success, false on error
 ---@return string|nil error Error message on failure, nil on success
 ---@todo Add support for renaming categories with subcategories (recursive rename)
@@ -574,7 +618,7 @@ end
 ---@todo Handle concurrent operations (lock category during rename)
 ---@todo Add support for renaming top-level categories (currently allowed)
 ---@todo Consider updating category_index for all subcategories if recursive rename is implemented
-function Category:Category_rename(old_path, new_path, journal_file, category_file)
+function Category:Category_rename(old_path, new_path)
     if self._category_index[new_path] then
         return false, "❌ Target category already exists."
     elseif not self._category_index[old_path] then
@@ -600,7 +644,7 @@ function Category:Category_rename(old_path, new_path, journal_file, category_fil
     -- Move items to new category
     table.move(node_old._releases, 1, #node_old._releases, 1, node_new._releases)
     for id, _ in ipairs(node_new._releases) do
-        self:Item_move_id(id, new_path, journal_file)
+        self:Item_move_id(id, new_path, self.JOURNAL_FILE)
     end
     self._category_index[new_path] = { dirty = false }
 
@@ -619,8 +663,8 @@ function Category:Category_rename(old_path, new_path, journal_file, category_fil
     end
     self._category_index[old_path] = nil
     -- ✅ Optional serialization (like journal_path)
-     if category_file then
-        local ok, err = self:Category_serialize(category_file)
+     if self.TEST_CATEGORY then
+        local ok, err = self:Category_serialize()
         if not ok then
             ---@bug No rollback on serialisation failure
             return false, "Serialization failed: " .. err

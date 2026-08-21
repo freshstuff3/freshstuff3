@@ -10,26 +10,24 @@ local Item = {}
 --- ## ITEMS' INITIALISATION
 --- 
 --- Replays and compacts the journal.
---- @param file string The journal to be replayed.
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
 --- 
-function Item:Item_init(file)
-    assert(file ~= nil and file ~= "", "Journal file not specified!")
-    
+function Item:Item_init()
+  
     -- Create a journal instance    
     -- Replay the file
-    local result, failed = self:Journal_replay(file)
+    local result, failed = self:Journal_replay(self.JOURNAL_FILE)
     
     if not result or #result == 0 then
         -- No data or empty journal, initialize empty
         self._data = {}
-        return true, nil
+        return true
     end
     
     -- Compact the journal (pass the data as self)
-    local compact_self = { _data = result }
-    local succ, err = self.Journal_compact(compact_self, file)
+    local compact_self = { _data = result, JOURNAL_FILE = self.JOURNAL_FILE }
+    local succ, err = self.Journal_compact(compact_self)
     
     if succ then
         self._data = result
@@ -48,7 +46,7 @@ end
 --- @return boolean success 
 --- @return string? error Error message in case of failure
 --- 
-function Item:Item_add(rel_object, journal_path)
+function Item:Item_add(rel_object)
     assert(rel_object ~= nil, "Release object unspecified!")
     if not self._category_index[rel_object.category] then
         return false, "Category does not exist! Needs to be created first..."
@@ -61,23 +59,19 @@ function Item:Item_add(rel_object, journal_path)
     -- Finally, add the item
     table.insert(self._data, rel_object)
     -- If specified, save to journal file
-    if journal_path then
-        local succ, err = self:Journal_append_add(rel_object, journal_path)
-        return succ, err
-    end
-    return true
+    local succ, err = self:Journal_append_add(rel_object)
+    return succ, err
 end
 
 --- ## MOVE ITEM BETWEEN CATEGORIES
 ---
 --- @param id integer Item ID to move
 --- @param path string New category (sanitised)
---- @param journal_file string? Optional, file path if journaling needed
 --- @return boolean success True on success, false only
 --- on serialisation failure
 --- @return string? err If serialisation failed, returns the error message
 --- 
-function Item:Item_move_id(id, path, journal_file)   
+function Item:Item_move_id(id, path)   
 -- TODO: check if the old category will become empty after move --- WHY???
 -- WE ARE REBUILDING WHEN QUERIED
     if not self._category_index[path] then
@@ -94,8 +88,8 @@ function Item:Item_move_id(id, path, journal_file)
     -- We do not serialise categories on moved IDs. Category states are not 
     -- persistent, since a restart will result in a clean slate anyway.
     -- However, we do journal the move 
-    if journal_file then
-        return self:Journal_append_move(id, path, journal_file)
+    if self.JOURNAL_FILE then
+        return self:Journal_append_move(id, path, self.JOURNAL_FILE)
     end
     return true
 end
@@ -105,13 +99,12 @@ end
 --- Lorem ipsum
 --- 
 --- 
----@param id integer ID
----@param journal_path string? Journal path (optional). No journaling happens if not stated.
+---@param id integer ID of the item to delete
 ---@return boolean success True on success
 ---@return string? err Error message
 ---@return table|string? deleted The deleted item on success, or error message on failure
 ---
-function Item:Item_delete(id, journal_path)
+function Item:Item_delete(id)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
@@ -130,12 +123,7 @@ function Item:Item_delete(id, journal_path)
     
     -- Remove from _data
     table.remove(self._data, id)
-    
-    -- Optional journaling
-    if journal_path then
-        return self:Journal_append_del(id, journal_path)
-    end
-   return true, deleted_item
+    return self:Journal_append_del(id, self.JOURNAL_FILE)
 end
 
 --- ## VALIDATE DATA ITEM 

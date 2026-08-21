@@ -193,7 +193,7 @@ function Init:create_instance()
 --- Attach data initialisation function to instance for plugins that require it
         function obj:data_init()
         -- Populate _data first
-            local success, err = self:Item_init(self.JOURNAL_FILE)
+            local success, err = self:Item_init()
             if not success then
                 self._data = {}
                 return false, "ERROR: Item_init failed: "..err

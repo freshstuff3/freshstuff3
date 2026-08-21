@@ -36,9 +36,9 @@ local Journal = {}
 --- @param str string The line to write
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
-function Journal:Journal_append(filename, data)
-    print("Writing to journal:", filename, "action:", data.action)  -- DEBUG
-    local f, err = io.open(filename,"ab")
+function Journal:Journal_append(data)
+    print("Writing to journal:", self.JOURNAL_FILE, "action:", data.action)  -- DEBUG
+    local f, err = io.open(self.JOURNAL_FILE,"ab")
     if f then
         local packed = msgpack.pack(data)
         print("Packed size:", #packed, "bytes")  -- DEBUG
@@ -61,9 +61,9 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Returns error message in case of failure
-function Journal:Journal_append_add(obj, journal_file)
-    if not (obj and journal_file) then
-        return false, "Release object and/or journal file not specified!"
+function Journal:Journal_append_add(obj)
+    if not obj then
+        return false, "Release object not specified!"
     end 
         local data = {
         action = "add",
@@ -72,7 +72,7 @@ function Journal:Journal_append_add(obj, journal_file)
         when = obj.when,
         title = obj.title
     }
-    return self:Journal_append(journal_file, data)
+    return self:Journal_append(self.JOURNAL_FILE, data)
 
 end
 
@@ -81,18 +81,17 @@ end
 --- Delete action journalling
 --- 
 --- @param id integer ID of item to be deleted 
---- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return string|nil err Error message in case of failure
-function Journal:Journal_append_del(id, journal_file)
-    if not (id and journal_file) then
+function Journal:Journal_append_del(id)
+    if not (id and self.JOURNAL_FILE) then
         return false, "Release ID and/or journal file not specified!"
     end
     local data = {
         action = "delete",
         id = id
     }
-    return self:Journal_append(journal_file, data)
+    return self:Journal_append(self.JOURNAL_FILE, data)
 end
 
 --- ---- JOURNAL APPEND: MOVE ----
@@ -104,16 +103,16 @@ end
 --- @param journal_file string Journal file path 
 --- @return boolean success True on success, false on error
 --- @return table|string? err Error message in case of failure
-function Journal:Journal_append_move(id, new_category, journal_file)
-    if not (id and journal_file and new_category) then
-        return false, "Release object and/or journal file and/or new category not specified!"
+function Journal:Journal_append_move(id, new_category)
+    if not (id and new_category) then
+        return false, "Release object and/or new category not specified!"
     end
     local data = {
         action = "move",
         id = id,
         new_category = new_category
     }
-    return self:Journal_append(journal_file, data)
+    return self:Journal_append(data)
 end
 
 --- # COMPACTING JOURNAL 
@@ -121,16 +120,13 @@ end
 --- Only runs on script restart
 --- 
 --- 
---- @param journal_file string Filename. 
 --- @return boolean success True if success, false if failure
---- @return string|nil error In case of failure, returns error message
-function Journal:Journal_compact(journal_file)
-    assert(journal_file ~= nil, "Journal file not specified!")
-    -- Write to temp file first
-        local temp = journal_file .. ".compact.tmp" --os.tmpname()
-    
+--- @return string? error In case of failure, returns error message
+function Journal:Journal_compact()
+    local temp = self.JOURNAL_FILE .. ".compact.tmp"
     local f, err = io.open(temp, "wb")
     if not f then return false, err end
+    
     for id, obj in ipairs(self._data) do
         local data = {
             action = "add",
@@ -143,11 +139,24 @@ function Journal:Journal_compact(journal_file)
     end
     f:flush()
     f:close()
+    
     -- Write succeeded, replace previous journal file with temp
-    os.rename(temp, journal_file)
-    return true, nil
+    local rem = os.remove(self.JOURNAL_FILE)
+    if not rem then os.execute("del "..self.JOURNAL_FILE) end
+    
+    local ren = os.rename(temp, self.JOURNAL_FILE)
+    if not ren then 
+        os.execute("rename "..temp.." "..self.JOURNAL_FILE)
+    end
+    
+    -- Clean up temporary file if it still exists
+    local rem_tmp = os.remove(temp)
+    if not rem_tmp then
+        os.execute("del "..temp)
+    end
+    
+    return true
 end
-
 --- JOURNAL REPLAY
 --- 
 --- @param journal_file string Journal file to be used
@@ -157,10 +166,8 @@ end
 --- otherwise successful replay or error string added to array or error.
 --- On total success, returns empty table
 --- 
-function Journal:Journal_replay(journal_file)
-    assert(journal_file ~= nil,
-             "Journal file not specfied")
-    local f, err = io.open(journal_file, "rb")
+function Journal:Journal_replay()
+    local f, err = io.open(self.JOURNAL_FILE, "rb")
     if f then
         local _data = {}
         local failed = {}
@@ -197,10 +204,9 @@ function Journal:Journal_replay(journal_file)
         
         return _data, failed
     else
-        return {}, { ""..err.."" }
+        return false, err
     end
 end
-
 
 
 return Journal
