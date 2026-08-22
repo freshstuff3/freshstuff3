@@ -48,129 +48,124 @@ AllStuff:merge('plugins.release.bus_delete')
 -- Declare category and journal file (OPTIONAL)
 AllStuff.JOURNAL_FILE = journal
 AllStuff.TEST_CATEGORY = category
-AllStuff.MESSAGE_BASE = 
+AllStuff.HP = 
     "[freshstuff3-releases]> Hello! You summoned me...\r\n"..
-    string.rep("-", 50).."\r\n"
-
+    string.rep("=", 50).."\r\n"
+AllStuff.P = "[freshstuff3-releases]> "
 -- Initialise data (OPTIONAL)
 AllStuff:data_init()
----
 --- END OPTIONAL SECTION
+--[[ 
 
---- Command registration
---- 
---- STRUCTURE:
---- 
---- ```lua
---- cmds["rel.show"] = {
---- 
----     aliases = { -- Will be configuration variable, temporary declaration
----                 "rel.tree", "AllStuff", "AllStuff"
----               },
---- 
----     level = 4,
---- 
----     helptext = 
----     [[ 
----         Show AllStuff in a hierarchical tree view.
----         Supports categories, numbers, time ranges, and ID lists.
----    
----         Examples:
----             !rel.show              - Latest 10 AllStuff
----             !rel.show Music        - Music category
----             !rel.show 1,2,3        - Specific IDs
----             !rel.show 1-10         - ID range
----             !rel.show 44d          - Last 44 days
----     ]],
----     
----     function (str) 
----         return "something" 
----     end 
---- }
---- ```
---- 
----@todo 
---- - aliases and help as configuration variables, declared here temporarily only
---- - sorting order
---- - [x] Command: !rel.show [argument]
----       No argument   → show latest 25 (configurable default)
----       <category>    → show AllStuff in category (tree view)
----       <number>      → show latest N AllStuff
----       <Nd/Nw/Nm>    → show AllStuff from last N days/weeks/months
----       all           → show all AllStuff
----       --md          → output as markdown instead of tree
----       --md=sort     → markdown with sorting (sn, sw, st, rsn, rsw, rst)
----
---- - [ ] Command: !rel.search <query> [--md] [--md=sort]
----       Search by title (case-insensitive, partial match)
----       Optional: --md for markdown output
----
---- - [ ] Command: !rel.add <category> <title> [nick]
----       Add new release
----
---- - [ ] Command: !rel.delete <id>
----       Delete release by ID
----
---- - [ ] Command: !rel.move <id> <new_category>
----       Move release to different category
----
---- - [ ] Command: !rel.cat
----       List all categories (with counts)
----
---- - [ ] Command: !rel.info <id>
----       Show detailed info for a release
----
---- - [ ] Command: !rel.stats
----       Show statistics (total items, categories, etc.)
+Command registration
+
+STRUCTURE:
+
+```lua
+cmds["rel.show"] = {
+
+    aliases = { -- Will be configuration variable, temporary declaration
+                "rel.tree", "AllStuff", "AllStuff"
+              },
+
+    level = 4,
+
+    helptext = 
+    
+        Show AllStuff in a hierarchical tree view.
+        Supports categories, numbers, time ranges, and ID lists.
+   
+        Examples:
+            !rel.show              - Latest 10 AllStuff
+            !rel.show Music        - Music category
+            !rel.show 1,2,3        - Specific IDs
+            !rel.show 1-10         - ID range
+            !rel.show 44d          - Last 44 days
+    ,
+    
+    function (str) 
+        return "something" 
+    end 
+}
+```
+
+@todo 
+- aliases and help as configuration variables, declared here temporarily only
+- sorting order
+- [x] Command: !rel.show [argument]
+      No argument   → show latest 25 (configurable default)
+      <category>    → show AllStuff in category (tree view)
+      <number>      → show latest N AllStuff
+      <Nd/Nw/Nm>    → show AllStuff from last N days/weeks/months
+      all           → show all AllStuff
+      --md          → output as markdown instead of tree
+      --md=sort     → markdown with sorting (sn, sw, st, rsn, rsw, rst)
+
+- [ ] Command: !rel.search <query> [--md] [--md=sort]
+      Search by title (case-insensitive, partial match)
+      Optional: --md for markdown output
+
+- [ ] Command: !rel.add <category> <title> [nick]
+      Add new release
+
+- [ ] Command: !rel.delete <id>
+      Delete release by ID
+
+- [ ] Command: !rel.move <id> <new_category>
+      Move release to different category
+
+- [ ] Command: !rel.delcat <category>
+      delete category with --force and --nuke 
+ ]]
+
+function AllStuff:Bus_dispatch_args(str, format)
+    format = format or "tree"
+    -- Parse str
+    if not str or str == "" then
+        return self.HP..self:Bus_show_new(10, format)
+    end
+    
+    if str == "new" then
+        return self.HP..self:Bus_show_new(25, format)
+    end
+    
+    if str == "all" then
+        return self.HP..self:Bus_show_new(#self._data, format)
+    end
+    
+    local num = tonumber(str)
+    if num then
+        return self.HP..self:Bus_show_new(num, format)
+    end
+    
+    local tm = str:match("^(%d+[dwm])$")
+    if tm then
+        return self.HP..self:Bus_show_newer_than(tm, format)
+    end
+    ---@todo sanitise
+    if self._category_index[str] then
+        return self.HP..self:Bus_show_by_category(str, format)
+    end
+    if next(self:UI_split_ids(str)) then
+        return self.HP..self:Bus_show_range(str, format)
+    end
+    -- Fall back to search if no other match
+    return self.HP..self:Bus_search(str, format)
+end
 
 AllStuff._cmd_handlers = {
     ["rel.get"] = { 
 
     ---@todo CONFIG_VAR
-    aliases = { "releases", "rel.show" },
+    aliases = { "releases", "rel.show", "rel.search" },
 
     ---@todo CONFIG_VAR
     level = 1,
 
     func = function(self, str)
-        str = str or ""
-        str = str:gsub("^%s+", ""):gsub("%s+$", "")
-
-            -- Parse str
-            if str == "" then
-                return self.MESSAGE_BASE..self:Bus_show_new(25)
-            end
-            
-            if str == "new" then
-                return self.MESSAGE_BASE..self:Bus_show_new(25)
-            end
-            
-            if str == "all" then
-                return self.MESSAGE_BASE..self:Bus_show_new(#self._data)
-            end
-            
-            local num = tonumber(str)
-            if num then
-                return self.MESSAGE_BASE..self:Bus_show_new(num)
-            end
-            
-            local tm = str:match("^(%d+[dwm])$")
-            if tm then
-                return self.MESSAGE_BASE..self:Bus_show_newer_than(tm)
-            end
-            ---@todo: sanitise
-            if self._category_index[str] then
-                return self.MESSAGE_BASE..self:Bus_show_in_category(str)
-            end
-
-            if next(self:UI_split_ids(str)) then
-                return self.MESSAGE_BASE..self:Bus_show_range(str)
-            end   
-            return self.MESSAGE_BASE..self:Bus_search(str)
+        return self:Bus_dispatch_args(str, "tree")
     end
     },
-
-
 
     ["rel.md"] = {
 
@@ -185,91 +180,63 @@ AllStuff._cmd_handlers = {
     ---    The raw string separated from preceding command by whitespace(s).
     --- 
     func = function (self, str)
-        local format = "md"
-        str = str or ""
-        str = str:gsub("^%s+", ""):gsub("%s+$", "")
-
-            -- Parse str
-            if str == "" then
-                return self.MESSAGE_BASE..self:Bus_show_new(10, format)
-            end
-            
-            if str == "new" then
-                return self.MESSAGE_BASE..self:Bus_show_new(25, format)
-            end
-            
-            if str == "all" then
-                return self.MESSAGE_BASE..self:Bus_show_new(#self._data, format)
-            end
-            
-            local num = tonumber(str)
-            if num then
-                return self.MESSAGE_BASE..self:Bus_show_new(num, format)
-            end
-            
-            local tm = str:match("^(%d+[dwm])$")
-            if tm then
-                return self.MESSAGE_BASE..self:Bus_show_newer_than(tm, format)
-            end
-            ---@todo sanitise
-            if self._category_index[str] then
-                return self.MESSAGE_BASE..self:Bus_show_in_category(str, format)
-            end
-            if next(self:UI_split_ids(str)) then
-                return self.MESSAGE_BASE..self:Bus_show_range(str, format)
-            end
-            return self.MESSAGE_BASE..self:Bus_search(str, format)
+        return self:Bus_dispatch_args(str, "md")
     end
     },
 
-    --- Details of self
-    --- 
-    ---@param str string 
-    ---    The raw string separated from preceding command by whitespace(s).
-    --- 
+
     ["rel.details"] = {
     ---@todo config
     level = 1,
 
     aliases = { "reldetails" },
+    --- 
+    ---@param str string 
+    ---    The raw string separated from preceding command by whitespace(s).
+    --- 
     func = function(self, str)
-        local result = self:Bus_show_range(str, "detail")
-        return self.MESSAGE_BASE..result
+        return self.HP..self:Bus_show_range(str, "detail")
     end
     },
 
     ["rel.cat"] = {
+
     ---@todo config
     level = 1,
 
     aliases = { "rel.category" },
 
     func = function(self, str)
-        if self._category_index[str] then
-            return self.MESSAGE_BASE .. 
-            "🌳 TREE VIEW OF " .. str .. "\r\n\r\n" .. 
-            self:Bus_show_category_tree(str)
-        elseif not str or str == "" then
-            return self.MESSAGE_BASE .. 
+        if not str or str == "" then
+            return self.HP .. 
             "🌳 TREE VIEW OF ALL THE CATEGORIES:\r\n\r\n"..
             self:Bus_show_category_tree()
+        end
+        local succ, path = self:Category_process_path(str:match("(%S+)"))
+        if succ and self._category_index[path] then
+            return self.HP .. 
+            "🌳 TREE VIEW OF CATEGORY " .. path .. "\r\n" ..
+            string.rep("=", 50) .. "\r\n" ..self:Bus_show_category_tree(path)
         else
-            return self.MESSAGE_BASE ..
+            return self.HP ..
             "❌ Category not found: " .. str
         end
     end
     },
+
+
+    ["rel.fake"] = {
+    ---@todo config
+
+    aliases = { "fakerel" },
+
+    level = 1,
+
     --- Fake data generator
     --- 
     ---@param number integer 
     ---    Desired number of fake items to be created.
     --- 
-    ["rel.fake"] = {
-
-    aliases = { "fakerel" },
-
-    level = 1,  
-
     func = function(self, number)
         local count = tonumber(number) or 100
         if count < 1 then
@@ -284,8 +251,30 @@ AllStuff._cmd_handlers = {
         end
         return msg
     end
+    
+},
+---@todo add delete, move, category delete/rename
+--- Store the above in package.loaded upon require
+--- 
+--- Delete releases
+--- 
+    ["rel.del"] = {
+    
+    func = function (self, str)
+        local id  = tonumber(str)
+        if id then -- single item
+            local succ, err = self:Item_delete(id)
+            if succ then return self:UI_render(id, "detail")
+            else return err end
+        end
+        if id:find("%d+,") or id:find(("%d+%-%d+")) then --range
+            return
+        end
+    end,
+
+    level = 3,
+
+    aliases = { "delrel", "reldelete" }
     }
 }
-
---- Store the above in package.loaded upon require
 return AllStuff

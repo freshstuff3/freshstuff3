@@ -1,7 +1,10 @@
--- core/events.lua
--- Global event system - nothing instance-specific
+--- core/events.lua
+--- Global event system - nothing instance-specific
 --[[
--- Registration
+
+Registration
+
+
 xxx._event_handlers = {
     CategoryPostDelete = {
         {
@@ -18,14 +21,11 @@ xxx._event_handlers = {
                 -- handle event
             end
         },
-        {
-            priority = 1,
-            func = function(self, data)
-                -- another handler for same event
-            end
-        }
     }
 }
+
+One handler per event, except for timers.
+
 ]]
 
 local Event = {}

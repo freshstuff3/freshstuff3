@@ -89,15 +89,7 @@ function Item:Item_add(obj)
     return succ, err
 end
 
-function Item:get(id)
-    if not id then
-        return nil, "ID not specified"
-    end
-    if not self._data[id] then
-        return nil, string.format("Item with ID %d does not exist", id)
-    end
-    return self._data[id]
-end
+
 
 --- ## MOVE ITEM BETWEEN CATEGORIES
 ---
@@ -162,24 +154,47 @@ function Item:Item_delete(id)
     return self:Journal_append_del(id, self.JOURNAL_FILE)
 end
 
+--- Retrieve items from database by ID
+---@param ids table List of IDs to retrieve, single ID can be passed as a number
+---@return table items Items retrieved from the database
+---@return table notfound IDs not found in the database
+function Item:get(ids)
+    ids = tonumber(ids) and { ids } or ids
+    if type(ids) ~= "table" then
+        return false, "Invalid IDs parameter"
+    end
+    local items = {}
+    local notfound = {}
+    for _, id in ipairs(ids) do
+        local obj = self._data[id]
+        if obj then
+            obj._id = id
+            table.insert(items, obj)
+
+        else
+            table.insert(notfound, id)
+        end
+    end
+    return items, notfound
+end
 --- ## VALIDATE DATA ITEM 
 --- 
---- Lorem ipsum
+--- Data item validation before adding to database
 --- 
 --- 
----@param item string item to validate
+---@param title string Title of the item to validate
 ---@return boolean success If true, validation succeeded
----@return string? err error message, if validation failed
+---@return string? err Error message, if validation failed
 ---
-function Item:Item_validate_title(item)
+function Item:Item_validate_title(title)
     -- sanitize: not needed
     ---@todo : config variable for FORBIDDEN
     -- local FORBIDDEN = require "config".FORBIDDEN or {}
     -- Check new item for forbidden words first
     ---@type table
-    local FORBIDDEN = FORBIDDEN or { "shit" }
-    for _, word in ipairs(FORBIDDEN) do
-        if string.find(item:lower(), word:lower(), 1, true) then 
+    local _FORBIDDEN = FORBIDDEN or { "shit" }
+    for _, word in ipairs(_FORBIDDEN) do
+        if string.find(title:lower(), word:lower(), 1, true) then
             return false, string.format("Forbidden word detected %s", word)
         end
     end
@@ -187,16 +202,15 @@ function Item:Item_validate_title(item)
     -- We only traverse _data if no forbidden words
     -- Check for 100% match
     for id, rel in ipairs(self._data) do
-        if item:lower() == rel.title:lower() then
+        if title:lower() == rel.title:lower() then
             return false, 
             string.format ("Item with the same name already exists in "..
-            "database. Its ID is:\r\n\r\n%d", 
+            "database. Its ID is:\r\n\r\n%d",
             id)
         end
-    end 
-    return true 
+    end
+    return true
 end
-
 
 --- ## ITEM SEARCH
 ---
@@ -221,7 +235,7 @@ function Item:Item_search(query)
         if #result_cat ~= 0 then return {}, result_cat end
     end
     for id, obj in ipairs(self._data) do
-        if obj.nick:lower():match(query:lower(), 1, true) or 
+        if obj.nick:lower():match(query:lower(), 1, true) or
         obj.title:lower():match(query:lower(), 1, true) then
             table.insert(result, id)
         end

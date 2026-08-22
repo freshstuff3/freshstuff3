@@ -1,165 +1,378 @@
 --- core/ui.lua
---- 
+--- Data visualiser core module for FreshStuff3
+
+--[[ 
+# Data visualiser core module for FreshStuff3
+(part 1 of 2)
+
+Provides ASCII tree, Markdown table, and detailed item views.
+
+## PUBLIC: UNIFIED RENDERER
+Unified renderer for all output formats
+
+This is the main entry point for rendering. It handles:
+  - "tree"  : ASCII tree with emojis (default)
+  - "md"    : Markdown table with ID, Category, Title, Nick, Age
+  - "detail": Detailed multi-line view with full item info
+All rendering functions take a list of release IDs
+and return formatted strings ready for display.
+
+Usage:
+  -- Get IDs (e.g., latest 10 items)
+  local ids = {}
+  for i = -- fix this later
+      table.insert(ids, i)
+  end
+  
+  -- Render as tree (default)
+  local output = UI.render(ids, Item)
+  
+  -- Or get category IDs and render as markdown
+  local music_ids = Category:get_subcat("Music", Item)
+  local output = UI.render(music_ids, Item, "md", "st")
+
+ Output formats (via render()):
+   - `tree`   - ASCII tree with emojis (📁 categories, ✅ releases)
+   - `md`    - Markdown table with ID, Category, Title, Nick, Age
+   - `detail` - Detailed multi-line view with full item info
+
+ Sort options (for md/detail):
+
+ Default sort order is oldest first.
+    -  c   : chronological (oldest first) - default
+    -  r   : reverse chronological (newest first)
+    -  sn  : sort by nick (ascending)
+    -  rsn : reverse sort by nick (descending)
+    -  st  : sort by title (ascending)
+    -  rst : reverse sort by title (descending)
+
+
+## MARKDOWN OUTPUT
+
+```text
+    | ID | Category | Title |
+    |----|----------|-------|
+    | 1 | Music | Greatest Hits Vol 1 |
+    | 2 | Music | Ambient Sounds |
+    | 3 | Movies | Classic Collection |
+    | 4 | TV | Complete Series |
+    | 5 | Music/Metal | Eternal Darkness |
+    | 6 | Music/Jazz | Midnight Sax |
+    | 7 | Music/Jazz | Blue Note Sessions |
+    | 8 | Music/Classical | Beethoven's 9th |
+    | 9 | Music/Classical | Moonlight Sonata |
+    | 10 | Movies/Horror | The Cabin In The Woods |
+    | 11 | Movies/Horror | Friday Night Massacre |
+    | 12 | Movies/Sci-Fi | Interstellar Voyage |
+    | 13 | Movies/Sci-Fi | The Android's Dream |
+    | 1293 | ID not found | ID not found |
+```
+
+## DETAILED LIST
+
+```text
+[freshstuff3-releases]> Hello! You summoned me...
+--------------------------------------------------
+🔬 DETAILED VIEW OF ALL THE ITEMS IN THE 19,88,643,9999 RANGE
+↕️ SORTING ORDER: chronological / order of added IDs (default)
+
+Details of requested item(s):
+
+--------------------------------------------------------------------------------
+✅ ID: 19
+        📁 Category: Music/Rock/Classic-Rock
+        📝 Title: Hey Jude 
+        👤 Added by: Audiophile
+        📅 Added on: 2025-Aug-09 14:11 (54.0 weeks ago)
+--------------------------------------------------------------------------------
+✅ ID: 88
+        📁 Category: TV/Animation/Anime
+        📝 Title: Dream 
+        👤 Added by: RobotLover
+        📅 Added on: 2025-Feb-14 05:50 (79.2 weeks ago)
+--------------------------------------------------------------------------------
+✅ ID: 643
+        📁 Category: Music/Jazz/Fusion
+        📝 Title: Midnight Basss 
+        👤 Added by: JazzLover
+        📅 Added on: 2025-Oct-23 05:52 (43.4 weeks ago)
+--------------------------------------------------------------------------------
+
+The following IDs have not been found in the database:
+--------------------------------------------------------------------------------
+9999
+```
+
+# ASCII TREE OF CATEGORIES, NO ID LIST
+
+```
+    [freshstuff3-releases]> Hello! You summoned me...
+    --------------------------------------------------
+    🌳 TREE VIEW OF Movies
+
+    📁 Movies (322 releases)
+        ├── 📁 Movies/Comedy (69 releases)
+        │   ├── 📁 Movies/Comedy/Rom-Com (20 releases)
+        │   ├── 📁 Movies/Comedy/Satire (19 releases)
+        │   └── 📁 Movies/Comedy/Slapstick (14 releases)
+        ├── 📁 Movies/Drama (83 releases)
+        │   ├── 📁 Movies/Drama/Contemporary (24 releases)
+        │   ├── 📁 Movies/Drama/Crime (22 releases)
+        │   └── 📁 Movies/Drama/Period (18 releases)
+        ├── 📁 Movies/Horror (69 releases)
+        │   ├── 📁 Movies/Horror/Psychological (22 releases)
+        │   ├── 📁 Movies/Horror/Slasher (14 releases)
+        │   └── 📁 Movies/Horror/Supernatural (11 releases)
+        └── 📁 Movies/Sci-Fi (74 releases)
+            ├── 📁 Movies/Sci-Fi/Cyberpunk (10 releases)
+            ├── 📁 Movies/Sci-Fi/Post-Apocalyptic (22 releases)
+            └── 📁 Movies/Sci-Fi/Space-Opera (20 releases)
+```
+
+### TREE WITH IDS:
+
+```
+[freshstuff3-releases]> Hello! You summoned me...
+--------------------------------------------------
+🌳 TREE VIEW OF ALL THE ITEMS IN Music (TOTAL: 408)
+↕️ SORTING ORDER: chronological / order of added IDs (default)
+
+└── 📁 Music (5 releases)
+    ├── ✅ ID: 48 Chronicles Eternal 132
+    ├── ✅ ID: 176 Civilization 692
+    ├── ✅ ID: 712 Nightmare Volume 2 Stories 180
+    ├── ✅ ID: 871 The Matrix 435
+    ├── ✅ ID: 938 Essential Revolutionary Echoes 154
+    ├── 📁 Music/Classical (3 releases)
+    │   ├── ✅ ID: 46 Myth Volume 3 Infinite 6
+    │   ├── ✅ ID: 82 The Shawshank Redemption 203
+    │   ├── ✅ ID: 205 Stories Essential 152
+    │   ├── 📁 Music/Classical/Baroque (2 releases)
+    │   │   ├── ✅ ID: 61 Modern Volume 2 255
+    │   │   ├── ✅ ID: 296 The End The Best Of Revolutionary 289
+    │   ├── 📁 Music/Classical/Modern (2 releases)
+    │   │   ├── ✅ ID: 45 Reality 379
+    │   │   ├── ✅ ID: 111 Classic Epic 782
+    │   └── 📁 Music/Classical/Romantic (1 releases)
+    │       └── ✅ ID: 1549 Volume 2 299
+    ├── 📁 Music/Electronic (2 releases)
+    │   ├── ✅ ID: 94 Awakening 629
+    │   ├── ✅ ID: 137 Tales 240
+    │   ├── 📁 Music/Electronic/House (1 releases)
+    │   │   ├── ✅ ID: 90 Ultimate Collection 612
+    │   └── 📁 Music/Electronic/Techno (2 releases)
+    │       ├── ✅ ID: 318 Awakening Volume 2 585
+    │       ├── ✅ ID: 388 Rebirth Epic 605
+```
+
+### HANDLING OF NONEXISTENT IDs
+
+If such IDs are specified, something like this is appended to each view:
+
+```
+The following IDs have not been found in the database:
+-------------------------------------------------------------------------------
+27, 28, 29, 30, 31, 32, 33, 34, 35
+```
+ ]]
+
 local UI = {}
---- # UI rendering module for FreshStuff3
---- 
---- Provides ASCII tree, Markdown table, and detailed item views.
---- 
---- ## PUBLIC: UNIFIED RENDERER
---- Unified renderer for all output formats
---- 
---- This is the main entry point for rendering. It handles:
----   - "tree"  : ASCII tree with emojis (default)
----   - "md"    : Markdown table with ID, Category, Title, Nick, Age
----   - "detail": Detailed multi-line view with full item info
---- All rendering functions take a list of release IDs
---- and return formatted strings ready for display.
----
---- Usage:
----   local UI = require "core.ui"
----   local Category = require "core.category"
----   
----   -- Get IDs (e.g., latest 10 items)
----   local ids = {}
----   for i = #Item._data, math.max(1, #Item._data - 9), -1 do
----       table.insert(ids, i)
----   end
----   
----   -- Render as tree (default)
----   local output = UI.render(ids, Item)
----   
----   -- Or get category IDs and render as markdown
----   local music_ids = Category:get_subcat("Music", Item)
----   local output = UI.render(music_ids, Item, "md", "st")
---- 
--- Output formats (via render()):
---   - `tree`   - ASCII tree with emojis (📁 categories, ✅ releases)
---   - `md`    - Markdown table with ID, Category, Title, Nick, Age
---   - `detail` - Detailed multi-line view with full item info
---
--- Sort options (for md/detail):
----   sn  : sort by nick (ascending)
----   sw  : sort by when (ascending)
----   st  : sort by title (ascending)
----   rsn : reverse sort by nick
----   rsw : reverse sort by when (newest first)
----   rst : reverse sort by title
----   r   : reverse by ID
---- 
---- ## MARKDOWN OUTPUT
---- 
---- ```text
---- | ID | Category | Title |
---- |----|----------|-------|
---- | 1 | Music | Greatest Hits Vol 1 |
---- | 2 | Music | Ambient Sounds |
---- | 3 | Movies | Classic Collection |
---- | 4 | TV | Complete Series |
---- | 5 | Music/Metal | Eternal Darkness |
---- | 6 | Music/Jazz | Midnight Sax |
---- | 7 | Music/Jazz | Blue Note Sessions |
---- | 8 | Music/Classical | Beethoven's 9th |
---- | 9 | Music/Classical | Moonlight Sonata |
---- | 10 | Movies/Horror | The Cabin In The Woods |
---- | 11 | Movies/Horror | Friday Night Massacre |
---- | 12 | Movies/Sci-Fi | Interstellar Voyage |
---- | 13 | Movies/Sci-Fi | The Android's Dream |
---- | 1293 | ID not found | ID not found |
---- ```
----
---- ## DETAILED LIST
---- 
---- ```text
---- ===============================================================================
---- Details of requested item(s):
---- ===============================================================================
---- 
---- -------------------------------------------------------------------------------
---- ID: 2
---- Category: Music
---- Title: Ambient Sounds
---- Added by: Audiophile
---- Added on: 2026-Jul-13 13:58 (age: 4.6 weeks)
---- -------------------------------------------------------------------------------
---- ID: 8
---- Category: Music/Classical
---- Title: Beethoven's 9th
---- Added by: Maestro
---- Added on: 2026-Jul-13 20:58 (age: 4.5 weeks)
---- -------------------------------------------------------------------------------
---- ID: 7
---- Category: Music/Jazz
---- Title: Blue Note Sessions
---- Added by: SmoothOperator
---- Added on: 2026-Jul-13 19:58 (age: 4.6 weeks)
---- -------------------------------------------------------------------------------
---- ID: 3
---- Category: Movies
---- Title: Classic Collection
---- Added by: FilmBuff
---- Added on: 2026-Jul-13 14:58 (age: 4.6 weeks)
---- -------------------------------------------------------------------------------
---- ```
---- 
---- # ASCII TREE
---- 
---- ```text
----    ├── Music (2 releases)
----    │   ├── ID:1 Greatest Hits Vol 1
----    │   └── ID:2 Ambient Sounds
----    │   ├── Music/Classical (2 releases)
----    │   │   ├── ID:9 Beethoven's 9th
----    │   │   └── ID:10 Moonlight Sonata
----    │   │   └── Music/Classical/Romantic (2 releases)
----    │   │       ├── ID:21 Liebesträume
----    │   │       └── ID:22 Nocturnes
----    │   └── Music/Metal (3 releases)
----    │       └── ID:5 Screaming Into The Void
----    └── TV (1 releases)
----        ├── ID:4 Complete Series
----        └── TV/Animation (2 releases)
----            ├── ID:15 The Animated Series
----            └── ID:16 Epic Ninja Saga
---- 
---- ```
---- ## HANDLING OF NONEXISTENT IDs
---- 
---- If such IDs are specified, something like this is appended to each view:
---- ```text
---- The following IDs have not been found in the database:
---- -------------------------------------------------------------------------------
---- 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
---- ```
---- 
+
+--- ============================================================
+--- CONSTANTS
+--- ============================================================
+
+--- Sort order mapping
+local SORT_MAP = {
+    c   = function(a, b) return a._id < b._id end,  -- chronological (default)
+    sn  = function(a, b) return a.nick > b.nick end,
+    st  = function(a, b) return a.title > b.title end,
+    rsn = function(a, b) return b.nick > a.nick end,
+    rst = function(a, b) return b.title > a.title end,
+    r   = function(a, b) return a._id > b._id end
+}
+
+--- Sort order names for display
+local SORT_NAMES = {
+    c = "chronological (oldest on top)",
+    sn  = "owner's nick",
+    st  = "item title",
+    rsn = "owner's nick, reverse",
+    rst = "item title, reverse",
+    r   = "reverse chronological (newest on top)",
+}
+
+-- ============================================================
+-- HEADER HELPERS (internal)
+-- ============================================================
+
+--- Get format display name
+---@param format string "tree"|"md"|"detail"
+---@return string
+local function get_format_name(format)
+    local names = {
+        tree = "🌳 TREE VIEW",
+        md = "📋 MARKDOWN VIEW",
+        detail = "🔬 DETAILED VIEW"
+    }
+    return names[format] or "VIEW"
+end
+
+--- Get sort order display line
+---@param sort_order string|nil
+---@return string
+local function get_sort_line(sort_order)
+    local name = SORT_NAMES[sort_order] or SORT_NAMES["c"]
+    return "↕️ SORTING ORDER: " .. name
+end
+
+--- Join header parts with separator
+---@param parts table Array of strings
+---@return string
+local function join_header(parts)
+    -- Filter out empty parts
+    local filtered = {}
+    for _, part in ipairs(parts) do
+        if part ~= "" then
+            table.insert(filtered, part)
+        end
+    end
+    return table.concat(filtered, "\r\n") .. "\r\n" .. string.rep("=", 50) .. "\r\n"
+end
+
+-- ============================================================
+-- HEADER BUILDERS (public)
+-- ============================================================
+
+--- Build header for search results
+---@param query string
+---@param format string
+---@param sort_order string|nil
+---@return string
+function UI:UI_header_search(query, format, sort_order)
+    local parts = {
+        "🔎 SEARCH RESULTS",
+        "🧐 QUERY: " .. query,
+        "👀 VIEW: " .. get_format_name(format),
+        get_sort_line(sort_order),
+    }
+    return join_header(parts)
+end
+
+--- Build header for latest items
+---@param count number
+---@param total number
+---@param format string
+---@param sort_order string|nil
+---@return string
+function UI:UI_header_latest(count, total, format, sort_order)
+    local label = (count >= total) and "ALL THE ITEMS" or string.format("THE LATEST %d ITEMS", count)
+    if count >= total then
+        label = string.format("%s ( TOTAL: %d )", label, total)
+    end
+    local parts = {
+        get_format_name(format) .. " OF " .. label,
+        get_sort_line(sort_order),
+    }
+    return join_header(parts)
+end
+
+--- Build header for ID range
+---@param range string
+---@param format string
+---@param sort_order string|nil
+---@return string
+function UI:UI_header_range(range, format, sort_order)
+    local parts = {
+        get_format_name(format) .. " OF ALL THE ITEMS IN THE " .. range .. " RANGE",
+        get_sort_line(sort_order),
+    }
+    return join_header(parts)
+end
+
+--- Build header for "newer than" time window
+---@param time_window string
+---@param format string
+---@param sort_order string|nil
+---@return string
+function UI:UI_header_newer(time_window, format, sort_order)
+    local number, mult = time_window:match("^(%d+)([dwm])$")
+    local mult_tbl = { d = "day(s)", w = "week(s)", m = "month(s)" }
+    local label = string.format("ITEMS FROM THE LAST %d %s", tonumber(number) or 0, mult_tbl[mult] or "day(s)")
+    local parts = {
+        get_format_name(format) .. " OF " .. label,
+        get_sort_line(sort_order),
+    }
+    return join_header(parts)
+end
+
+--- Build header for category view
+---@param path string
+---@param count number
+---@param format string
+---@param sort_order string|nil
+---@return string
+function UI:UI_header_category(path, count, format, sort_order)
+    local parts = {
+        get_format_name(format) .. " OF ALL THE ITEMS IN " .. path .. " (TOTAL: " .. count .. ")",
+        get_sort_line(sort_order),
+    }
+    return join_header(parts)
+end
+
+--- Build header for deletion preview and result
+---@return string
+function UI:UI_header_delete(is_preview)
+    local label = is_preview and "PREVIEW" or "COMPLETE"
+    return "CATEGORY DELETION " .. label .. "\r\n" .. string.rep("=", 50) .. "\r\n"
+end
+
+-- ============================================================
+-- PUBLIC HELPERS
+-- ============================================================
+
+--- Get sort order display name
+---@param sort_order string|nil
+---@return string
+function UI:UI_get_sort_name(sort_order)
+    return SORT_NAMES[sort_order] or SORT_NAMES["c"]
+end
+
+--- Apply sort to items
+---@param items table
+---@param sort_order string|nil
+---@return table sorted_items
+function UI:UI_apply_sort(items, sort_order)
+    -- Fall back to chronological if sort_order is nil or invalid
+    -- or if sort_func is not found in SORT_MAP (unlikely)
+    local sort_key = sort_order or "c"
+    local sort_func = SORT_MAP[sort_key] or SORT_MAP["c"]
+    local sorted = {}
+    for _, item in ipairs(items) do
+        table.insert(sorted, item)
+    end
+    table.sort(sorted, sort_func)
+    return sorted
+end
+
 ---@param ids table Array of IDs to render
 ---@param format? "tree"|"md"|"detail" default: "tree"
 ---@param sort_order? "sn"|"sw"|"st"|"rsn"|"rsw"|"rst"|"r" Sort order 
 ---@return string|false result Formatted output, or false on error
 ---@todo return headers and content separately, content as array maybe
 ---
----
----
 function UI:UI_render(ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
-    format = format or "tree"
-    if format == "tree" then
-        return self:UI_render_tree(ids)
-    end
-    local sort = {
-        sn = function(a, b) return a.nick > b.nick end,
-        sw = function(a, b) return a.when > b.when end,
-        st = function(a, b) return a.title > b.title end,
-        rsn = function(a, b) return b.nick > a.nick end,
-        rsw = function(a, b) return b.when > a.when end,
-        rst = function(a, b) return b.title > a.title end,
-        r = function(a, b) return a._id > b._id end
-    }
-    if sort_order and not sort[sort_order] then return false end
     assert(type(ids) == "table",
         "Invalid ID list!"
         )
+
+    if not format or format == "tree" then
+        return self:UI_render_tree(ids)
+    end
+
     local result, tmp, notfound = 
     {}, {}, {}
     for _, id in ipairs(ids) do
@@ -171,10 +384,9 @@ function UI:UI_render(ids, format, sort_order)
             table.insert(notfound, id)
         end
     end
-    if sort_order then
-        table.sort(tmp, sort[sort_order])
-    end
-    for _, piece in ipairs(tmp) do
+
+    local sorted = self:UI_apply_sort(tmp, sort_order)
+    for _, piece in ipairs(sorted) do
         local d = (os.time() - piece.when) / 86400
         if format == "md" then
             table.insert(result,
@@ -183,8 +395,6 @@ function UI:UI_render(ids, format, sort_order)
             piece.category,
             piece.title,
             piece.nick,
-            --os.date("%Y-%b-%d %H:%M", -- TODO: weeks/days etc., not date
-            --piece.when
             d < 28 and string.format("%.0fd", d) or 
                 string.format("%.1fw", d/7)
                 ))
@@ -202,29 +412,33 @@ function UI:UI_render(ids, format, sort_order)
                 string.format("%.1f weeks", d/7)
                 ))
         end
-    end   
+    end
     if #notfound > 0 then 
         table.insert(result, "\r\nThe following IDs have not been "..
                         "found in the database: ")
         table.insert(result, table.concat(notfound, ", "))
     end
+    local ret
     if format == "md" then
         table.insert(result, 1,
         "| ID | Category | Title | Nick | Age | "..
-        "\r\n|----|----------|-------|------|-----|")
-        return table.concat(result, "\r\n")
+        "\r\n| -- | -------- | ----- | ---- | --- |")
+        ret = table.concat(result, "\r\n")
     elseif format == "detail" then
         table.insert(result, 1, "Details of requested item(s):".."\r\n")
-        return table.concat(result, "\r\n"..string.rep("-", 80).."\r\n")
+        ret = table.concat(result, "\r\n"..string.rep("-", 80).."\r\n")
     end
+    return ret
 end
 
---- # Render category tree with release counts only (no individual releases)
---- 
---- This function returns a visually structured tree with:
---- - 📁 for categories
---- - Release counts per category (including subcategories)
---- - Full category paths for easy copy-paste
+--[[
+# Render category tree with ID counts only (no individual IDs)
+
+This function returns a visually structured tree with:
+    - 📁 for categories
+    - Release counts per category (including subcategories)
+    - Full category paths for easy copy-paste 
+]]
 --- 
 --- @param path? string Starting path (default: root)
 --- @param prefix? string Indentation prefix (used internally)
@@ -297,16 +511,15 @@ function UI:UI_render_category_tree(path, prefix, is_last)
     return table.concat(result, "\r\n")
 end
 
--- ============================================================
--- INTERNAL: TREE BUILDING
--- ============================================================
+--[[ 
+INTERNAL: TREE BUILDING
 
---- Build a category tree containing only the specified release IDs
---- 
---- This function takes a list of release IDs and builds a nested tree
---- structure containing only those IDs, preserving the category hierarchy.
---- Empty parent categories are omitted.
---- 
+Build a category tree containing only the specified release IDs
+
+This function takes a list of release IDs and builds a nested tree
+structure containing only those IDs, preserving the category hierarchy.
+Empty parent categories are omitted.
+]]
 --- @param ids table List of release IDs to include (e.g., search results, latest items)
 --- @return table tree Nested tree structure where each node has:
 ---   - _path: Full category path (e.g., "Music/Metal/Death")
@@ -410,17 +623,16 @@ function UI:UI_tree_from_ids(ids)
     return build_tree(category_map, 1), not_found, _
 end
 
--- ============================================================
--- INTERNAL: ASCII TREE RENDERER
--- ============================================================
+--[[
+INTERNAL: ASCII TREE RENDERER
 
---- Render a tree as ASCII art with full paths and emojis
---- 
---- This function returns a visually structured tree with:
---- - 📁 for categories
---- - ✅ for releases
---- - Full category paths for easy copy-paste
---- - Hierarchical indentation with connecting lines
+Render a tree as ASCII art with full paths and emojis
+
+This function returns a visually structured tree with:
+- 📁 for categories
+- ✅ for releases
+- Full category paths for easy copy-paste
+- Hierarchical indentation with connecting lines ]]
 --- 
 --- @param ids table Array of IDs to render tree from
 --- @param prefix? string Indentation prefix (used internally)
@@ -543,14 +755,12 @@ function UI:UI_split_ids(str)
     return result
 end
 
---- Format deletion preview for display
---- Converts raw deletion data into a formatted preview message
----
----@param data table { items = table, categories = table }
+--- Format deletion data for display
+---@param data table { items = table, categories = table, errors = table? }
 ---@param path string Category path
----@param is_preview boolean Whether this is a preview
+---@param is_preview boolean
 ---@return string formatted output
-function UI:UI_format_deletion_preview(data, path, is_preview)
+function UI:UI_format_deletion(data, path, is_preview)
     local lines = {
         is_preview and "CATEGORY DELETION PREVIEW" or "CATEGORY DELETION COMPLETE",
         string.rep("=", 50),
@@ -559,6 +769,7 @@ function UI:UI_format_deletion_preview(data, path, is_preview)
         string.format("Categories affected: %d", #(data.categories or {})),
     }
     
+    -- Subcategories (only for preview, or if there are multiple)
     if #(data.categories or {}) > 1 then
         table.insert(lines, "")
         table.insert(lines, "Subcategories:")
@@ -569,61 +780,60 @@ function UI:UI_format_deletion_preview(data, path, is_preview)
         end
     end
     
-    if #(data.items or {}) > 0 then
+    -- Items
+    local items = data.items or {}
+    if #items > 0 then
         table.insert(lines, "")
-        table.insert(lines, "Items:")
+        table.insert(lines, is_preview and "Items to delete:" or "Deleted items:")
+        
+        local max_display = is_preview and 20 or 20
         local count = 0
-        for _, id in ipairs(data.items or {}) do
-            if count >= 20 then
-                table.insert(lines, string.format("  ... and %d more", #(data.items or {}) - 20))
+        
+        for _, id in ipairs(items) do
+            if count >= max_display then
+                local remaining = #items - max_display
+                if remaining > 0 then
+                    table.insert(lines, string.format("  ... and %d more", remaining))
+                end
                 break
             end
-            local item = self._data[id]
-            if item then
-                table.insert(lines, string.format("  [%d] %s", id, item.title))
+            
+            if is_preview then
+                local item = self._data[id]
+                if item then
+                    table.insert(lines, string.format("  [%d] %s", id, item.title))
+                    count = count + 1
+                end
+            else
+                -- For result mode, items might be tables with id/title or just ids
+                if type(id) == "table" then
+                    table.insert(lines, string.format("  [%s] %s", 
+                        id.id or "?",
+                        id.title or "unknown"
+                    ))
+                else
+                    local item = self._data[id]
+                    if item then
+                        table.insert(lines, string.format("  [%d] %s", id, item.title))
+                    end
+                end
                 count = count + 1
             end
         end
     end
     
-    if #(data.items or {}) == 0 and #(data.categories or {}) <= 1 then
+    -- Empty category warning (preview only)
+    if is_preview and #items == 0 and #(data.categories or {}) <= 1 then
         table.insert(lines, "")
         table.insert(lines, "⚠️  Empty category - nothing to delete")
     end
     
-    return table.concat(lines, "\r\n")
-end
-
---- Format deletion result for display
----
----@param data table { items = table, categories = table, errors = table }
----@param path string Category path
----@return string formatted output
-function UI:UI_format_deletion_result(data, path)
-    local lines = {
-        "CATEGORY DELETION COMPLETE",
-        string.rep("=", 50),
-        string.format("Category: %s", path or "unknown"),
-        string.format("Items deleted: %d", #(data.items or {})),
-        string.format("Categories deleted: %d", #(data.categories or {})),
-    }
-    
-    if #(data.errors or {}) > 0 then
+    -- Errors (result only)
+    if not is_preview and #(data.errors or {}) > 0 then
         table.insert(lines, "")
         table.insert(lines, "⚠️  Errors:")
         for _, err in ipairs(data.errors or {}) do
             table.insert(lines, string.format("  %s", err))
-        end
-    end
-    
-    if #(data.items or {}) > 0 and #(data.items or {}) <= 20 then
-        table.insert(lines, "")
-        table.insert(lines, "Deleted items:")
-        for _, item in ipairs(data.items or {}) do
-            table.insert(lines, string.format("  [%s] %s", 
-                item.id or "?",
-                item.title or "unknown"
-            ))
         end
     end
     
