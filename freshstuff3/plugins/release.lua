@@ -48,7 +48,9 @@ AllStuff:merge('plugins.release.bus_delete')
 -- Declare category and journal file (OPTIONAL)
 AllStuff.JOURNAL_FILE = journal
 AllStuff.TEST_CATEGORY = category
-AllStuff.MESSAGE_BASE = "[freshstuff3-releases]> Hello! You summoned me...\r\n"
+AllStuff.MESSAGE_BASE = 
+    "[freshstuff3-releases]> Hello! You summoned me...\r\n"..
+    string.rep("-", 50).."\r\n"
 
 -- Initialise data (OPTIONAL)
 AllStuff:data_init()
@@ -122,10 +124,10 @@ AllStuff:data_init()
 ---       Show statistics (total items, categories, etc.)
 
 AllStuff._cmd_handlers = {
-    ["rel.show"] = { 
+    ["rel.get"] = { 
 
     ---@todo CONFIG_VAR
-    aliases = { "releases", "rel.tree" },
+    aliases = { "releases", "rel.show" },
 
     ---@todo CONFIG_VAR
     level = 1,
@@ -236,16 +238,25 @@ AllStuff._cmd_handlers = {
     end
     },
 
-    ["rel.cats"] = {
+    ["rel.cat"] = {
     ---@todo config
     level = 1,
 
-    aliases = { "rel.categories" },
+    aliases = { "rel.category" },
 
     func = function(self, str)
-        local result = self:Bus_show_category_tree()
-        return self.MESSAGE_BASE .. 
-        "🌳 TREE VIEW OF ALL THE CATEGORIES:\r\n\r\n" .. result
+        if self._category_index[str] then
+            return self.MESSAGE_BASE .. 
+            "🌳 TREE VIEW OF " .. str .. "\r\n\r\n" .. 
+            self:Bus_show_category_tree(str)
+        elseif not str or str == "" then
+            return self.MESSAGE_BASE .. 
+            "🌳 TREE VIEW OF ALL THE CATEGORIES:\r\n\r\n"..
+            self:Bus_show_category_tree()
+        else
+            return self.MESSAGE_BASE ..
+            "❌ Category not found: " .. str
+        end
     end
     },
     --- Fake data generator
