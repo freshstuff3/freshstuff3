@@ -13,12 +13,11 @@ local Item = {}
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
 --- 
-function Item:Item_init()
+--[[function Item:Item_init()
   
     -- Create a journal instance    
     -- Replay the file
-    local result, failed = self:Journal_replay(self.JOURNAL_FILE)
-    
+    local result, failed = self:Journal_replay()
     if not result or #result == 0 then
         -- No data or empty journal, initialize empty
         self._data = {}
@@ -35,31 +34,69 @@ function Item:Item_init()
     else
         return false, err
     end
-end
+end]]
+function Item:Item_init()
 
+    
+    local result, failed = self:Journal_replay()
+    
+    -- Check if replay failed
+    if result == false then
+        self._data = {}
+        return false, failed or "Failed to replay journal"
+    end
+    
+    -- Check if no data
+    if not result or #result == 0 then
+        self._data = {}
+        return true
+    end
+        
+    -- Compact the journal
+    --local compact_self = { _data = result, JOURNAL_FILE = self.JOURNAL_FILE }
+    self._data = result
+    local succ, err = self:Journal_compact()
+    
+    if succ then
+        return true, failed
+    else
+        self._data = nil
+        return false, err
+    end
+end
 --- ## ADD/CREATE DATA ITEM
 --- 
 --- Category must exist
 ---  
---- @param rel_object table cat, nick, title, timestamp
+--- @param obj table { category, nick, title, when }
 --- @return boolean success 
 --- @return string? error Error message in case of failure
 --- 
-function Item:Item_add(rel_object)
-    assert(rel_object ~= nil, "Release object unspecified!")
-    if not self._category_index[rel_object.category] then
+function Item:Item_add(obj)
+    assert(obj ~= nil, "Item object unspecified!")
+    if not self._category_index[obj.category] then
         return false, "Category does not exist! Needs to be created first..."
     else -- category exists
         -- Mark corresponding node as dirty
-        self._category_index[rel_object.category].dirty = true
+        self._category_index[obj.category].dirty = true
     end
     -- Also mark parent categories dirty
-    self:Category_mark_parents_dirty(rel_object.category)
+    self:Category_mark_parents_dirty(obj.category)
     -- Finally, add the item
-    table.insert(self._data, rel_object)
+    table.insert(self._data, obj)
     -- If specified, save to journal file
-    local succ, err = self:Journal_append_add(rel_object)
+    local succ, err = self:Journal_append_add(obj)
     return succ, err
+end
+
+function Item:get(id)
+    if not id then
+        return nil, "ID not specified"
+    end
+    if not self._data[id] then
+        return nil, string.format("Item with ID %d does not exist", id)
+    end
+    return self._data[id]
 end
 
 --- ## MOVE ITEM BETWEEN CATEGORIES
@@ -213,21 +250,21 @@ function Item:Item_fake_database(count)
     -- Categories with subcategories
     local category_tree = {
         ["Music"] = {
-            ["Rock"] = {"Classic Rock", "Alternative", "Progressive"},
-            ["Metal"] = {"Death Metal", "Black Metal", "Symphonic Metal"},
-            ["Jazz"] = {"Bebop", "Cool Jazz", "Fusion"},
+            ["Rock"] = {"Classic-Rock", "Alternative", "Progressive"},
+            ["Metal"] = {"Death-Metal", "Black-Metal", "Symphonic-Metal"},
+            ["Jazz"] = {"Bebop", "Cool-Jazz", "Fusion"},
             ["Classical"] = {"Baroque", "Romantic", "Modern"},
             ["Electronic"] = {"House", "Techno", "Ambient"},
         },
         ["Movies"] = {
             ["Horror"] = {"Slasher", "Supernatural", "Psychological"},
-            ["Sci-Fi"] = {"Space Opera", "Cyberpunk", "Post-Apocalyptic"},
+            ["Sci-Fi"] = {"Space-Opera", "Cyberpunk", "Post-Apocalyptic"},
             ["Drama"] = {"Period", "Contemporary", "Crime"},
             ["Comedy"] = {"Rom-Com", "Satire", "Slapstick"},
         },
         ["TV"] = {
-            ["Animation"] = {"Anime", "Cartoon", "Stop Motion"},
-            ["Documentary"] = {"Nature", "History", "True Crime"},
+            ["Animation"] = {"Anime", "Cartoon", "Stop-Motion"},
+            ["Documentary"] = {"Nature", "History", "True-Crime"},
             ["Drama"] = {"Crime", "Medical", "Legal"},
             ["Comedy"] = {"Sitcom", "Sketch", "Improvisation"},
         },

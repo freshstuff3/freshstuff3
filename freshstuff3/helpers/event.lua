@@ -1,19 +1,5 @@
 -- core/events.lua
 -- Global event system - nothing instance-specific
-
-local Event = {}
-Event._registry = {}  -- event_name -> list of { instance, handler, priority }
-
-function Event:init()
-    for module_name, module in pairs(package.loaded) do
-        if module_name:match("^plugins%.%S+$") then
-            if type(module) == "table" and module._event_handlers then
-                print(module)
-                self:_register_plugin(module)
-            end
-        end
-    end
-end
 --[[
 -- Registration
 xxx._event_handlers = {
@@ -41,6 +27,19 @@ xxx._event_handlers = {
     }
 }
 ]]
+
+local Event = {}
+Event._registry = {}  -- event_name -> list of { instance, handler, priority }
+
+function Event:init()
+    for module_name, module in pairs(package.loaded) do
+        if module_name:match("^plugins%.%S+$") then
+            if type(module) == "table" and module._event_handlers then
+                self:_register_plugin(module)
+            end
+        end
+    end
+end
 
 function Event:_register_plugin(plugin)
     for event_name, handlers in pairs(plugin._event_handlers) do

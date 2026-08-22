@@ -38,59 +38,70 @@ local Category = {}
 ---   }
 --- ```
 ---
----@param filename string Path to the categories file (e.g., "data/categories.lua")
 ---@todo If file loading fails, create from scratch from _data
----@todo Add validation: ensure _data is not nil before iterating---@todo Add support for migrating old category formats (if needed)
-function Category:Category_init(category_file)
+---@todo Add validation: ensure _data is not nil before iterating
+---@---@todo Add support for migrating old category formats (if needed)
+---
+
+function Category:Category_init()
     self._category_index, self._category_tree = {}, {}
     
-    -- Load from file
-    local go, err = loadfile(category_file)
-    if go then 
-        local loaded = go()
-        if type(loaded) == "table" then
-            for path, _ in pairs(loaded) do
-                self._category_index[path] = {}
+    -- Load from file using MessagePack
+    local f, err = io.open(self.TEST_CATEGORY, "rb")
+    if f then
+        local bin = f:read("*all")
+        f:close()
+        
+        if #bin > 0 then
+            local msgpack = require("helpers.MessagePack")
+            local success, result = pcall(msgpack.unpack, bin)
+            if success and type(result) == "table" then
+                for path, _ in pairs(result) do
+                    self._category_index[path] = {}
+                end
             end
         end
     end
     
-    -- Return early if _data empty
+    -- Build tree from _data
     if next(self._data) then 
-        -- CRITICAL: Rebuild from _data and populate _releases for ALL parent categories
         for id, piece in ipairs(self._data) do
             local parts = self:Category_split_path(piece.category)
             local current_path = ""
-        
-            -- Create all parent categories AND add the release ID to each level
+            local current_node = self._category_tree
+            
             for i, part in ipairs(parts) do
                 current_path = i == 1 and part or (current_path .. "/" .. part)
                 
-                -- Create in index if missing
+                -- Create tree node if missing
+                if not current_node[part] then
+                    current_node[part] = { _releases = {} }
+                end
+                
+                -- Create index entry if missing
                 if not self._category_index[current_path] then
                     self._category_index[current_path] = {}
                 end
-                -- Create in tree if missing
-                local node
-                if self:Category_create(current_path) then
-                    node = self:Category_get_node(current_path)
+                
+                -- Add release ID to node's releases
+                local node = current_node[part]
+                if not node._releases then
+                    node._releases = {}
                 end
-                if node then
-                    if not node._releases then
-                        node._releases = {}
-                    end
-                    -- Avoid duplicates (in case this runs multiple times)
-                    local found = false
-                    for _, existing_id in ipairs(node._releases) do
-                        if existing_id == id then
-                            found = true
-                            break
-                        end
-                    end
-                    if not found then
-                        table.insert(node._releases, id)
+                
+                local found = false
+                for _, existing_id in ipairs(node._releases) do
+                    if existing_id == id then
+                        found = true
+                        break
                     end
                 end
+                if not found then
+                    table.insert(node._releases, id)
+                end
+                
+                -- Move to next level
+                current_node = current_node[part]
             end
         end
     end
@@ -101,16 +112,17 @@ function Category:Category_init(category_file)
         self._category_index[path].dirty = false
     end
     
-            -- ✅ Optional serialization (like journal_path)
-    if category_file then
-        local ok, err = self:Category_serialize(category_file)
+    -- Serialize
+    if self.TEST_CATEGORY then
+        local ok, err = self:Category_serialize()
         if not ok then
-                -- Rollback on serialization failure
-                return nil, "Serialization failed: " .. err
-        end   
+            return nil, "Serialization failed: " .. (err or "unknown error")
+        end
     end
+    
+    return true
 end
-
+---
 --- ### DELETE CATEGORY
 ---
 --- Deletes a category and optionally its releases and subcategories.
@@ -178,8 +190,6 @@ end
 ---   -- ids = false, err = "Category Music not deleted: it has subcategories (Rock, Jazz, Classical), but this is not a 'nuke' deletion."
 --- ```
 ---@param path string Category path to delete
----@param category_file string Path to category file for serialization
----@param journal_file string Path to journal file for journalling deletions
 ---@param is_force? boolean Delete category with releases (only if no subcategories). Default: false
 ---@param is_nuke? boolean Delete category, subcategories, and all releases recursively. Requires is_force = true. Default: false
 ---@param is_preview? boolean Dry run - return what would be deleted without making changes. Default: true
@@ -200,18 +210,18 @@ end
 ---@todo Consider moving deleted items to a "trash" category instead of permanent deletion
 ---@todo Add confirmation prompt for nuke deletions (safety) -- for Lua only
 ---@todo Update all parent categories' dirty flags after deletion -- taken care of by Item:add // b_e
-function Category:Category_delete(path, category_file, journal_file, is_force, is_nuke, is_preview)
-    assert(path ~= nil and category_file ~= nil, "Unspecified path and/or category file!")
+function Category:Category_delete(path, is_force, is_nuke, is_preview)
+    assert(path ~= nil, "Unspecified path!")
     
     local state = self._category_index[path]
     if not state then
-        return false, string.format("Category %s does not exist!", path)
+        return false, string.format("❌ Category %s does not exist!", path)
     end
     
     -- Get the node (rebuild if dirty)
     local node = self:Category_rebuild_node(path)
     if not node then
-        return false, string.format("Error retrieving node for category path %s", path)
+        return false, string.format("❌ Error retrieving node for category path %s", path)
     end
     
     -- Collect all items in this category and subcategories
@@ -287,7 +297,7 @@ function Category:Category_delete(path, category_file, journal_file, is_force, i
     self._category_index[path] = nil
     
     -- Serialize the category file
-    local succ, err = self:Category_serialize(category_file)
+    local succ, err = self:Category_serialize()
     if not succ then return false, err end
     
     -- Actually delete the items from _data
@@ -297,7 +307,7 @@ function Category:Category_delete(path, category_file, journal_file, is_force, i
         local deleted_count = 0
         for _, id in ipairs(to_del) do
             if self._data[id] then
-                self:Item_delete(id, journal_file)
+                self:Item_delete(id)
                 deleted_count = deleted_count + 1
             end
         end
@@ -316,7 +326,7 @@ end
 --- @return string? error Upon failure, returns error message.
 --- 
 --- 
-function Category:Category_create(path, category_file)
+function Category:Category_create(path)
     assert(path ~= nil and path ~= "", "❌ Category unspecified!")
 
     if self._category_index[path] then
@@ -337,18 +347,14 @@ function Category:Category_create(path, category_file)
         
         if i == #parts then -- successfully created node in tree
             -- Optional serialisation (like journal_path)
-            if category_file then
-                local ok, err = self:Category_serialize(category_file)
-                if not ok then
-                    -- Rollback on serialisation failure
-                    self._category_index[path] = nil
-                    return false, "Serialization failed: " .. err
-                end
-                return true
+            local ok, err = self:Category_serialize()
+            if not ok then
+                -- Rollback on serialisation failure
+                self._category_index[path] = nil
+                return false, "❌ Serialization failed: " .. err
             end
-            return current[part]
+            return true
         end
-        
         current = current[part]
     end
     -- Roll back if we got here
@@ -441,7 +447,6 @@ end
 --- a clean tree is built during startup based upon _data.
 --- 
 ---
----@param filename string File path to save to (e.g., "data/categories.lua")
 ---@return boolean success True if save succeeded
 ---@return string|nil err Error message if save failed
 ---@todo Add backup before overwriting (rename old file to .bak)
@@ -449,69 +454,27 @@ end
 ---@todo Add validation: ensure _category_index is not empty before saving
 ---@todo Add logging: when save happens, how many categories saved
 ---@todo Add error recovery: if save fails, keep existing file intact
---[[function Category:Category_serialize()
-    -- File does not have to exist.
-    ---@todo add atomic write
-    assert(self.TEST_CATEGORY ~= nil and self.TEST_CATEGORY ~= "", "❌ Test category unspecified!")
-    local tmp = self.TEST_CATEGORY..".tmp"
-    local f, err = io.open (tmp, "w+")
-    if f then
-        f:write("return {\n")  
-        for path, _ in pairs(self._category_index) do
-            f:write ("[\""..path.."\"] = {},\r\n")
-        end
-        f:write("}\n")
-        f:flush()
-        f:close()
-        --os.rename(tmp, filename)
-        return true
-    end
-    local rem = os.remove(self.TEST_CATEGORY)
-    if not rem then os.execute("del "..self.TEST_CATEGORY) end
-    local ren = os.rename(tmp, self.TEST_CATEGORY)
-    if not ren then os.execute("rename "..tmp.." "..self.TEST_CATEGORY) end
-    return true
-end]]
 function Category:Category_serialize()
-    -- File does not have to exist.
-    ---@todo add atomic write
     assert(self.TEST_CATEGORY ~= nil and self.TEST_CATEGORY ~= "", "❌ Category file unspecified!")
-    local tmp = self.TEST_CATEGORY..".tmp"
-    local f, err = io.open (tmp, "w+")
-    if f then
-        f:write("return {\n")  
-        for path, _ in pairs(self._category_index) do
-            f:write ("[\""..path.."\"] = {},\r\n")
-        end
-        f:write("}\n")
-        f:flush()
-        f:close()
-        
-        -- Attempt to rename tmp to target
-        local ren = os.rename(tmp, self.TEST_CATEGORY)
-        if not ren then 
-            -- On Windows, rename might fail if file exists, try deleting target first
-            local rem = os.remove(self.TEST_CATEGORY)
-            if not rem then 
-                os.execute("del "..self.TEST_CATEGORY) 
-            end
-            ren = os.rename(tmp, self.TEST_CATEGORY)
-            if not ren then
-                os.execute("rename "..tmp.." "..self.TEST_CATEGORY)
-            end
-        end
-        
-        -- Clean up temporary file if it still exists
-        local rem_tmp = os.remove(tmp)
-        if not rem_tmp then
-            os.execute("del "..tmp)
-        end
-        
-        return true
+    local tmp = self.TEST_CATEGORY .. ".tmp"
+    
+    -- Write using MessagePack (keep this)
+    local f, err = io.open(tmp, "wb")
+    if not f then
+        return false, "Failed to open temp file: " .. (err or "unknown error")
     end
     
-    -- Handle case where file couldn't be opened
-    return false
+    local msgpack = require("helpers.MessagePack")
+    f:write(msgpack.pack(self._category_index))
+    f:flush()
+    f:close()
+    
+    if package.config:sub(1,1) == "\\" then
+        self:win_rename_file(tmp, self.TEST_CATEGORY)
+    else
+        os.rename(tmp, self.TEST_CATEGORY)
+    end
+    return true
 end
 --- ###  GET ITEMS (NON-RECURSIVE) 
 --- 
@@ -729,6 +692,7 @@ end
 --- 
 --- @param path string Category path to rebuild
 --- @return table|boolean node Returns the rebuilt node on success, false if not found
+--- 
 function Category:Category_rebuild_node(path)
     assert(path ~= nil and path ~= "", "❌ Path unspecified!")
     
@@ -738,8 +702,12 @@ function Category:Category_rebuild_node(path)
     -- Get or create the node
     local node = self:Category_get_node(path)
     if not node then
-        node = self:Category_create(path)
-        if not node then return false end
+        -- If node doesn't exist, try to create it by ensuring the path
+        self:Category_ensure_path(path)
+        node = self:Category_get_node(path)
+        if not node then
+            return false  -- Still can't find it, give up
+        end
     end
     
     if not entry.dirty and #(node._releases or {}) > 0 then
@@ -761,7 +729,6 @@ function Category:Category_rebuild_node(path)
     entry.dirty = false
     return node
 end
-
 --- ### Split category path into parts
 --- 
 --- @param path string category path
@@ -849,31 +816,28 @@ end
 ---@todo Add support for case-insensitive matching (optional, configurable)
 ---@todo Add support for path validation before traversal (ensure no empty segments)
 ---@todo Return more detailed error information (e.g., which segment failed)
+---
 function Category:Category_get_node(path)
-    -- Throw error in case of missing parameters
     assert(path ~= nil and path ~= "", "❌ Path unspecified!")
-    -- Check if path top-level. If yes, GTFO
+    
+    -- Check if path is top-level
     if not path:find("/") then 
         return self._category_tree[path]
     end
-    -- not top-level: split it!
-    local parts = self:Category_split_path(path) -- maybe add error handling?
-    -- List of path parts that have already been dealt with
-    local full_path_parts = {}
-    -- Get the current tree
+    
+    -- Split path and traverse
+    local parts = self:Category_split_path(path)
     local current = self._category_tree
-    -- Traverse through the path, starting from level 1 and going deeper
+    
     for i, part in ipairs(parts) do
-        table.insert(full_path_parts, part)
         if not current[part] then
             return nil  -- Path segment doesn't exist
         end
-        -- Current tree overwritten
         current = current[part]
     end
+    
     return current
 end
-
 -- Helper: Ensure all parent categories exist in both tree and index
 function Category:Category_ensure_path(path)
     local parts = self:Category_split_path(path)

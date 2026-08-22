@@ -143,7 +143,7 @@ function UI:UI_render(ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
-    -- format = format or "tree"
+    format = format or "tree"
     if format == "tree" then
         return self:UI_render_tree(ids)
     end
@@ -214,12 +214,9 @@ function UI:UI_render(ids, format, sort_order)
         "\r\n|----|----------|-------|------|-----|")
         return table.concat(result, "\r\n")
     elseif format == "detail" then
-        local sep = string.rep("=",80)
-        table.insert(result, 1, sep.."\r\nDetails of requested item(s):"..
-        "\r\n"..sep.."\r\n")
+        table.insert(result, 1, "Details of requested item(s):".."\r\n")
         return table.concat(result, "\r\n"..string.rep("-", 80).."\r\n")
     end
-    return false
 end
 
 --- # Render category tree with release counts only (no individual releases)

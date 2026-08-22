@@ -48,6 +48,7 @@ AllStuff:merge('plugins.release.bus_delete')
 -- Declare category and journal file (OPTIONAL)
 AllStuff.JOURNAL_FILE = journal
 AllStuff.TEST_CATEGORY = category
+AllStuff.MESSAGE_BASE = "[freshstuff3-releases]> Hello! You summoned me...\r\n"
 
 -- Initialise data (OPTIONAL)
 AllStuff:data_init()
@@ -135,36 +136,35 @@ AllStuff._cmd_handlers = {
 
             -- Parse str
             if str == "" then
-                return self:Bus_show_new(10)
+                return self.MESSAGE_BASE..self:Bus_show_new(25)
             end
             
             if str == "new" then
-                return self:Bus_show_new(25)
+                return self.MESSAGE_BASE..self:Bus_show_new(25)
             end
             
             if str == "all" then
-                return self:Bus_show_new(#self._data)
+                return self.MESSAGE_BASE..self:Bus_show_new(#self._data)
             end
             
             local num = tonumber(str)
             if num then
-                return self:Bus_show_new(num)
+                return self.MESSAGE_BASE..self:Bus_show_new(num)
             end
             
             local tm = str:match("^(%d+[dwm])$")
             if tm then
-                return self:Bus_show_newer_than(tm)
+                return self.MESSAGE_BASE..self:Bus_show_newer_than(tm)
             end
             ---@todo: sanitise
             if self._category_index[str] then
-                return self:Bus_show_in_category(str)
+                return self.MESSAGE_BASE..self:Bus_show_in_category(str)
             end
 
             if next(self:UI_split_ids(str)) then
-                return self:Bus_show_range(str)
-            end
-            
-            return self:Bus_search(str)
+                return self.MESSAGE_BASE..self:Bus_show_range(str)
+            end   
+            return self.MESSAGE_BASE..self:Bus_search(str)
     end
     },
 
@@ -189,34 +189,34 @@ AllStuff._cmd_handlers = {
 
             -- Parse str
             if str == "" then
-                return self:Bus_show_new(10, format)
+                return self.MESSAGE_BASE..self:Bus_show_new(10, format)
             end
             
             if str == "new" then
-                return self:Bus_show_new(25, format)
+                return self.MESSAGE_BASE..self:Bus_show_new(25, format)
             end
             
             if str == "all" then
-                return self:Bus_show_new(#self._data, format)
+                return self.MESSAGE_BASE..self:Bus_show_new(#self._data, format)
             end
             
             local num = tonumber(str)
             if num then
-                return self:Bus_show_new(num, format)
+                return self.MESSAGE_BASE..self:Bus_show_new(num, format)
             end
             
             local tm = str:match("^(%d+[dwm])$")
             if tm then
-                return self:Bus_show_newer_than(tm, format)
+                return self.MESSAGE_BASE..self:Bus_show_newer_than(tm, format)
             end
             ---@todo sanitise
             if self._category_index[str] then
-                return self:Bus_show_in_category(str, format)
+                return self.MESSAGE_BASE..self:Bus_show_in_category(str, format)
             end
             if next(self:UI_split_ids(str)) then
-                return self:Bus_show_range(str, format)
+                return self.MESSAGE_BASE..self:Bus_show_range(str, format)
             end
-            return self:Bus_search(str)
+            return self.MESSAGE_BASE..self:Bus_search(str, format)
     end
     },
 
@@ -231,10 +231,23 @@ AllStuff._cmd_handlers = {
 
     aliases = { "reldetails" },
     func = function(self, str)
-        return self:Bus_show_range(str, "detail")
+        local result = self:Bus_show_range(str, "detail")
+        return self.MESSAGE_BASE..result
     end
     },
 
+    ["rel.cats"] = {
+    ---@todo config
+    level = 1,
+
+    aliases = { "rel.categories" },
+
+    func = function(self, str)
+        local result = self:Bus_show_category_tree()
+        return self.MESSAGE_BASE .. 
+        "🌳 TREE VIEW OF ALL THE CATEGORIES:\r\n\r\n" .. result
+    end
+    },
     --- Fake data generator
     --- 
     ---@param number integer 

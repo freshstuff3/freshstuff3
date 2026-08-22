@@ -36,16 +36,13 @@ local Journal = {}
 --- @return boolean success Returns true on success, false on failure
 --- @return string? err Error message in case of failure
 function Journal:Journal_append(data)
-    print("Writing to journal:", self.JOURNAL_FILE, "action:", data.action)  -- DEBUG
     local f, err = io.open(self.JOURNAL_FILE,"ab")
     if f then
         local packed = msgpack.pack(data)
-        print("Packed size:", #packed, "bytes")  -- DEBUG
         f:write(packed)
         f:flush(); f:close()
         return true
     else 
-        print("Failed to open journal for writing:", err)  -- DEBUG
         return false, err
     end
 end
@@ -70,7 +67,7 @@ function Journal:Journal_append_add(obj)
         when = obj.when,
         title = obj.title
     }
-    return self:Journal_append(self.JOURNAL_FILE, data)
+    return self:Journal_append(data)
 
 end
 
@@ -89,7 +86,7 @@ function Journal:Journal_append_del(id)
         action = "delete",
         id = id
     }
-    return self:Journal_append(self.JOURNAL_FILE, data)
+    return self:Journal_append(data)
 end
 
 --- ---- JOURNAL APPEND: MOVE ----
@@ -120,8 +117,8 @@ end
 --- @return boolean success True if success, false if failure
 --- @return string? error In case of failure, returns error message
 function Journal:Journal_compact()
-    local temp = self.JOURNAL_FILE .. ".compact.tmp"
-    local f, err = io.open(temp, "wb")
+    local tmp = self.JOURNAL_FILE .. ".compact.tmp"
+    local f, err = io.open(tmp, "wb")
     if not f then return false, err end
     
     for id, obj in ipairs(self._data) do
@@ -137,21 +134,11 @@ function Journal:Journal_compact()
     f:flush()
     f:close()
     
-    -- Write succeeded, replace previous journal file with temp
-    local rem = os.remove(self.JOURNAL_FILE)
-    if not rem then os.execute("del "..self.JOURNAL_FILE) end
-    
-    local ren = os.rename(temp, self.JOURNAL_FILE)
-    if not ren then 
-        os.execute("rename "..temp.." "..self.JOURNAL_FILE)
+    if package.config:sub(1,1) == "\\" then
+        self:win_rename_file(tmp, self.TEST_CATEGORY)
+    else
+        os.rename(tmp, self.TEST_CATEGORY)
     end
-    
-    -- Clean up temporary file if it still exists
-    local rem_tmp = os.remove(temp)
-    if not rem_tmp then
-        os.execute("del "..temp)
-    end
-    
     return true
 end
 --- JOURNAL REPLAY
@@ -164,44 +151,45 @@ end
 --- 
 function Journal:Journal_replay()
     local f, err = io.open(self.JOURNAL_FILE, "rb")
-    if f then
-        local _data = {}
-        local failed = {}
-        local content = f:read("*all")
-        f:close()
-        
-        -- Use the unpacker iterator from MessagePack
-        local unpacker = msgpack.unpacker(content)
-        local count = 0
-        
-        for pos, data in unpacker do
-            count = count + 1
-            
-            if data.action == "add" then
-                data.action = nil
-                table.insert(_data, data)
-            elseif data.action == "delete" then
-                -- Delete by ID (1-based index)
-                if _data[data.id] then
-                    table.remove(_data, data.id)
-                else
-                    table.insert(failed, "Delete failed: ID "..data.id.." not found")
-                end
-            elseif data.action == "move" then
-                if _data[data.id] then
-                    _data[data.id].category = data.new_category
-                else
-                    table.insert(failed, "Move failed: ID "..data.id.." not found")
-                end
-            else
-                table.insert(failed, "Unknown action: "..tostring(data.action))
-            end
-        end
-        
-        return _data, failed
-    else
+
+    if not f then
         return false, err
     end
+    
+    local content = f:read("*all")
+    f:close()
+    
+    if #content == 0 then
+        return {}, {}
+    end
+    
+    -- Try to unpack
+    local unpacker = msgpack.unpacker(content)
+    local _data = {}
+    local failed = {}
+    local count = 0
+    
+    for pos, data in unpacker do
+        count = count + 1        
+        if data.action == "add" then
+            data.action = nil
+            table.insert(_data, data)
+        elseif data.action == "delete" then
+            if _data[data.id] then
+                table.remove(_data, data.id)
+            else
+                table.insert(failed, "Delete failed: ID "..data.id.." not found")
+            end
+        elseif data.action == "move" then
+            if _data[data.id] then
+                _data[data.id].category = data.new_category
+            else
+                table.insert(failed, "Move failed: ID "..data.id.." not found")
+            end
+        else
+            table.insert(failed, "Unknown action: "..tostring(data.action))
+        end
+    end
+    return _data, failed
 end
-
 return Journal

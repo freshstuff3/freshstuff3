@@ -15,85 +15,32 @@ local Bus = {}
 local Event = require "helpers.event"
 
 function Bus:Bus_search(query, format, sort_order) 
+    local fmt = { tree = "tree", md = "markdown", detail = "detail" }
     local result = {        
         string.rep("==", 50),
-        string.format("🔎 SEARCH RESULTS\r\n🧐 QUERY: %s", query),
+        string.format("🔎 SEARCH RESULTS\r\n" ..
+        "🧐 QUERY: %s\r\n👀 VIEW: " .. fmt[format or "tree"]..
+        "\r\n↕️ SORTING ORDER: " .. self:_get_sort_order_name(sort_order),
+        query),
         string.rep("==", 50),
         }
     local rel, cat = self:Item_search(query)
     if #rel == 0 then
         if #cat ~= 0 then
-            table.insert(result, "📁 CATEGORIES FOUND:")
+            table.insert(result, "\r\n\r\n📁 CATEGORIES FOUND:")
             table.move(cat, 1, #cat, #result + 1, result)
         else
             table.insert(result,
             string.format("\r\nNo results for query %s", query))
         end
-        return table.concat(result, "\r\n")
+        return "\r\n"..table.concat(result, "\r\n")
     else
-        table.insert(result, 
-        self:UI_render(rel, format, sort_order) or "Rendering error")
+        table.insert(result, self:UI_render(rel, format, sort_order))
     end
-    return table.concat(result, "\r\n")
+    local footer = string.format("\r\nTotal items found: %d\r\n" ..
+    "Total categories found: %d", #rel, #cat)
+    return "\r\n"..table.concat(result, "\r\n").."\r\n"..footer
 end
---[[
---- ## Delete category
---- 
---- ### Usage:
---- - `!rel.cat.del` - Delete empty category
---- - `!rel.cat.delforce` - Delete category and subcategories. Will not delete anything if category has subcategories. Optional --imeanit switch, defaults to preview
---- - `!rel.cat.nuke` - Delete category *also deleting its releases and suncategories*. Optional --imeanit switch, defaults to preview
----@param path string Category path
----@param is_force? boolean Delete category with releases if it has no subcategories
----@param is_nuke? boolean Delete category with releases if it has no subcategories
----@param is_preview? boolean WWhether we are doing a dry run. If unspecified, it's a dry run.
----@return string|false response Formatted ouput or false on error
----@return string? result Error message
-function Bus:Bus_del_category(path, is_force, is_nuke, is_preview)
-    is_preview = (is_preview == nil) and true or is_preview
-    
-    if is_preview then
-        local ok, msg = self:Bus_del_category_drill(path, is_force, is_nuke)
-        if not ok then
-            return false, msg
-        end
-        return msg
-    end
-    
-    -- Full deletion
-    local ids, result = self:Category_delete(path, self.TEST_CATEGORY, self.JOURNAL_FILE, is_force, is_nuke, false)
-    if not ids then
-        return false, result
-    end
-    
-    local msg = {
-        "CATEGORY DELETION FULL RUN",
-        "===========================",
-        string.format("Deleted %d items", #ids),
-    }
-    
-    if #ids > 0 then
-        table.insert(msg, "")
-        table.insert(msg, "Items deleted:")
-        for _, id in ipairs(ids) do
-            local item = self._data[id]
-            if item then
-                table.insert(msg, string.format("  ID: %d - %s (%s)", id, item.title, item.category))
-            else
-                table.insert(msg, string.format("  ID: %d (not found)", id))
-            end
-        end
-    else
-        table.insert(msg, "No items were deleted")
-    end
-    
-    if type(result) == "string" then
-        table.insert(msg, "")
-        table.insert(msg, "Result: " .. result)
-    end
-    
-    return table.concat(msg, "\r\n")
-end]]
 
 --- Show category tree with count but not individual releases
 --- 
@@ -118,7 +65,6 @@ function Bus:Bus_show_category_tree(path)
         return self:UI_render_category_tree()
     end
 end
-
 
 --- Show release details
 --- 
@@ -219,28 +165,6 @@ end
 ---@param ids table
 ---@return string result
 
---[[
-function Bus:Bus_del(ids) -- todo: create backup
-    if type (ids) == "number" then ids = { ids } end
-    local succeeded, failed = { "SUCCESSFUL DELETE"}, { "FAILED DELETE" }
-    for _, id in ipairs(ids) do
-       local succ, err = self:Item_delete(id, self.JOURNAL_FILE)
-        if not succ then 
-            table.insert(failed, 
-            string.format("Deletion of ID %d failed with error %s", 
-            id,
-            err
-            ))
-        else
-            table.insert(succeeded, 
-            string.format("Deletion of ID %d successful",
-            id
-            ))
-        end
-    end
-    return table.concat(succeeded, "\r\n") .."\r\n".. table.concat(failed, "\r\n")
-end]]
-
 --- GET NEW RELEASES
 ---
 --- Displays the most recently added releases, up to the specified count.
@@ -280,42 +204,6 @@ end]]
 ---@param sort_order? string
 ---@return string|false result Formatted tree with header indicating "LATEST N" or "ALL ITEMS"
 ---
---[[function Bus:Bus_show_new(number, format, sort_order)
-    format = format or "tree"
-    -- validity of number is checked by now
-    assert (number ~= nil and self ~= nil, "Number or source "..
-                                                    "of_truth not specified!"
-                                                    )
-    local result = {}
-    local total = #self._data
-    -- Get the actual count to show
-    local count = math.min(number, total)
-
-    -- Build IDs from the end
-    local ids = {}
-    for i = 1, count do
-        local id = total - count + i
-        table.insert(ids, id)
-    end
-
-    if count >= total then
-        table.insert(result, 
-            string.format("\r\n\r\nALL THE ITEMS ( TOTAL: %d )\r\n\r\n",
-        total
-        ))
-    else
-        table.insert(result, 
-            string.format("\r\n\r\nLATEST %d ITEMS\r\n\r\n", count
-        ))
-    end
-    local ret = self:UI_render(ids, format, sort_order)
-    if type(ret) == "string" then
-        table.insert(result, ret)
-        return table.concat(result, "\r\n")
-    end 
-    return false
-end]]
-
 function Bus:Bus_show_new(number, format, sort_order)
     format = format or "tree"
     
@@ -343,15 +231,18 @@ function Bus:Bus_show_new(number, format, sort_order)
     end
     
     local header = (count >= total) 
-        and string.format("\r\n\r\nALL THE ITEMS ( TOTAL: %d )\r\n\r\n", total)
-        or string.format("\r\n\r\nLATEST %d ITEMS\r\n\r\n", count)
-    
-    local rendered = self:UI_render(ids, format, sort_order)
-    if not rendered then
-        return "⚠️  Failed to render results."
+        and string.format("ALL THE ITEMS ( TOTAL: %d )\r\n\r\n", total)
+        or string.format("THE LATEST %d ITEMS\r\n\r\n", count)
+    if format == "tree" then
+        header = "🌳 TREE VIEW OF " .. header
+    elseif format == "md" then
+        header = "📋 MARKDOWN VIEW OF " .. header
+    else
+        header = "🔬 DETAILED VIEW OF " .. header
     end
-    
-    return header .. rendered
+    return header .. "\r\n↕️ SORTING ORDER: " .. 
+    self:_get_sort_order_name(sort_order) .. "\r\n"..
+    self:UI_render(ids, format, sort_order)    
 end
 
 --- SHOW RELEASES BY CATEGORY
@@ -386,13 +277,22 @@ function Bus:Bus_show_in_category(path, format, sort_order)
     if self._category_index[path] ~=nil then
         local result
         local ids = self:Category_get_subcat(path)
-        if #ids > 0 then
-            result = self:UI_render(ids, format, sort_order)
-            if not result then return false end
-        else
+        local header
+        if not next(ids) then
             return "No releases found in category: " .. path
         end
-        return result
+        if format == "tree" then
+            header = "🌳 TREE VIEW OF "
+        elseif format == "md" then
+            header = "📋 MARKDOWN VIEW OF "
+        else
+            header = "🔬 DETAILED VIEW OF "
+        end
+        return header .. string.format("ALL THE ITEMS IN %s (TOTAL: %d)\r\n"..
+        "↕️ SORTING ORDER: ", path, #ids) ..
+        self:_get_sort_order_name(sort_order) .. "r\n"
+        .. self:UI_render(ids, format, sort_order) ..
+        string.format("\r\n\r\nTotal items retrieved: %d", #ids)
     else return "Non-existent category: " .. path end
 end
 
@@ -409,17 +309,29 @@ end
 ---@param sort_order? string  Sort order
 function Bus:Bus_show_range(str, format, sort_order)
     format = format or "tree"
+    local result, ids
     if tonumber (str) then -- single item, give details
-       return self:UI_render({ tonumber(str) },
+       result = self:UI_render({ tonumber(str) },
                          "detail", sort_order)
     else
-        local ids = self:UI_split_ids(str) or {}
+        ids = self:UI_split_ids(str) or {}
         if not next(ids) then
-            return "Invalid parameter! Usage: id1,id2,id3 or id1-id2"
+            result = "Invalid parameter! Usage: id1,id2,id3 or id1-id2"
         else
-            return self:UI_render(ids, format, sort_order)
+            result = self:UI_render(ids, format, sort_order)
         end
     end
+    local header
+    if format == "tree" then
+        header = "🌳 TREE VIEW OF ALL THE ITEMS IN THE %s RANGE\r\n"
+    elseif format == "md" then
+        header = "📋 MARKDOWN VIEW OF ALL THE ITEMS IN THE %s RANGE\r\n"
+    else
+        header = "🔬 DETAILED VIEW OF ALL THE ITEMS IN THE %s RANGE\r\n"
+    end
+    header = header .. "↕️ SORTING ORDER: " .. self:_get_sort_order_name(sort_order) .. "\r\n\r\n"
+    result = string.format(header, str) .. result
+    return result..string.format("\r\n\r\nTotal items retrieved: %d", #ids)
 end
 
 --- Displays releases added within a specified time window.
@@ -455,7 +367,7 @@ end
 --- -  "No results" or false if invalid format
 ---@todo : 
 ---    - If timeframe is empty or invalid, fallback to default (e.g., "7d")
-
+--- 
 function Bus:Bus_show_newer_than(time_window, format, sort_order)
     time_window = time_window:lower()
     format = format or "tree"
@@ -501,8 +413,39 @@ function Bus:Bus_show_newer_than(time_window, format, sort_order)
     if #ids == 0 then
         return "No results"
     end
-    
-    return self:UI_render(ids, format, sort_order)
+    local mult_tbl = { d = "day(s)", w = "week(s)", m = "month(s)" }
+    local header
+    local result = self:UI_render(ids, format, sort_order)
+    if format == "tree" then
+        header = "🌳 TREE VIEW OF ITEMS FROM THE LAST %d %s" ..
+        "\r\n" .. "↕️ SORTING ORDER: " .. 
+        self:_get_sort_order_name(sort_order) .. "\r\n\r\n"
+    elseif format == "md" then
+        header = "📋 MARKDOWN VIEW OF ITEMS FROM THE LAST %d %s,:" ..
+        "\r\n" .. "↕️ SORTING ORDER: " .. self:_get_sort_order_name(sort_order) .. "\r\n\r\n"
+    end
+    result = string.format(header, number, mult_tbl[mult] or mult) .. result
+    return result..string.format("\r\n\r\nTotal items retrieved: %d", #ids)
+end
+
+function Bus:_get_sort_order_name(order)
+    ---       --sn : sort by nick (ascending)
+    ---       --sw : sort by submission time (ascending)
+    ---       --st : sort by title (ascending)
+    ---       --rsn: reverse sort by nick (descending)
+    ---       --rsw: reverse sort by time (descending)
+    ---       --rst: reverse sort by title (descending)
+    ---       --r  : reverse by ID
+    local mapping = {
+        sn = "owner's nick",
+        sw = "addition date",
+        st = "item title",
+        rsn = "owner's nick, reverse",
+        rsw = "addition date, reverse",
+        rst = "item title, reverse",
+        r = "reverse chronological / order of added IDs",
+    }
+    return mapping[order] or "chronological / order of added IDs (default)"
 end
 
 return Bus

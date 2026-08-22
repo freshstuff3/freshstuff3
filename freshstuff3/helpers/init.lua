@@ -17,24 +17,20 @@ function Init:load_plugin(plugin_name)
     
     -- Check if already loaded
     if package.loaded[package_name] then
-        print(string.format("ℹ️  Plugin '%s' already loaded", package_name))
         return package.loaded[package_name]
     end
     
     -- Try to require the plugin
     local ok, result = pcall(require, package_name)
     if not ok then
-        print(string.format("❌ Plugin '%s' error: %s", package_name, result))
         return false, result
     end
     
     -- Plugin should have stored itself in package.loaded
     if package.loaded[package_name] then
-        print(string.format("✅ Plugin '%s' loaded", package_name))
         return package.loaded[package_name]
     end
     
-    print(string.format("⚠️  Plugin '%s' loaded but not stored in package.loaded", package_name))
     return result
 end
 
@@ -92,7 +88,29 @@ function Init:create_instance()
         end
     end
 
--- 
+    function obj:win_rename_file(file, new_name)
+        -- Windows: Use move (rename) with /Y to force overwrite
+        local cmd = 'move /Y "' .. file .. '" "' .. new_name .. '" 2>&1'
+        local handle = io.popen(cmd)
+        local result = handle:read("*all")
+        local success = handle:close()
+        
+        if success then
+            return true
+        else
+            -- If move fails, try deleting target first then move
+            os.execute('del /F /Q "' .. new_name .. '" 2>nul')
+            local cmd2 = 'move /Y "' .. file .. '" "' .. new_name .. '" 2>&1'
+            local handle2 = io.popen(cmd2)
+            local result2 = handle2:read("*all")
+            local success2 = handle2:close()
+            
+            if success2 then
+                return true
+            end
+            return false, "Move failed: " .. (result or result2 or "unknown error")
+        end
+    end
 -- 
 --- Events and commands are loaded separately via respective helpers
 --- See also freshstuff3.lua, ptokax.lua
@@ -190,45 +208,44 @@ function Init:create_instance()
         end
     end
 
---- Attach data initialisation function to instance for plugins that require it
-        function obj:data_init()
-        -- Populate _data first
-            local success, err = self:Item_init()
-            if not success then
-                self._data = {}
-                return false, "ERROR: Item_init failed: "..err
-            end
 
-            ---
-            --- Now initialise categories
-            ---
-            self:Category_init(self.TEST_CATEGORY)
+    --- Attach data initialisation function to instance for plugins that require it
+    function obj:data_init()
+    -- Populate _data first
+        local success, err = self:Item_init()
+        if not success then
+            self._data = {}
+            local err_msg = err or "unknown error"
+            return false, "ERROR: Item_init failed: " .. err_msg
+        end
+        ---
+        --- Now initialise categories
+        ---
+        self:Category_init(self.TEST_CATEGORY)
 
-            --- 
-            --- Protect _cmd_handlers from accidental overwrites
-            --- 
-            setmetatable(self._cmd_handlers, {
-            __newindex = function(tbl, key, value)
-                if tbl[key] then
-                    error("Command already exists: " .. key)
-                else
-                    if next(value.aliases) then
-                        for _, alias in ipairs(value.aliases) do
-                            if not tbl[alias] then
-                                rawset(tbl, alias, value)
-                            else
-                                error("Alias would overwrite an existing command: " .. alias)
-                            end
+        --- 
+        --- Protect _cmd_handlers from accidental overwrites
+        --- 
+        setmetatable(self._cmd_handlers, {
+        __newindex = function(tbl, key, value)
+            if tbl[key] then
+                error("Command already exists: " .. key)
+            else
+                if next(value.aliases) then
+                    for _, alias in ipairs(value.aliases) do
+                        if not tbl[alias] then
+                            rawset(tbl, alias, value)
+                        else
+                            error("Alias would overwrite an existing command: " .. alias)
                         end
                     end
                 end
-                rawset(tbl, key, value)
-            end})
-        end
-
-
-        return obj
+            end
+            rawset(tbl, key, value)
+        end})
     end
+    return obj
+end
 
 function Init:open_lua_shell()
     -- Get instance from package.loaded if this function has not 

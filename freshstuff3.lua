@@ -42,5 +42,6 @@ else
 end
 
 package.path = package.path .. string.format(";%s?.lua", base_path)
+
 require "host.ptokax"
 if type(Core) ~= "table" then OnStartup() end
