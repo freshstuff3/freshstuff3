@@ -146,7 +146,8 @@ function AllStuff:Bus_dispatch_args(str, format)
     if self._category_index[str] then
         return self.HP..self:Bus_show_by_category(str, format)
     end
-    if next(self:Bus_split_ids(str)) then
+    local ids = self:Bus_split_ids(str)
+    if ids then
         return self.HP..self:Bus_show_range(str, format)
     end
     -- Fall back to search if no other match
@@ -289,6 +290,76 @@ AllStuff._cmd_handlers = {
             return self.HP .. result
         end,
     },
+
+    ["rel.delcat"] = { -- needx to handle mass deletion NOT category deletion
+    -- also --imeanit switch options for category deletion
+        func = function (self, str, nick)
+            str = (str or ""):gsub("^%s+", ""):gsub("%s+$", "")
+
+            local is_preview = not str:match("%s+%-%-imeanit$")
+            if not is_preview then
+                str = str:gsub("%s+%-%-imeanit$", "")
+            end
+            local _, _, result = self:Bus_delete_category(str, nick, { preview = is_preview })
+            return self.HP .. result
+        end,
+    level = 3,
+
+    aliases = { "delcat", "catdelete" }
+    },
+    ["rel.nukecat"] = {
+        func = function (self, str, nick)
+            str = (str or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            local is_preview = not str:match("%s+%-%-imeanit$")
+            if not is_preview then
+                str = str:gsub("%s+%-%-imeanit$", "")
+            end
+            local _, _, result = self:Bus_delete_category(str, nick, {
+                preview = is_preview,
+                force = true,
+                nuke = true,
+            })
+            return self.HP .. result
+        end,
+
+    level = 3,
+
+    aliases = { "nukecat" }
+    },
+
+    ["rel.move"] = {
+        func = function (self, str, nick)
+            local id_spec, new_category = (str or ""):match("^(.-)%s+(%S+)%s*$")
+            if not id_spec or id_spec == "" then
+                return self.HP .. "❌ Usage: !rel.move <id[,id...|start-end]> <category>"
+            end
+
+            local ids
+            local id = tonumber(id_spec)
+            if id then
+                ids = { id }
+            else
+                ids = self:Bus_split_ids(id_spec)
+            end
+            if not ids then
+                return self.HP .. "❌ Invalid release IDs. Use id1,id2,... or id1-id2."
+            end
+
+            local succ, moved_or_error, failed = self:Bus_move_rel(ids, new_category)
+            if succ then
+                return self.HP .. table.concat ({
+                    "Moved: " .. table.concat(moved_or_error, ", "),
+                    "Failed: " .. table.concat(failed, ", ")
+                }, "\r\n")
+            else
+                return self.HP .. moved_or_error
+            end
+        end,
+
+    level = 3,
+
+    aliases = { "moverel" },
+    }
 }
 
 return AllStuff

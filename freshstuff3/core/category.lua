@@ -398,7 +398,8 @@ end
 function Category:Category_exists(path)
     local succ, result = self:Category_process_path(path)
     if not succ then return false, result, nil end
-    return true, result, self._category_index[result]
+    local category = self._category_index[result]
+    return category ~= nil, result, category
 end
 
 ---

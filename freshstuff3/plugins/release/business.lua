@@ -47,7 +47,7 @@ function Bus:Bus_search(query, format, sort_order)
 end
 --- Show category tree with count but not individual releases
 --- 
---- Starts from root when path is nil.
+--- Starts from root when path is nil or empty.
 --- 
 ---@param path? string Category path
 ---@return string|boolean result Formatted output or false on error
@@ -57,11 +57,6 @@ end
 ---@todo Implement: show category info with release count
 --- Show category tree with count but not individual releases
 --- 
---- Starts from root when path is nil or empty.
---- 
----@param path? string Category path
----@return string|boolean result Formatted output or false on error
----@return string|nil error Formatted output
 function Bus:Bus_show_flat_tree(path)
     -- Business only validates and gets raw data
     if path then
@@ -110,7 +105,8 @@ function Bus:Bus_show_details(ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
-    if type(ids) ~= "table" then
+    ids = self:_normalize_ids(ids)
+    if not ids or #ids == 0 then
         return "Invalid ID format"
     end
     return self:UI_render(ids, format, sort_order) or "invalid sort order"
@@ -144,27 +140,6 @@ function Bus:Bus_create_category(path)
     else
         return false, "No path specified"
     end
-end
-
----Rename a category
----
----@param old_path string
----@param new_path string
----@param format? string
----@param sort_order? string
-function Bus:Bus_rename_category(old_path, new_path, format, sort_order)
-    local result = { 
-        "Category rename operation - results",
-        string.format("Renaming category %s to %s", old_path, new_path) 
-        }
-    local old, new = self:Category_rename(old_path, new_path, true)
-    if not old then
-        table.insert(result, new)
-    else
-        table.insert(result, self:UI_render(new, format, sort_order))
-        table.insert(result, string.format ("Moved %d items", #new))
-    end
-    return(table.concat(result, "\r\n"))
 end
 
 ---Add a release
@@ -441,7 +416,8 @@ Split a comma-separated list of IDs or an ID range to a list of IDs.
 Examples:
   "1,2,3"     → {1, 2, 3}
   "1-6"       → {1, 2, 3, 4, 5, 6}
-  "5-1"       → {5, 4, 3, 2, 1} (reverse range) ]]
+  "5-1"       → {5, 4, 3, 2, 1} (reverse range)
+]]
 --- 
 --- @param str string String to split (e.g., "1,2,3" or "1-6")
 --- @return table|false result Array of IDs, or false on invalid string
@@ -472,7 +448,8 @@ function Bus:Bus_split_ids(str)
             table.insert(result, i)
         end 
     end
-    return #result > 0 and result or false
+    local ids = self:_normalize_ids(result)
+    return ids and #ids > 0 and ids or false
 end
 
 return Bus

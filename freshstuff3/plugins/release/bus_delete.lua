@@ -42,7 +42,6 @@ function Bus2:Bus_delete_releases(ids, nick, options)
         fire_events = not preview
     end
     
-    -- Normalize IDs
     local id_list, normalize_error = self:_normalize_ids(ids)
     if not id_list then
         local result = { deleted = {}, errors = { normalize_error }, not_found = {} }
@@ -59,7 +58,7 @@ function Bus2:Bus_delete_releases(ids, nick, options)
     local errors = {}
     
     for _, id in ipairs(id_list) do
-        local ok = true
+        local ok = true -- AI created a super-ugly goto here
         local rel = self._data[id]
         if not rel then
             table.insert(not_found, id)
@@ -107,7 +106,7 @@ function Bus2:Bus_delete_releases(ids, nick, options)
     -- Fire pre-delete events
     if fire_events then
         local pre_data = {
-            ids = ids,
+            ids = id_list,
             items = to_delete,
             count = #to_delete,
             not_found = not_found,
@@ -139,7 +138,7 @@ function Bus2:Bus_delete_releases(ids, nick, options)
     -- Fire post-delete events
     if fire_events and #deleted > 0 then
         local post_data = {
-            ids = ids,
+            ids = id_list,
             items = deleted,
             count = #deleted,
             not_found = not_found,
@@ -166,18 +165,52 @@ end
 ---@param user table User context
 ---@param options table Options: { preview = boolean, force = boolean, nuke = boolean }
 ---@return boolean success
----@return table result
----@return string message
+---@return table|nil result table if success
+---@return string message on success or error message
 function Bus2:Bus_delete_category(path, user, options)
+    local exists, clean_path = self:Category_exists(path)
+    if not exists then
+        return false, nil, "❌ Category not found: " .. clean_path
+    end
+
     options = options or {}
     local preview = options.preview ~= false
     local force = options.force or false
     local nuke = options.nuke or false
-    local exists, clean_path = self:Category_exists(path)
-    if not exists then
-        local result = { items = {}, categories = {}, errors = { clean_path } }
-        return false, result, clean_path
+
+    -- If the category is empty, we delete it right away
+    -- Rebuild before testing emptiness so stale tree state cannot route a
+    -- populated category through the non-force empty-category path.
+    local node = self:Tree_rebuild_node(clean_path)
+
+    if not node then
+        return false, nil, "❌ Error retrieving this category from tree: " .. clean_path
     end
+
+    local has_subcategories = false
+    for child_name in pairs(node) do
+        if child_name ~= "_releases" then
+            has_subcategories = true
+            break
+        end
+    end
+
+    if not has_subcategories and not next(node._releases) then
+        local result = { categories = { clean_path }, items = {}, errors = {} }
+        if preview then
+            result.preview = true
+            return true, result, self:_format_category_deletion(clean_path, result)
+        end
+        local success, err = self:Category_delete(clean_path, false, false, false, true)
+        if success then
+            return true, result,
+                "✅ Empty category deleted: " .. clean_path
+        else
+            return false, { categories = {}, items = {}, errors = { err } },
+                "❌ Error deleting category: " .. err
+        end
+    end
+
     -- Category_delete owns validation, recursive traversal, tree mutation,
     -- category serialization, and item deletion. First use it as a dry run
     -- to obtain a stable event payload for either preview or execution.
@@ -287,47 +320,78 @@ function Bus2:_format_category_deletion(path, result)
     return table.concat(lines, "\r\n")
 end
 
---- Normalize IDs to a table
+--- Normalize and deduplicate an array of release IDs.
 function Bus2:_normalize_ids(ids)
-    local function dedup(arr)
-        -- Deduplication
-        local seen = {}
-        local result = {}
-        for _, id in ipairs(arr) do
-            if not seen[id] then
-                seen[id] = true
-                table.insert(result, id)
+    local result, seen = {}, {}
+    if type(ids) ~= "table" then
+        return false, "❌ IDs must be an array"
+    end
+
+    for _, id in ipairs(ids) do
+        if type(id) ~= "number" or id < 1 or id % 1 ~= 0 then
+            return false, "❌ IDs must be positive integers"
+        end
+        if not seen[id] then
+            seen[id] = true
+            table.insert(result, id)
+        end
+    end
+    return result
+end
+
+
+---Rename a category
+---@inprogress WIP
+---@param old_path string
+---@param new_path string
+---
+function Bus2:Bus_rename_category(old_path, new_path)
+    local succ, err = self:Category_rename(old_path, new_path, true)
+    if not succ then
+        return self.HP .. err else return self.HP ..
+        string.format("✅ Category renamed successfully from %s to %s",
+        old_path,
+        new_path)
+    end
+end
+
+--- Move one or more releases to a category.
+---@param ids table Release IDs
+---@param new_category string Destination category path
+---@return boolean success
+---@return table|string moved_or_error
+---@return table|nil failed IDs that could not be moved
+---
+function Bus2:Bus_move_rel(ids, new_category)
+    local exists, clean_category = self:Category_exists(new_category)
+    if not exists then
+        return false, "❌ Category does not exist: " .. clean_category
+    end
+
+    local id_list, err = self:_normalize_ids(ids)
+    if not id_list or #id_list == 0 then
+        return false, err or "❌ No release IDs specified"
+    end
+    local moved, failed = {}, {}
+
+    for _, id in ipairs(id_list) do
+        local rel = self._data[id]
+        if not rel then
+            table.insert(failed, id)
+        else
+            local success = self:Item_move_id(id, clean_category, true)
+            if success then
+                table.insert(moved, id)
+            else
+                table.insert(failed, id)
             end
         end
-        return result
     end
 
-    if type(ids) == "number" then
-        return { ids }
+    if #moved == 0 then
+        return false, "❌ No releases were moved. Failed IDs: " .. table.concat(failed, ", ")
     end
-    if type(ids) == "table" then
-        return dedup(ids)
-    end
-
-    -- Try to parse string
-    if type(ids) ~= "string" then return false, "❌ Invalid argument" end
-    local result = {}
-
-    -- Range: 1-5
-    local a, b = ids:match("^(%d+)%-(%d+)$")
-    if a and b then
-        a = tonumber(a); b = tonumber(b)
-        for i = a, b do
-            table.insert(result, i)
-        end
-        return dedup(result)
-    end
-
-    -- List: 1,2,3
-    for id in ids:gmatch("%d+") do
-        table.insert(result, tonumber(id))
-    end
-    return dedup(result)
+    return true, moved, failed
 end
 
 return Bus2

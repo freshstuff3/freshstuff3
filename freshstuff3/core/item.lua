@@ -154,12 +154,13 @@ end
 ---@return table|string notfound IDs not found in the database, or error string on failure
 function Item:get(ids)
     ids = tonumber(ids) and { ids } or ids
-    if type(ids) ~= "table" then
-        return false, "Invalid IDs parameter"
+    local normalized_ids, err = self:_normalize_ids(ids)
+    if not normalized_ids then
+        return false, err or "Invalid IDs parameter"
     end
     local items = {}
     local notfound = {}
-    for _, id in ipairs(ids) do
+    for _, id in ipairs(normalized_ids) do
         local obj = self._data[id]
         if obj then
             obj._id = id

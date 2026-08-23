@@ -436,14 +436,13 @@ function UI:UI_render(ids, format, sort_order)
                         "found in the database: ")
         table.insert(result, table.concat(notfound, ", "))
     end
-    local ret
+    local ret = false
     if format == "md" then
         table.insert(result, 1,
         "| ID | Category | Title | Nick | Age | "..
         "\r\n| -- | -------- | ----- | ---- | --- |")
         ret = table.concat(result, "\r\n")
     elseif format == "detail" then
-        table.insert(result, 1, "Details of requested item(s):".."\r\n")
         ret = table.concat(result, "\r\n"..string.rep("-", 80).."\r\n")
     end
     return ret
