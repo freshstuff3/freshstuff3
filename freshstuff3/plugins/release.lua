@@ -257,22 +257,20 @@ AllStuff._cmd_handlers = {
 --- 
     ["rel.del"] = { -- needx to handle mass deletion NOT category deletion
     -- also --imeanit switch options for category deletion
-    func = function (self, str)
-        if tonumber(str:match("(%d+)")) then
-            return self.HP..self:Bus_delete_releases({ tonumber(str) })
+    func = function (self, str, nick)
+        str = (str or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        local rel_id = tonumber(str) -- if number, delete single release without preview
+        if rel_id then
+            local _, _, result = self:Bus_delete_releases({ rel_id }, nick, { preview = false })
+            return self.HP..result
         end
-        local is_preview = true
-        local ids, imeanit = str:match("^(%S+)%s*(%-%-imeanit)?$")
-        if imeanit then is_preview = false end
-        local list = self:Bus_split_ids(str)
-        if #list == 0 then
-            return "Usage: !rel.del <id1,id2,...> or <id-range>"
+
+        local is_preview = not str:match("%s+%-%-imeanit$")
+        if not is_preview then
+            str = str:gsub("%s+%-%-imeanit$", "")
         end
-        local succ, result, msg = self:Bus_delete_releases(list)
-        if not succ then
-            return "❌ Error deleting releases: " .. msg
-        end
-        return "🚮 Deleted releases:\n" .. self:UI_format_deletion(result)
+        local _, _, result = self:Bus_delete_releases(str, nick, { preview = is_preview })
+        return self.HP..result
     end,
     level = 3,
 
@@ -287,8 +285,8 @@ AllStuff._cmd_handlers = {
             if not (cat and title) or cat == "" or title == "" then
                 return "❌ Usage: !rel.add <category> <title>"
             end
-            local success, result = self:Bus_add(nick, title, cat)
-            return success and self.HP .. result or self.HP .. "❌ " .. result
+            local _, result = self:Bus_add(nick, title, cat)
+            return self.HP .. result
         end,
     },
 }

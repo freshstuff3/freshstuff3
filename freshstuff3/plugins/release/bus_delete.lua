@@ -12,18 +12,42 @@ local Event = require "helpers.event"
 
 --- Delete releases with preview support
 ---@param ids table|number Release IDs to delete
----@param user table User context (for permissions)
+---@param nick string User context (for permissions)
 ---@param options table Options: { preview = boolean, fire_events = boolean }
 ---@return boolean success
 ---@return table result { deleted = {}, errors = {}, not_found = {} }
----@return string message
-function Bus2:Bus_delete_releases(ids, user, options)
+---@return string message Formatted message for user
+---
+function Bus2:Bus_delete_releases(ids, nick, options)
+    if type(ids) ~= "table" then
+        if type(ids) == "number" or tonumber(ids) then
+            ids = { tonumber(ids) or ids }
+        elseif type(ids) == "string" then
+            local parsed_ids = self:Bus_split_ids(ids)
+            if not parsed_ids then
+                local result = {
+                    deleted = {},
+                    errors = { "Invalid release IDs. Use id1,id2,... or id1-id2." },
+                    not_found = {},
+                }
+                return false, result, self:_format_release_deletion(result)
+            end
+            ids = parsed_ids
+        end
+    end
     options = options or {}
     local preview = options.preview or false
-    local fire_events = options.fire_events or (not preview)
+    local fire_events = options.fire_events
+    if fire_events == nil then
+        fire_events = not preview
+    end
     
     -- Normalize IDs
-    local id_list = self:_normalize_ids(ids)
+    local id_list, normalize_error = self:_normalize_ids(ids)
+    if not id_list then
+        local result = { deleted = {}, errors = { normalize_error }, not_found = {} }
+        return false, result, normalize_error
+    end
     if #id_list == 0 then
         local result = { deleted = {}, errors = { "No IDs specified" }, not_found = {} }
         return false, result, "No IDs specified"
@@ -35,30 +59,32 @@ function Bus2:Bus_delete_releases(ids, user, options)
     local errors = {}
     
     for _, id in ipairs(id_list) do
+        local ok = true
         local rel = self._data[id]
         if not rel then
             table.insert(not_found, id)
-            goto continue
-        end
-        
+            ok = false
+--[[         else
         -- Permission check (delegated to host)
-        if not self:_can_modify(user, rel) then
-            table.insert(errors, string.format(
-                "ID %d: Permission denied. Only owner (%s) or operator can delete.",
-                id, rel.nick or "unknown"
-            ))
-            goto continue
+            if type(nick) ~= "string" or nick:lower() ~= rel.nick:lower() then
+                table.insert(errors, string.format(
+                    "ID %d: Permission denied. Only owner (%s) or operator can delete.",
+                    id, rel.nick or "unknown"
+                ))
+                ok = false
+            end ]]
         end
-        
-        table.insert(to_delete, {
-            id = id,
-            rel = rel,
-            category = rel.category,
-            title = rel.title,
-            nick = rel.nick,
-            when = rel.when,
-        })
-        ::continue::
+
+        if ok then
+            table.insert(to_delete, {
+                id = id,
+                rel = rel,
+                category = rel.category,
+                title = rel.title,
+                nick = rel.nick,
+                when = rel.when,
+            })
+        end
     end
     
     if #to_delete == 0 then
@@ -75,7 +101,7 @@ function Bus2:Bus_delete_releases(ids, user, options)
             not_found = not_found,
             preview = to_delete,
         }
-        return true, result, string.format("Preview: %d items would be deleted", #to_delete)
+        return true, result, self:_format_release_deletion(result)
     end
     
     -- Fire pre-delete events
@@ -128,9 +154,7 @@ function Bus2:Bus_delete_releases(ids, user, options)
         errors = delete_errors,
         not_found = not_found,
     }
-    local msg = string.format("Deleted %d items, %d errors", #deleted, #delete_errors)
-    
-    return #delete_errors == 0, result, msg
+    return #delete_errors == 0, result, self:_format_release_deletion(result)
 end
 
 -- ============================================================
@@ -149,11 +173,15 @@ function Bus2:Bus_delete_category(path, user, options)
     local preview = options.preview ~= false
     local force = options.force or false
     local nuke = options.nuke or false
-    
+    local exists, clean_path = self:Category_exists(path)
+    if not exists then
+        local result = { items = {}, categories = {}, errors = { clean_path } }
+        return false, result, clean_path
+    end
     -- Category_delete owns validation, recursive traversal, tree mutation,
     -- category serialization, and item deletion. First use it as a dry run
     -- to obtain a stable event payload for either preview or execution.
-    local item_ids, category_paths = self:Category_delete(path, force, nuke, true, false)
+    local item_ids, category_paths = self:Category_delete(clean_path, force, nuke, true, false)
     if not item_ids then
         return false, { items = {}, categories = {}, errors = { category_paths } }, category_paths
     end
@@ -165,15 +193,11 @@ function Bus2:Bus_delete_category(path, user, options)
     }
     if preview then
         result.preview = true
-        return true, result, string.format(
-            "Preview: %d items in %d categories would be deleted",
-            #item_ids,
-            #category_paths
-        )
+        return true, result, self:_format_category_deletion(clean_path, result)
     end
 
     local pre_data = {
-        path = path,
+        path = clean_path,
         categories = category_paths,
         category_count = #category_paths,
         items = item_ids,
@@ -187,14 +211,14 @@ function Bus2:Bus_delete_category(path, user, options)
             string.format("Deletion cancelled: %s", event_result.cancel_reason or "Unknown")
     end
 
-    local deleted_ids, message = self:Category_delete(path, force, nuke, false, true)
+    local deleted_ids, message = self:Category_delete(clean_path, force, nuke, false, true)
     if not deleted_ids then
         return false, { items = {}, categories = {}, errors = { message } }, message
     end
 
     result.items = deleted_ids
     Event:fire("CategoryPostDelete", {
-        path = path,
+        path = clean_path,
         categories = category_paths,
         category_count = #category_paths,
         items = deleted_ids,
@@ -202,12 +226,66 @@ function Bus2:Bus_delete_category(path, user, options)
         errors = {},
     })
 
-    return true, result, message
+    return true, result, self:_format_category_deletion(clean_path, result)
 end
 
 -- ============================================================
 -- PRIVATE HELPERS
 -- ============================================================
+
+function Bus2:_format_release_deletion(result)
+    local is_preview = result.preview ~= nil
+    local items = is_preview and result.preview or result.deleted
+    local lines = {
+        is_preview and "🔍 RELEASE DELETION PREVIEW" or "🚮 RELEASE DELETION COMPLETE",
+    }
+
+    if #items == 0 then
+        table.insert(lines, "No releases were deleted.")
+    else
+        for _, item in ipairs(items) do
+            table.insert(lines, string.format(
+                "[%d] %s (%s)",
+                item.id,
+                item.title or "Untitled",
+                item.category or "Uncategorized"
+            ))
+        end
+    end
+
+    if #result.not_found > 0 then
+        table.insert(lines, "Not found: " .. table.concat(result.not_found, ", "))
+    end
+    for _, error in ipairs(result.errors) do
+        table.insert(lines, type(error) == "table"
+            and string.format("Error deleting ID %d: %s", error.id, error.error)
+            or "Error: " .. error)
+    end
+
+    return table.concat(lines, "\r\n")
+end
+
+function Bus2:_format_category_deletion(path, result)
+    local is_preview = result.preview == true
+    local lines = {
+        is_preview and "🔍 CATEGORY DELETION PREVIEW" or "🚮 CATEGORY DELETION COMPLETE",
+        "Category: " .. path,
+        string.format("Categories: %d", #result.categories),
+        string.format("Releases: %d", #result.items),
+    }
+
+    if #result.categories > 0 then
+        table.insert(lines, "Affected categories: " .. table.concat(result.categories, ", "))
+    end
+    if #result.items > 0 then
+        table.insert(lines, "Affected release IDs: " .. table.concat(result.items, ", "))
+    end
+    for _, error in ipairs(result.errors) do
+        table.insert(lines, "Error: " .. error)
+    end
+
+    return table.concat(lines, "\r\n")
+end
 
 --- Normalize IDs to a table
 function Bus2:_normalize_ids(ids)

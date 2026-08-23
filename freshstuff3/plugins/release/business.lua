@@ -446,16 +446,26 @@ Examples:
 --- @param str string String to split (e.g., "1,2,3" or "1-6")
 --- @return table|false result Array of IDs, or false on invalid string
 function Bus:Bus_split_ids(str)
+    if type(str) ~= "string" then
+        return false
+    end
+
+    str = str:gsub("%s+", "")
     local result = {}
     -- ID list, comma-separated
-    if str:find("%d+%,%d+.*") and not str:find("%-") then 
-        str = str:gsub("%s+","") -- remove whitespaces
-        for id in str:gmatch("(%d+)") do
+    if str:find(",", 1, true) then
+        for id in str:gmatch("([^,]+)") do
+            if not id:match("^%d+$") then
+                return false
+            end
             table.insert(result, tonumber(id))
         end
+        if #result < 2 then
+            return false
+        end
     -- ID range
-    elseif str:find("%d+%-%d+") then -- ID range
-        local a, b = str:match("(%d+)%-(%d+)")
+    elseif str:match("^%d+%-%d+$") then
+        local a, b = str:match("^(%d+)%-(%d+)$")
         a = tonumber(a); b = tonumber(b)
         local x = a > b and -1 or 1
         for i = a, b, x do
