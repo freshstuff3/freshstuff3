@@ -109,25 +109,25 @@ function Item:Item_move_id(id, path, is_journal)
     return true
 end
 
---- ## DELETE DATA ITEM 
---- 
---- Lorem ipsum
---- 
---- 
+--- ## DELETE DATA ITEM
+---
+---
+---
+---
 ---@param id integer ID of the item to delete
 ---@param is_journal? boolean If true, journals the deletion. Default: false
----@return boolean success True on success
----@return string? err Error message
----@return table|string? deleted The deleted item on success, or error message on failure
+---@return boolean success True on success, false on failure
+---@return table|string deleted The deleted item object on success, or error message on failure
 ---
 function Item:Item_delete(id, is_journal)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
     end
-        -- Store the item before deletion
+    -- Store the item before deletion
+    ---@type table
     local deleted_item = self._data[id]
-    
+
     -- Mark category as dirty
     if deleted_item and deleted_item.category then
         local cat = deleted_item.category
@@ -136,13 +136,16 @@ function Item:Item_delete(id, is_journal)
             self:Tree_mark_parents_dirty(cat)
         end
     end
-    
-    -- Remove from _data
-    table.remove(self._data, id)
+
     if is_journal then
-        return self:Journal_append_del(id, self.JOURNAL_FILE)
+        local succ = self:Journal_append_del(id)
+        if not succ then
+            return false, "Failed to write deletion to journal, NOT deleted"
+        end
     end
-    return true
+    -- Remove from _data finally
+    table.remove(self._data, id)
+    return true, deleted_item
 end
 
 --- Retrieve items from database by ID

@@ -17,7 +17,7 @@ local Event = require "helpers.event"
 ---@return boolean success
 ---@return table result { deleted = {}, errors = {}, not_found = {} }
 ---@return string message
-function Bus2:delete_releases(ids, user, options)
+function Bus2:Bus_delete_releases(ids, user, options)
     options = options or {}
     local preview = options.preview or false
     local fire_events = options.fire_events or (not preview)
@@ -144,135 +144,65 @@ end
 ---@return boolean success
 ---@return table result
 ---@return string message
-function Bus2:delete_category(path, user, options)
+function Bus2:Bus_delete_category(path, user, options)
     options = options or {}
-    local preview = options.preview or true
+    local preview = options.preview ~= false
     local force = options.force or false
     local nuke = options.nuke or false
     
-    -- Validate category exists
-    if not self._category_index[path] then
-        return false, { items = {}, categories = {}, errors = { "Category does not exist" } },
-            "Category does not exist: " .. path
+    -- Category_delete owns validation, recursive traversal, tree mutation,
+    -- category serialization, and item deletion. First use it as a dry run
+    -- to obtain a stable event payload for either preview or execution.
+    local item_ids, category_paths = self:Category_delete(path, force, nuke, true, false)
+    if not item_ids then
+        return false, { items = {}, categories = {}, errors = { category_paths } }, category_paths
     end
-    
-    -- Get node and check subcategories
-    local node = self:Category_rebuild_node(path)
-    if not node then
-        return false, { items = {}, categories = {}, errors = { "Error retrieving node" } },
-            "Error retrieving node for category path " .. path
-    end
-    
-    -- Collect all releases in category and subcategories
-    local all_ids = self:Category_get_subcat(path)
-    local items_to_delete = {}
-    local categories_to_delete = { path }
-    
-    -- Collect subcategory paths
-    local function collect_subcats(current_node, current_path)
-        for name, child in pairs(current_node) do
-            if name ~= "_releases" then
-                local full_path = current_path .. "/" .. name
-                table.insert(categories_to_delete, full_path)
-                collect_subcats(child, full_path)
-            end
-        end
-    end
-    collect_subcats(node, path)
-    
-    -- Check if empty
-    if #all_ids == 0 and #categories_to_delete == 1 then
-        -- Empty category
-        if preview then
-            return true, {
-                categories = { path },
-                items = {},
-                preview = true,
-            }, "Preview: Empty category would be deleted"
-        end
-        
-        -- Delete empty category
-        self._category_index[path] = nil
-        self:Category_delete_node(path)
-        self:Category_serialize()
-        return true, { categories = { path }, items = {}, errors = {} },
-            "Empty category deleted: " .. path
-    end
-    
-    -- Check if force is needed
-    if #all_ids > 0 and not force and not nuke then
-        return false, { items = {}, categories = {}, errors = { "Force required" } },
-            string.format("Category '%s' has %d releases. Use --force to delete.", path, #all_ids)
-    end
-    
-    -- Check if nuke is needed
-    if #categories_to_delete > 1 and not nuke then
-        return false, { items = {}, categories = {}, errors = { "Nuke required" } },
-            string.format("Category '%s' has subcategories. Use --nuke to delete recursively.", path)
-    end
-    
-    -- Preview mode
+
+    local result = {
+        categories = category_paths,
+        items = item_ids,
+        errors = {},
+    }
     if preview then
-        return true, {
-            categories = categories_to_delete,
-            items = all_ids,
-            preview = true,
-        }, string.format("Preview: %d items in %d categories would be deleted",
-            #all_ids, #categories_to_delete)
+        result.preview = true
+        return true, result, string.format(
+            "Preview: %d items in %d categories would be deleted",
+            #item_ids,
+            #category_paths
+        )
     end
-    
-    -- ✅ Use unified release deletion!
-    local items_flat = {}
-    for _, id in ipairs(all_ids) do
-        if self._data[id] then
-            table.insert(items_flat, id)
-        end
+
+    local pre_data = {
+        path = path,
+        categories = category_paths,
+        category_count = #category_paths,
+        items = item_ids,
+        item_count = #item_ids,
+        force = force,
+        nuke = nuke,
+    }
+    local event_result = Event:fire("CategoryPreDelete", pre_data)
+    if event_result.cancelled then
+        return false, { items = {}, categories = {}, errors = { "Cancelled" } },
+            string.format("Deletion cancelled: %s", event_result.cancel_reason or "Unknown")
     end
-    
-    -- Delete releases using the unified bus
-    local success, result, msg = self:delete_releases(items_flat, user, {
-        preview = false,
-        fire_events = true,
-    })
-    
-    if not success then
-        return false, { categories = {}, items = {}, errors = result.errors },
-            "Failed to delete releases: " .. msg
+
+    local deleted_ids, message = self:Category_delete(path, force, nuke, false, true)
+    if not deleted_ids then
+        return false, { items = {}, categories = {}, errors = { message } }, message
     end
-    
-    -- Delete category nodes (bottom-up)
-    table.sort(categories_to_delete, function(a, b)
-        local depth_a = #self:Category_split_path(a)
-        local depth_b = #self:Category_split_path(b)
-        return depth_a > depth_b
-    end)
-    
-    local deleted_cats = {}
-    for _, cat_path in ipairs(categories_to_delete) do
-        self._category_index[cat_path] = nil
-        self:Category_delete_node(cat_path)
-        table.insert(deleted_cats, cat_path)
-    end
-    
-    -- Serialize
-    self:Category_serialize()
-    
-    -- Fire category post-delete event
+
+    result.items = deleted_ids
     Event:fire("CategoryPostDelete", {
         path = path,
-        categories = deleted_cats,
-        category_count = #deleted_cats,
-        items = result.deleted or {},
-        item_count = #(result.deleted or {}),
-        errors = result.errors or {},
+        categories = category_paths,
+        category_count = #category_paths,
+        items = deleted_ids,
+        item_count = #deleted_ids,
+        errors = {},
     })
-    
-    return true, {
-        categories = deleted_cats,
-        items = result.deleted or {},
-        errors = result.errors or {},
-    }, string.format("Deleted category '%s' (%d items, %d categories)",
-        path, #(result.deleted or {}), #deleted_cats)
+
+    return true, result, message
 end
 
 -- ============================================================
@@ -281,31 +211,45 @@ end
 
 --- Normalize IDs to a table
 function Bus2:_normalize_ids(ids)
+    local function dedup(arr)
+        -- Deduplication
+        local seen = {}
+        local result = {}
+        for _, id in ipairs(arr) do
+            if not seen[id] then
+                seen[id] = true
+                table.insert(result, id)
+            end
+        end
+        return result
+    end
+
     if type(ids) == "number" then
         return { ids }
     end
     if type(ids) == "table" then
-        return ids
+        return dedup(ids)
     end
+
     -- Try to parse string
-    if type(ids) == "string" then
-        local result = {}
-        -- Range: 1-5
-        local a, b = ids:match("^(%d+)%-(%d+)$")
-        if a and b then
-            a = tonumber(a); b = tonumber(b)
-            for i = a, b do
-                table.insert(result, i)
-            end
-            return result
+    if type(ids) ~= "string" then return false, "❌ Invalid argument" end
+    local result = {}
+
+    -- Range: 1-5
+    local a, b = ids:match("^(%d+)%-(%d+)$")
+    if a and b then
+        a = tonumber(a); b = tonumber(b)
+        for i = a, b do
+            table.insert(result, i)
         end
-        -- List: 1,2,3
-        for id in ids:gmatch("%d+") do
-            table.insert(result, tonumber(id))
-        end
-        return result
+        return dedup(result)
     end
-    return {}
+
+    -- List: 1,2,3
+    for id in ids:gmatch("%d+") do
+        table.insert(result, tonumber(id))
+    end
+    return dedup(result)
 end
 
 return Bus2
