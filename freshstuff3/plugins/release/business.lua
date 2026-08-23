@@ -20,33 +20,6 @@ local Bus = {}
 ---@param sort_order string Sort order
 ---@return string result Formatted output
 ---
-function Bus:Bus_search_old(query, format, sort_order) 
-    local fmt = { tree = "tree", md = "markdown", detail = "detail" }
-    local result = {        
-        string.rep("==", 50),
-        string.format("🔎 SEARCH RESULTS\r\n" ..
-        "🧐 QUERY: %s\r\n👀 VIEW: " .. fmt[format or "tree"]..
-        "\r\n↕️ SORTING ORDER: " .. self:UI_get_sort_name(sort_order),
-        query),
-        string.rep("==", 50),
-        }
-    local rel, cat = self:Item_search(query)
-    if #rel == 0 then
-        if #cat ~= 0 then
-            table.insert(result, "\r\n\r\n📁 CATEGORIES FOUND:")
-            table.move(cat, 1, #cat, #result + 1, result)
-        else
-            table.insert(result,
-            string.format("\r\nNo results for query %s", query))
-        end
-        return "\r\n"..table.concat(result, "\r\n")
-    else
-        table.insert(result, self:UI_render(rel, format, sort_order))
-    end
-    local footer = string.format("\r\nTotal items found: %d\r\n" ..
-    "Total categories found: %d", #rel, #cat)
-    return "\r\n"..table.concat(result, "\r\n").."\r\n"..footer
-end
 function Bus:Bus_search(query, format, sort_order)
     local result = {}
     
@@ -184,7 +157,7 @@ function Bus:Bus_rename_category(old_path, new_path, format, sort_order)
         "Category rename operation - results",
         string.format("Renaming category %s to %s", old_path, new_path) 
         }
-    local old, new = self:Category_rename(old_path, new_path)
+    local old, new = self:Category_rename(old_path, new_path, true)
     if not old then
         table.insert(result, new)
     else
@@ -199,35 +172,31 @@ end
 ---@param nick string
 ---@param title string
 ---@param path string
----@return string result
+---@return boolean success True on success, false on error
+---@return string result Formatted output on success, error message on failure
 function Bus:Bus_add(nick, title, path)
-    local x, clean_path = self:Category_process_path(path)
-    if not x then return clean_path end
+    local x, result = self:Category_process_path(path)
+    if not x then return false, result end
     local t, err = self:Item_validate_title(title)
-    if not t then return err end
-    if self._category_index[clean_path] then
-        self:Item_add({ 
-            nick = nick,
-            title = title,
-            category = clean_path,
-            when = os.time()
-        }, self.JOURNAL_FILE)
-        return self:UI_render(#self._data, "detail")
+    if not t then return false, err end
+    local succ, res = self:Item_add({ 
+        nick = nick,
+        title = title,
+        category = result,
+        when = os.time()
+    }, true)
+    if succ then
+        return true, self:UI_render(res, "detail")
     else
-        return (string.format("Category %s does not exist, create it first!", clean_path))
+        return false, "Error adding release: " .. res
     end
 end
 ---
 --[[
-Delete a release
-
-@param ids table
-@return string result
-
 GET NEW RELEASES
 
 Displays the most recently added releases, up to the specified count.
-Releases are shown in reverse chronological order (newest first).
+Releases are shown in chronological order (newest last).
 
 Behavior:
   - If number < total releases: Shows the latest N releases
@@ -262,48 +231,6 @@ Examples:
 --- @param format? string Format to render in
 --- @param sort_order? string Sorting order
 --- @return string|false result Formatted tree with header indicating "LATEST N" or "ALL ITEMS"
-
-function Bus:Bus_show_new_old(number, format, sort_order)
-    format = format or "tree"
-    
-    -- Normalize input
-    if type(number) == "string" and number:lower() == "all" then
-        number = 999999
-    end
-    number = tonumber(number) or 10
-    
-    if number <= 0 then number = number * -1 end -- make it positive
-
-    local total = #self._data
-    
-    -- ✅ Check for empty database
-    if total == 0 then
-        return "📭 No releases found in the database.\n" ..
-               "   Use `!rel.add <category> <title> [nick]` to add a release.\n" ..
-               "   Use `!rel.fake <n>` to generate fake data for testing."
-    end
-    
-    local count = math.min(number, total)
-    local ids = {}
-    for i = 1, count do
-        table.insert(ids, total - count + i)
-    end
-    
-    local header = (count >= total) 
-        and string.format("ALL THE ITEMS ( TOTAL: %d )\r\n\r\n", total)
-        or string.format("THE LATEST %d ITEMS\r\n\r\n", count)
-    if format == "tree" then
-        header = "🌳 TREE VIEW OF " .. header
-    elseif format == "md" then
-        header = "📋 MARKDOWN VIEW OF " .. header
-    else
-        header = "🔬 DETAILED VIEW OF " .. header
-    end
-    return header .. "\r\n↕️ SORTING ORDER: " .. 
-    self:UI_get_sort_name(sort_order) .. "\r\n"..
-    self:UI_render(ids, format, sort_order)    
-end
-
 function Bus:Bus_show_new(number, format, sort_order)
     format = format or "tree"
     
@@ -404,7 +331,7 @@ function Bus:Bus_show_range(str, format, sort_order)
         result = self:UI_render({ tonumber(str) }, "detail", sort_order)
     else
         -- Parse range using UI helper (parsing, not formatting)
-        ids = self:UI_split_ids(str) or {}
+        ids = self:Bus_split_ids(str) or {}
         if not next(ids) then
             result = "Invalid parameter! Usage: id1,id2,id3 or id1-id2"
         else
@@ -417,7 +344,7 @@ function Bus:Bus_show_range(str, format, sort_order)
     result = header .. result
     return result .. string.format("\r\n\r\nTotal items retrieved: %d", #ids or 0)
 end
-
+---
 --[[
 Displays releases added within a specified time window.
 
@@ -505,6 +432,37 @@ function Bus:Bus_show_newer_than(time_window, format, sort_order)
     local header = self:UI_header_newer(time_window, format, sort_order)
     result = header .. result
     return result .. string.format("\r\n\r\nTotal items retrieved: %d", #ids)
+end
+
+---
+--[[ 
+Split a comma-separated list of IDs or an ID range to a list of IDs.
+
+Examples:
+  "1,2,3"     → {1, 2, 3}
+  "1-6"       → {1, 2, 3, 4, 5, 6}
+  "5-1"       → {5, 4, 3, 2, 1} (reverse range) ]]
+--- 
+--- @param str string String to split (e.g., "1,2,3" or "1-6")
+--- @return table|false result Array of IDs, or false on invalid string
+function Bus:Bus_split_ids(str)
+    local result = {}
+    -- ID list, comma-separated
+    if str:find("%d+%,%d+.*") and not str:find("%-") then 
+        str = str:gsub("%s+","") -- remove whitespaces
+        for id in str:gmatch("(%d+)") do
+            table.insert(result, tonumber(id))
+        end
+    -- ID range
+    elseif str:find("%d+%-%d+") then -- ID range
+        local a, b = str:match("(%d+)%-(%d+)")
+        a = tonumber(a); b = tonumber(b)
+        local x = a > b and -1 or 1
+        for i = a, b, x do
+            table.insert(result, i)
+        end 
+    end
+    return #result > 0 and result or false
 end
 
 return Bus

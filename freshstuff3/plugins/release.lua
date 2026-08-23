@@ -146,7 +146,7 @@ function AllStuff:Bus_dispatch_args(str, format)
     if self._category_index[str] then
         return self.HP..self:Bus_show_by_category(str, format)
     end
-    if next(self:UI_split_ids(str)) then
+    if next(self:Bus_split_ids(str)) then
         return self.HP..self:Bus_show_range(str, format)
     end
     -- Fall back to search if no other match
@@ -223,7 +223,6 @@ AllStuff._cmd_handlers = {
     end
     },
 
-
     ["rel.fake"] = {
     ---@todo config
 
@@ -239,10 +238,10 @@ AllStuff._cmd_handlers = {
     func = function(self, number)
         local count = tonumber(number) or 100
         if count < 1 then
-            return "Count must be a positive number"
+            return "❌ Count must be a positive number"
         end
         if count > 10000 then
-            return "Maximum 10000 self allowed"
+            return "❌ Maximum 10000 items allowed"
         end
         local success, msg = self:Item_fake_database(count)
         if not success then
@@ -250,30 +249,48 @@ AllStuff._cmd_handlers = {
         end
         return msg
     end
-    
-},
+    },
 ---@todo add delete, move, category delete/rename
 --- Store the above in package.loaded upon require
 --- 
 --- Delete releases
 --- 
-    ["rel.del"] = {
-    
+    ["rel.del"] = { -- needx to handle mass deletion NOT category deletion
+    -- also --imeanit switch options for category deletion
     func = function (self, str)
-        local id  = tonumber(str)
-        if id then -- single item
-            local succ, err = self:Item_delete(id)
-            if succ then return self:UI_render(id, "detail")
-            else return err end
+        if tonumber(str:match("(%d+)")) then
+            return self.HP..self:Bus_delete_releases({ tonumber(str) })
         end
-        if id:find("%d+,") or id:find(("%d+%-%d+")) then --range
-            return
+        local is_preview = true
+        local ids, imeanit = str:match("^(%S+)%s*(%-%-imeanit)?$")
+        if imeanit then is_preview = false end
+        local list = self:Bus_split_ids(str)
+        if #list == 0 then
+            return "Usage: !rel.del <id1,id2,...> or <id-range>"
         end
+        local succ, result, msg = self:Bus_delete_releases(list)
+        if not succ then
+            return "❌ Error deleting releases: " .. msg
+        end
+        return "🚮 Deleted releases:\n" .. self:UI_format_deletion(result)
     end,
-
     level = 3,
 
     aliases = { "delrel", "reldelete" }
-    }
+    },
+
+    ["rel.add"] = { -- need to use Bus_logic
+        func = function (self, str, nick)
+            print(str)
+            local cat, title = str:match("(%S+)%s+(.+)")
+            print(cat, title)
+            if not (cat and title) or cat == "" or title == "" then
+                return "❌ Usage: !rel.add <category> <title>"
+            end
+            local success, result = self:Bus_add(nick, title, cat)
+            return success and self.HP .. result or self.HP .. "❌ " .. result
+        end,
+    },
 }
+
 return AllStuff

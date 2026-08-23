@@ -368,7 +368,14 @@ end
 
 ---@param ids table Array of IDs to render
 ---@param format? "tree"|"md"|"detail" default: "tree"
----@param sort_order? "sn"|"sw"|"st"|"rsn"|"rsw"|"rst"|"r" Sort order 
+---@param sort_order? "sn"|"st"|"rsn"|"rst"|"r"|"c" Sort order:
+--- - "c"   : chronological (oldest first) - default
+--- - "r"   : reverse chronological (newest first)
+--- - "sn"  : sort by nick (ascending)
+--- - "rsn" : reverse sort by nick (descending)
+--- - "st"  : sort by title (ascending)
+--- - "rst" : reverse sort by title (descending)
+---  
 ---@return string|false result Formatted output, or false on error
 ---@todo return headers and content separately, content as array maybe
 ---
@@ -464,7 +471,7 @@ function UI:UI_build_flat_tree(categories, root_path)
             end
         end
         
-        local parts = self:Category_split_path(cat)
+        local parts = self:Tree_split_path(cat)
         local current = tree
         for i, part in ipairs(parts) do
             if not current._children[part] then
@@ -609,7 +616,7 @@ function UI:UI_tree_from_ids(ids)
         local level_map = {}
         local Category = require "core.category"
         for cat_path, ids in pairs(cat_paths) do
-            local parts = self:Category_split_path(cat_path)
+            local parts = self:Tree_split_path(cat_path)
             if #parts >= depth then
                 local name = parts[depth]
                 if not level_map[name] then
@@ -624,7 +631,7 @@ function UI:UI_tree_from_ids(ids)
             -- Build full path from parts up to this depth
             local full_path = nil
             for cat_path, _ in pairs(submap) do
-                local parts = self:Category_split_path(cat_path)
+                local parts = self:Tree_split_path(cat_path)
                 if #parts >= depth then
                     local path_parts = {}
                     for i = 1, depth do
@@ -653,7 +660,7 @@ function UI:UI_tree_from_ids(ids)
             -- Recurse into deeper levels if any subcategories exist
             local has_deeper = false
             for cat_path, _ in pairs(submap) do
-                if #self:Category_split_path(cat_path) > depth then
+                if #self:Tree_split_path(cat_path) > depth then
                     has_deeper = true
                     break
                 end
@@ -697,35 +704,32 @@ function UI:UI_render_tree(ids, prefix, is_last)
     prefix = prefix or ""
     local msg_arr = {}
     
-    local function render_node(n, pre, last)
-        local path = n._path or "root"
-        local releases = n._releases or {}
+    local function render_node(node, pre, last)
+        local path = node._path or "root"
+        local releases = node._releases or {}
         local count = #releases
         
-        -- Print category node with 📁
+        -- Print category node 
         if path ~= "root" then
             local connector = last and "└── " or "├── "
             if count > 0 then
                 table.insert(msg_arr, pre .. connector .. "📁 " .. path .. " (" .. count .. " releases)")
+                local rel_pre = pre .. (last and "    " or "│   ")
+                for i, id in ipairs(releases) do
+                    -- Print releases under this category
+                    local rel_connector = (i == #releases) and "└── " or "├── "
+                    local item = self._data[id]
+                    local label = item and item.title or "unknown"
+                    table.insert(msg_arr, rel_pre .. rel_connector .. "✅ ID: " .. id .. " " .. label)
+                end
             else
                 table.insert(msg_arr, pre .. connector .. "📁 " .. path)
             end
         end
         
-        -- Print releases under this category with 🎵
-        if path ~= "root" and count > 0 then
-            local rel_pre = pre .. (last and "    " or "│   ")
-            for i, id in ipairs(releases) do
-                local rel_connector = (i == #releases) and "└── " or "├── "
-                local item = self._data[id]
-                local label = item and item.title or "unknown"
-                table.insert(msg_arr, rel_pre .. rel_connector .. "✅ ID: " .. id .. " " .. label)
-            end
-        end
-        
         -- Collect and sort child nodes
         local children = {}
-        for key, value in pairs(n) do
+        for key, value in pairs(node) do
             if key ~= "_releases" and key ~= "_path" then
                 table.insert(children, value)
             end
@@ -753,145 +757,6 @@ function UI:UI_render_tree(ids, prefix, is_last)
         table.insert(msg_arr, table.concat(not_found, ", "))
     end
     return table.concat(msg_arr, "\r\n")
-end
-
--- ============================================================
--- UTILITY FUNCTIONS
--- ============================================================
-
---- Extract all category paths from a tree
---- 
---- @param node table The tree node to traverse
---- @param result table Accumulator for paths (optional)
---- @return table Array of full category paths
-function UI:UI_get_tree_paths(node, result)
-    result = result or {}
-    local function collect(n)
-        if n._path and n._path ~= "root" then
-            table.insert(result, n._path)
-        end
-        for key, child in pairs(n) do
-            if key ~= "_releases" and key ~= "_path" then
-                collect(child)
-            end
-        end
-    end
-    collect(node)
-    return result
-end
-
---- Split a comma-separated list of IDs or an ID range to a list of IDs.
---- 
---- Examples:
----   "1,2,3"     → {1, 2, 3}
----   "1-6"       → {1, 2, 3, 4, 5, 6}
----   "5-1"       → {5, 4, 3, 2, 1} (reverse range)
---- 
---- @param str string String to split (e.g., "1,2,3" or "1-6")
---- @return table|false result Array of IDs, or false on invalid string
-function UI:UI_split_ids(str)
-    local result = {}
-    -- ID list, comma-separated
-    if str:find("%d+%,%d+.*") and not str:find("%-") then 
-        str = str:gsub("%s+","") -- remove whitespaces
-        for id in str:gmatch("(%d+)") do
-            table.insert(result, tonumber(id))
-        end
-    -- ID range
-    elseif str:find("%d+%-%d+") then -- ID range
-        local a, b = str:match("(%d+)%-(%d+)")
-        a = tonumber(a); b = tonumber(b)
-        local x = a > b and -1 or 1
-        for i = a, b, x do
-            table.insert(result, i)
-        end 
-    end
-    return result
-end
-
---- Format deletion data for display
----@param data table { items = table, categories = table, errors = table? }
----@param path string Category path
----@param is_preview boolean
----@return string formatted output
-function UI:UI_format_deletion(data, path, is_preview)
-    local lines = {
-        is_preview and "CATEGORY DELETION PREVIEW" or "CATEGORY DELETION COMPLETE",
-        string.rep("=", 50),
-        string.format("Category: %s", path or "unknown"),
-        string.format("Items affected: %d", #(data.items or {})),
-        string.format("Categories affected: %d", #(data.categories or {})),
-    }
-    
-    -- Subcategories (only for preview, or if there are multiple)
-    if #(data.categories or {}) > 1 then
-        table.insert(lines, "")
-        table.insert(lines, "Subcategories:")
-        for _, cat in ipairs(data.categories or {}) do
-            if cat ~= path then
-                table.insert(lines, string.format("  - %s", cat))
-            end
-        end
-    end
-    
-    -- Items
-    local items = data.items or {}
-    if #items > 0 then
-        table.insert(lines, "")
-        table.insert(lines, is_preview and "Items to delete:" or "Deleted items:")
-        
-        local max_display = is_preview and 20 or 20
-        local count = 0
-        
-        for _, id in ipairs(items) do
-            if count >= max_display then
-                local remaining = #items - max_display
-                if remaining > 0 then
-                    table.insert(lines, string.format("  ... and %d more", remaining))
-                end
-                break
-            end
-            
-            if is_preview then
-                local item = self._data[id]
-                if item then
-                    table.insert(lines, string.format("  [%d] %s", id, item.title))
-                    count = count + 1
-                end
-            else
-                -- For result mode, items might be tables with id/title or just ids
-                if type(id) == "table" then
-                    table.insert(lines, string.format("  [%s] %s", 
-                        id.id or "?",
-                        id.title or "unknown"
-                    ))
-                else
-                    local item = self._data[id]
-                    if item then
-                        table.insert(lines, string.format("  [%d] %s", id, item.title))
-                    end
-                end
-                count = count + 1
-            end
-        end
-    end
-    
-    -- Empty category warning (preview only)
-    if is_preview and #items == 0 and #(data.categories or {}) <= 1 then
-        table.insert(lines, "")
-        table.insert(lines, "⚠️  Empty category - nothing to delete")
-    end
-    
-    -- Errors (result only)
-    if not is_preview and #(data.errors or {}) > 0 then
-        table.insert(lines, "")
-        table.insert(lines, "⚠️  Errors:")
-        for _, err in ipairs(data.errors or {}) do
-            table.insert(lines, string.format("  %s", err))
-        end
-    end
-    
-    return table.concat(lines, "\r\n")
 end
 
 return UI

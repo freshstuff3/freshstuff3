@@ -10,53 +10,32 @@ local Item = {}
 --- ## ITEMS' INITIALISATION
 --- 
 --- Replays and compacts the journal.
+--- Does nothing with categories
+--- Called on instance initialisation
+--- 
 --- @return boolean success  
 --- @return string|nil failed Error message in case of failure
 --- 
---[[function Item:Item_init()
-  
-    -- Create a journal instance    
-    -- Replay the file
-    local result, failed = self:Journal_replay()
-    if not result or #result == 0 then
-        -- No data or empty journal, initialize empty
-        self._data = {}
-        return true
-    end
-    
-    -- Compact the journal (pass the data as self)
-    local compact_self = { _data = result, JOURNAL_FILE = self.JOURNAL_FILE }
-    local succ, err = self.Journal_compact(compact_self)
-    
-    if succ then
-        self._data = result
-        return true, failed
-    else
-        return false, err
-    end
-end]]
 function Item:Item_init()
 
-    
     local result, failed = self:Journal_replay()
-    
     -- Check if replay failed
     if result == false then
         self._data = {}
         return false, failed or "Failed to replay journal"
     end
-    
+
     -- Check if no data
     if not result or #result == 0 then
         self._data = {}
         return true
     end
-        
+    
     -- Compact the journal
     --local compact_self = { _data = result, JOURNAL_FILE = self.JOURNAL_FILE }
     self._data = result
     local succ, err = self:Journal_compact()
-    
+
     if succ then
         return true, failed
     else
@@ -64,29 +43,36 @@ function Item:Item_init()
         return false, err
     end
 end
+
 --- ## ADD/CREATE DATA ITEM
 --- 
 --- Category must exist
 ---  
 --- @param obj table { category, nick, title, when }
+--- @param is_journal boolean If true, journal the addition. Default: false
 --- @return boolean success 
---- @return string? error Error message in case of failure
+--- @return string|integer result Error message in case of failure, item ID on success
 --- 
-function Item:Item_add(obj)
+function Item:Item_add(obj, is_journal)
     assert(obj ~= nil, "Item object unspecified!")
+
     if not self._category_index[obj.category] then
         return false, "Category does not exist! Needs to be created first..."
     else -- category exists
+        if is_journal then
+            local succ, err = self:Journal_append_add(obj)
+            if not succ then
+                return false, err
+            end
+        end
         -- Mark corresponding node as dirty
         self._category_index[obj.category].dirty = true
     end
     -- Also mark parent categories dirty
-    self:Category_mark_parents_dirty(obj.category)
+    self:Tree_mark_parents_dirty(obj.category)
     -- Finally, add the item
     table.insert(self._data, obj)
-    -- If specified, save to journal file
-    local succ, err = self:Journal_append_add(obj)
-    return succ, err
+    return true, #self._data
 end
 
 
@@ -95,11 +81,12 @@ end
 ---
 --- @param id integer Item ID to move
 --- @param path string New category (sanitised)
+--- @param is_journal? boolean If true, journals the move. Default: false
 --- @return boolean success True on success, false only
 --- on serialisation failure
 --- @return string? err If serialisation failed, returns the error message
 --- 
-function Item:Item_move_id(id, path)   
+function Item:Item_move_id(id, path, is_journal)   
 -- TODO: check if the old category will become empty after move --- WHY???
 -- WE ARE REBUILDING WHEN QUERIED
     if not self._category_index[path] then
@@ -112,11 +99,11 @@ function Item:Item_move_id(id, path)
     self._data[id].category = path
     self._category_index[before].dirty = true
     self._category_index[path].dirty = true
-    self:Category_mark_parents_dirty(before); self:Category_mark_parents_dirty(path)
+    self:Tree_mark_parents_dirty(before); self:Tree_mark_parents_dirty(path)
     -- We do not serialise categories on moved IDs. Category states are not 
     -- persistent, since a restart will result in a clean slate anyway.
     -- However, we do journal the move 
-    if self.JOURNAL_FILE then
+    if is_journal then
         return self:Journal_append_move(id, path, self.JOURNAL_FILE)
     end
     return true
@@ -128,11 +115,12 @@ end
 --- 
 --- 
 ---@param id integer ID of the item to delete
+---@param is_journal? boolean If true, journals the deletion. Default: false
 ---@return boolean success True on success
 ---@return string? err Error message
 ---@return table|string? deleted The deleted item on success, or error message on failure
 ---
-function Item:Item_delete(id)
+function Item:Item_delete(id, is_journal)
     if not self._data[id] then
         -- Item already deleted, return success
         return false, string.format("Item with ID %d does not exist", id)
@@ -145,19 +133,22 @@ function Item:Item_delete(id)
         local cat = deleted_item.category
         if self._category_index[cat] then
             self._category_index[cat].dirty = true
-            self:Category_mark_parents_dirty(cat)
+            self:Tree_mark_parents_dirty(cat)
         end
     end
     
     -- Remove from _data
     table.remove(self._data, id)
-    return self:Journal_append_del(id, self.JOURNAL_FILE)
+    if is_journal then
+        return self:Journal_append_del(id, self.JOURNAL_FILE)
+    end
+    return true
 end
 
 --- Retrieve items from database by ID
 ---@param ids table List of IDs to retrieve, single ID can be passed as a number
----@return table items Items retrieved from the database
----@return table notfound IDs not found in the database
+---@return table|boolean items Items retrieved from the database, or false on failure
+---@return table|string notfound IDs not found in the database, or error string on failure
 function Item:get(ids)
     ids = tonumber(ids) and { ids } or ids
     if type(ids) ~= "table" then
@@ -177,10 +168,11 @@ function Item:get(ids)
     end
     return items, notfound
 end
---- ## VALIDATE DATA ITEM 
+
+--- ## VALIDATE TITLE 
 --- 
---- Data item validation before adding to database
---- 
+--- Good to use before adding to database
+--- Checks for forbidden words and duplicates
 --- 
 ---@param title string Title of the item to validate
 ---@return boolean success If true, validation succeeded
@@ -215,6 +207,7 @@ end
 --- ## ITEM SEARCH
 ---
 --- Case-insensitive
+--- Very basic but typical user has a better search tool (client)
 --- 
 ---@param query string Search query.
 ---@return table result Results in items.
@@ -384,7 +377,7 @@ function Item:Item_fake_database(count)
         }
         
         -- ✅ Temporarily disable journaling
-        local success, err = self:Item_add(release, self.JOURNAL_FILE)
+        local success, err = self:Item_add(release, false)
         
         if not success then
             return false, "Failed to add release: " .. err
