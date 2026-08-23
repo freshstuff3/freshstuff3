@@ -327,6 +327,17 @@ function UI:UI_header_delete(is_preview)
     return "CATEGORY DELETION " .. label .. "\r\n" .. string.rep("=", 50) .. "\r\n"
 end
 
+--- Build header for category tree
+---@param path? string Category path (optional)
+---@return string
+function UI:UI_header_flat_tree(path)
+    if path and path ~= "" then
+        return "🌳 FLAT TREE VIEW OF CATEGORY " .. path .. "\r\n" .. string.rep("=", 50) .. "\r\n"
+    else
+        return "🌳 FLAT TREE VIEW OF ALL THE CATEGORIES:\r\n" .. string.rep("=", 50) .. "\r\n"
+    end
+end
+
 -- ============================================================
 -- PUBLIC HELPERS
 -- ============================================================
@@ -439,53 +450,79 @@ This function returns a visually structured tree with:
     - Release counts per category (including subcategories)
     - Full category paths for easy copy-paste 
 ]]
---- 
---- @param path? string Starting path (default: root)
---- @param prefix? string Indentation prefix (used internally)
---- @param is_last? boolean Whether this is the last child (used internally)
---- @return string tree Formatted tree with category counts
---- Render category tree with release counts only (no individual releases)
-function UI:UI_render_category_tree(path, prefix, is_last)
+---@param categories table Array of category paths
+---@param root_path? string Starting path (default: root)
+---@return table tree_data
+function UI:UI_build_flat_tree(categories, root_path)
+    local tree = { _path = "", _count = 0, _children = {} }
+    
+    for _, cat in ipairs(categories) do
+        -- Skip if not under root_path
+        if root_path and root_path ~= "" then
+            if cat ~= root_path and not cat:find("^" .. root_path .. "/") then
+                goto continue
+            end
+        end
+        
+        local parts = self:Category_split_path(cat)
+        local current = tree
+        for i, part in ipairs(parts) do
+            if not current._children[part] then
+                local full_path = table.concat(parts, "/", 1, i)
+                current._children[part] = { _path = full_path, _count = 0, _children = {} }
+            end
+            current = current._children[part]
+        end
+        -- Count releases in this category
+        local ids = self:Category_get_subcat(cat)
+        current._count = #ids
+        
+        ::continue::
+    end
+    
+    return tree
+end
+
+--- Render category tree from raw category data
+---@param categories table Array of category paths
+---@param root_path? string Starting path (default: root)
+---@param prefix? string Indentation prefix (used internally)
+---@param is_last? boolean Whether this is the last child (used internally)
+---@return string tree Formatted tree with category counts
+function UI:UI_render_flat_tree(categories, root_path, prefix, is_last)
     prefix = prefix or ""
     is_last = is_last or true
     
-    local start_path = type(path) == "string" and path or ""
-    
-    local function get_count(category_path)
-        local ids = self:Category_get_subcat(category_path)
-        return #ids
+    if not categories or #categories == 0 then
+        return "No categories found"
     end
     
-    local function render_node(node, current_path, pre, last, is_root)
+    -- Build tree from raw data
+    local tree = self:UI_build_flat_tree(categories, root_path)
+    
+    -- Render tree
+    local function render_node(node, pre, last, is_root)
         local lines = {}
+        local path = node._path or ""
+        local count = node._count or 0
         
-        -- ✅ If this is the root node and we have a path, display it first
-        if is_root and start_path ~= "" then
-            local count = get_count(start_path)
-            table.insert(lines, pre .. "📁 " .. start_path .. " (" .. count .. " releases)")
-            -- Update pre for children
-            pre = pre .. "    "
+        -- Only render non-root nodes
+        if path ~= "" then
+            local connector = last and "└── " or "├── "
+            local count_str = count == 1 and " (1 release)" or " (" .. count .. " releases)"
+            table.insert(lines, pre .. connector .. "📁 " .. path .. count_str)
+            pre = pre .. (last and "    " or "│   ")
         end
         
-        -- Get direct children
+        -- Render children
         local children = {}
-        for key, value in pairs(node) do
-            if key ~= "_releases" then
-                table.insert(children, { name = key, node = value })
-            end
+        for key, value in pairs(node._children or {}) do
+            table.insert(children, value)
         end
-        table.sort(children, function(a, b) return a.name < b.name end)
+        table.sort(children, function(a, b) return (a._path or "") < (b._path or "") end)
         
         for i, child in ipairs(children) do
-            local child_path = current_path == "" and child.name or current_path .. "/" .. child.name
-            local is_last_child = (i == #children)
-            local connector = is_last_child and "└── " or "├── "
-            local count = get_count(child_path)
-            
-            table.insert(lines, pre .. connector .. "📁 " .. child_path .. " (" .. count .. " releases)")
-            
-            local child_pre = pre .. (is_last_child and "    " or "│   ")
-            local child_lines = render_node(child.node, child_path, child_pre, is_last_child, false)
+            local child_lines = render_node(child, pre, i == #children, false)
             for _, line in ipairs(child_lines) do
                 table.insert(lines, line)
             end
@@ -494,20 +531,37 @@ function UI:UI_render_category_tree(path, prefix, is_last)
         return lines
     end
     
-    local start_node
-    if start_path == "" then
-        start_node = self._category_tree
-        if not start_node or not next(start_node) then
-            return "No categories found"
+    -- If root_path specified, show it as the root node
+    local result = {}
+    if root_path and root_path ~= "" then
+        -- Find the root node in the tree
+        local function find_node(node, target)
+            if node._path == target then
+                return node
+            end
+            for _, child in pairs(node._children or {}) do
+                local found = find_node(child, target)
+                if found then return found end
+            end
+            return nil
+        end
+        local root_node = find_node(tree, root_path)
+        if root_node then
+            local child_lines = render_node(root_node, "", true, false)
+            for _, line in ipairs(child_lines) do
+                table.insert(result, line)
+            end
+        else
+            return "Category not found: " .. root_path
         end
     else
-        start_node = self:Category_get_node(start_path)
-        if not start_node then
-            return "Category not found: " .. start_path
+        -- Render all categories
+        local child_lines = render_node(tree, "", true, true)
+        for _, line in ipairs(child_lines) do
+            table.insert(result, line)
         end
     end
     
-    local result = render_node(start_node, start_path, prefix, is_last, true)
     return table.concat(result, "\r\n")
 end
 

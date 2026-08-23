@@ -208,15 +208,14 @@ AllStuff._cmd_handlers = {
 
     func = function(self, str)
         if not str or str == "" then
-            return self.HP .. 
-            "🌳 TREE VIEW OF ALL THE CATEGORIES:\r\n\r\n"..
-            self:Bus_show_category_tree()
+            return self.HP .. self:UI_header_flat_tree() ..
+                self:Bus_show_flat_tree()
         end
+        
         local succ, path = self:Category_process_path(str:match("(%S+)"))
         if succ and self._category_index[path] then
-            return self.HP .. 
-            "🌳 TREE VIEW OF CATEGORY " .. path .. "\r\n" ..
-            string.rep("=", 50) .. "\r\n" ..self:Bus_show_category_tree(path)
+            local header = self:UI_header_flat_tree(path)
+            return self.HP .. header .. self:Bus_show_flat_tree(path)
         else
             return self.HP ..
             "❌ Category not found: " .. str

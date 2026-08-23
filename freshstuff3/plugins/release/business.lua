@@ -82,17 +82,44 @@ end
 ---@todo Implement: get category count
 ---@todo Implement: get subcategory count
 ---@todo Implement: show category info with release count
-function Bus:Bus_show_category_tree(path)
+--- Show category tree with count but not individual releases
+--- 
+--- Starts from root when path is nil or empty.
+--- 
+---@param path? string Category path
+---@return string|boolean result Formatted output or false on error
+---@return string|nil error Formatted output
+function Bus:Bus_show_flat_tree(path)
+    -- Business only validates and gets raw data
     if path then
         local p, ret = self:Category_process_path(path)
         if p then
             if not self._category_index[ret] then 
                 return false, string.format("Category %s does not exist!", ret)
             end
-            return self:UI_render_category_tree(ret)
-        else return false, ret end
+            -- Get all categories under this path
+            local categories = {}
+            local prefix = ret .. "/"
+            for cat, _ in pairs(self._category_index) do
+               if cat == ret then
+                    table.insert(categories, cat)
+               elseif #cat > #prefix and cat:sub(1, #prefix) == prefix then
+                    table.insert(categories, cat)
+                end
+            end
+            -- UI handles ALL formatting
+            return self:UI_render_flat_tree(categories, ret)
+        else 
+            return false, ret 
+        end
     else
-        return self:UI_render_category_tree()
+        -- Get all categories
+        local categories = {}
+        for cat, _ in pairs(self._category_index) do
+            table.insert(categories, cat)
+        end
+        -- UI handles ALL formatting
+        return self:UI_render_flat_tree(categories)
     end
 end
 
