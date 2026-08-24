@@ -32,8 +32,7 @@ end
 
 -- Access helper functions 
 local Event = require "helpers.event"
----@diagnostic disable-next-line: unresolved-require
-local Init = require "helpers.init" 
+local Init = require "helpers.init"
 
 -- ---- HOST EVENT BRIDGE ----
 ---
@@ -50,11 +49,10 @@ function OnStartup()
     end
     TmrMan.AddTimer(1000, function ()
        do return end
-        -- Event.fire("Timer", os.time())
     end)
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
-    end
 end
+
 
 TmrMan.AddTimer(1000, function ()
     print(os.time())
