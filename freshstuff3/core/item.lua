@@ -158,8 +158,7 @@ function Item:Item_delete(ids, is_journal)
             -- Item already deleted, return success
             table.insert(failed_items, id)
         else
-        -- Store the item before deletion
-        ---@type table
+            -- Store the item before deletion
             table.insert(deleted_items, obj)
             -- Remove from _data finally
             if is_journal then
@@ -180,16 +179,23 @@ function Item:Item_delete(ids, is_journal)
     -- so we need to mark all categories dirty for all items after the deleted one
     -- Rather than running it after each deletion, we can do it once after all deletions are done
     -- and items have been actually deleted. This is more efficient and avoids redundant operations.
+    -- Also, collect a list of categories so that we can mark them dirty only once, instead of 
+    -- multiple times for the same category.
     if #deleted_items > 0 then
+        local list = {}
         for  index = smallest, #self._data do
             local item = self._data[index]
             if item then
                 local cat = item.category
                 if self._category_index[cat] then
-                    self._category_index[cat].dirty = true
-                    self:Tree_mark_parents_dirty(cat)
+                    list[cat] = true
                 end
             end
+        end
+        -- Parse every affected category only once
+        for cat, _ in pairs(list) do
+            self._category_index[cat].dirty = true
+            self:Tree_mark_parents_dirty(cat)
         end
     end
     return true, #deleted_items > 0 and deleted_items or

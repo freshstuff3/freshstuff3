@@ -187,13 +187,12 @@ Examples:
   !rel.show 999 - If there are 500 releases total, shows ALL releases
   !rel.show     - Shows default (configurable, e.g., 10)
   OPTIONAL SWITCHES:
-      --sn : sort by nick (ascending)
-      --sw : sort by submission time (ascending)
-      --st : sort by title (ascending)
-      --rsn: reverse sort by nick (descending)
-      --rsw: reverse sort by time (descending)
-      --rst: reverse sort by title (descending)
-      --r  : reverse by ID
+      --c  : chronological (oldest first)
+      --r  : reverse chronological (newest first)
+      --n  : sort by nick (ascending)
+      --rn : sort by nick (descending)
+      --t  : sort by title (ascending)
+      --rt : sort by title (descending)
 ]]
 --- @todo If number is "all" or "everything", show all items
 --- @todo If number is negative, show error message
@@ -303,7 +302,8 @@ function Bus:Bus_show_range(str, format, sort_order)
     -- Parse input (business logic)
     if tonumber(str) then
         -- Single ID -> show details
-        result = self:UI_render({ tonumber(str) }, "detail", sort_order)
+        ids = { tonumber(str) }
+        result = self:UI_render(ids, "detail", sort_order)
     else
         -- Parse range using UI helper (parsing, not formatting)
         ids = self:Bus_split_ids(str) or {}
@@ -317,7 +317,7 @@ function Bus:Bus_show_range(str, format, sort_order)
     -- UI handles header
     local header = self:UI_header_range(str, format, sort_order)
     result = header .. result
-    return result .. string.format("\r\n\r\nTotal items retrieved: %d", #ids or 0)
+    return result .. string.format("\r\n\r\nTotal items retrieved: %d", #(ids or {}))
 end
 ---
 --[[

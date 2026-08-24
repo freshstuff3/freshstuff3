@@ -118,50 +118,85 @@ cmds["rel.show"] = {
       delete category with --force and --nuke 
  ]]
 
+local SORT_SWITCHES = {
+    ["--c"] = "c",
+    ["--r"] = "r",
+    ["--n"] = "sn",
+    ["--rn"] = "rsn",
+    ["--t"] = "st",
+    ["--rt"] = "rst",
+}
+
+--- Extract one sorting switch while preserving the remaining command argument.
+---@param str string|nil
+---@return string argument
+---@return string|nil sort_order
+---@return string|nil err
+function AllStuff:Bus_parse_sort_args(str)
+    local argument = {}
+    local sort_order
+
+    for token in (str or ""):gmatch("%S+") do
+        local requested_order = SORT_SWITCHES[token]
+        if requested_order then
+            if sort_order then
+                return "", nil, "❌ Specify only one sorting switch."
+            end
+            sort_order = requested_order
+        else
+            table.insert(argument, token)
+        end
+    end
+
+    return table.concat(argument, " "), sort_order
+end
+
 function AllStuff:Bus_dispatch_args(str, format)
     format = format or "tree"
+    local argument, sort_order, sort_error = self:Bus_parse_sort_args(str)
+    if sort_error then
+        return self.HP .. sort_error
+    end
+    if format == "tree" then
+        sort_order = nil
+    end
+
     -- Parse str
-    if not str or str == "" then
-        return self.HP..self:Bus_show_new(10, format)
+    if argument == "" then
+        return self.HP..self:Bus_show_new(10, format, sort_order)
     end
     
-    if str == "new" then
-        return self.HP..self:Bus_show_new(25, format)
+    if argument == "new" then
+        return self.HP..self:Bus_show_new(25, format, sort_order)
     end
     
-    if str == "all" then
-        return self.HP..self:Bus_show_new(#self._data, format)
+    if argument == "all" then
+        return self.HP..self:Bus_show_new(#self._data, format, sort_order)
     end
     
-    local num = tonumber(str)
+    local num = tonumber(argument)
     if num then
-        return self.HP..self:Bus_show_new(num, format)
+        return self.HP..self:Bus_show_new(num, format, sort_order)
     end
     
-    local tm = str:match("^(%d+[dwm])$")
+    local tm = argument:match("^(%d+[dwm])$")
     if tm then
-        return self.HP..self:Bus_show_newer_than(tm, format)
+        return self.HP..self:Bus_show_newer_than(tm, format, sort_order)
     end
     ---@todo sanitise
-    if self._category_index[str] then
-        return self.HP..self:Bus_show_by_category(str, format)
+    if self._category_index[argument] then
+        return self.HP..self:Bus_show_by_category(argument, format, sort_order)
     end
-    local ids = self:Bus_split_ids(str)
+    local ids = self:Bus_split_ids(argument)
     if ids then
-        return self.HP..self:Bus_show_range(str, format)
+        return self.HP..self:Bus_show_range(argument, format, sort_order)
     end
     -- Fall back to search if no other match
-    return self.HP..self:Bus_search(str, format)
+    return self.HP..self:Bus_search(argument, format, sort_order)
 end
 
 AllStuff._cmd_handlers = {
     ["rel.get"] = { 
-
-    ---@todo CONFIG_VAR
-    aliases = { "releases", "rel.show", "rel.search" },
-
-    ---@todo CONFIG_VAR
-    level = 1,
 
     func = function(self, str)
         return self:Bus_dispatch_args(str, "tree")
@@ -169,12 +204,6 @@ AllStuff._cmd_handlers = {
     },
 
     ["rel.md"] = {
-
-    ---@todo CONFIG_VAR
-    aliases = { "relmd" },
-
-    ---@todo CONFIG_VAR
-    level = 1,
 
     --- Markdown release list
     ---@param str string 
@@ -187,25 +216,20 @@ AllStuff._cmd_handlers = {
 
 
     ["rel.details"] = {
-    ---@todo config
-    level = 1,
-
-    aliases = { "reldetails" },
     --- 
     ---@param str string 
     ---    The raw string separated from preceding command by whitespace(s).
     --- 
     func = function(self, str)
-        return self.HP..self:Bus_show_range(str, "detail")
+        local argument, sort_order, sort_error = self:Bus_parse_sort_args(str)
+        if sort_error then
+            return self.HP .. sort_error
+        end
+        return self.HP..self:Bus_show_range(argument, "detail", sort_order)
     end
     },
 
     ["rel.cat"] = {
-
-    ---@todo config
-    level = 1,
-
-    aliases = { "rel.category" },
 
     func = function(self, str)
         if not str or str == "" then
@@ -225,12 +249,6 @@ AllStuff._cmd_handlers = {
     },
 
     ["rel.fake"] = {
-    ---@todo config
-
-    aliases = { "fakerel" },
-
-    level = 1,
-
     --- Fake data generator
     --- 
     ---@param number integer 
@@ -273,9 +291,6 @@ AllStuff._cmd_handlers = {
         local _, _, result = self:Bus_delete_releases(str, nick, { preview = is_preview })
         return self.HP..result
     end,
-    level = 3,
-
-    aliases = { "delrel", "reldelete" }
     },
 
     ["rel.add"] = { -- need to use Bus_logic
@@ -303,9 +318,6 @@ AllStuff._cmd_handlers = {
             local _, _, result = self:Bus_delete_category(str, nick, { preview = is_preview })
             return self.HP .. result
         end,
-    level = 3,
-
-    aliases = { "delcat", "catdelete" }
     },
     ["rel.nukecat"] = {
         func = function (self, str, nick)
@@ -322,9 +334,6 @@ AllStuff._cmd_handlers = {
             return self.HP .. result
         end,
 
-    level = 3,
-
-    aliases = { "nukecat" }
     },
 
     ["rel.move"] = {
@@ -356,9 +365,6 @@ AllStuff._cmd_handlers = {
             end
         end,
 
-    level = 3,
-
-    aliases = { "moverel" },
     }
 }
 

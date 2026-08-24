@@ -41,10 +41,10 @@ Usage:
  Default sort order is oldest first.
     -  c   : chronological (oldest first) - default
     -  r   : reverse chronological (newest first)
-    -  sn  : sort by nick (ascending)
-    -  rsn : reverse sort by nick (descending)
-    -  st  : sort by title (ascending)
-    -  rst : reverse sort by title (descending)
+    -  n   : sort by nick (ascending)
+    -  rn  : reverse sort by nick (descending)
+    -  t   : sort by title (ascending)
+    -  rt  : reverse sort by title (descending)
 
 
 ## MARKDOWN OUTPUT
@@ -185,10 +185,10 @@ local UI = {}
 --- Sort order mapping
 local SORT_MAP = {
     c   = function(a, b) return a._id < b._id end,  -- chronological (default)
-    sn  = function(a, b) return a.nick > b.nick end,
-    st  = function(a, b) return a.title > b.title end,
-    rsn = function(a, b) return b.nick > a.nick end,
-    rst = function(a, b) return b.title > a.title end,
+    sn  = function(a, b) return a.nick < b.nick end,
+    st  = function(a, b) return a.title < b.title end,
+    rsn = function(a, b) return a.nick > b.nick end,
+    rst = function(a, b) return a.title > b.title end,
     r   = function(a, b) return a._id > b._id end
 }
 
