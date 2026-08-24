@@ -48,7 +48,7 @@ function OnStartup()
         return
     end
     local timer_id = TmrMan.AddTimer(1000, function ()
-        Core.SendToAll("<freshstuff3> " .. os.time() .. "|")
+        Core.SendToAll("<b_e> " .. os.time() .. "|")
     end)
     assert(timer_id, "Failed to register freshstuff3 timer")
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
