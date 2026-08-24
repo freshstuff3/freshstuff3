@@ -1,7 +1,7 @@
 -- plugins/release.lua
 -- Business logic and frontend for freshstuff3 core fucntionality
 -- This plugin cannot be disabled.
-local path_separator = package.config:sub(1, 1)
+--[[ local path_separator = package.config:sub(1, 1)
 local base_path
 if type(Core) == "table" and type(Core.GetPtokaXPath) == "function" then
     local ptokax_path = Core.GetPtokaXPath()
@@ -17,7 +17,7 @@ else
     base_path = "/freshstuff3/freshstuff3/"
 end
 local journal = base_path .. "data" .. path_separator .. "journals" .. path_separator .. "freshstuff3.journal"
-local category = base_path .. "data" .. path_separator .. "categories.dat"
+local category = base_path .. "data" .. path_separator .. "categories.dat" ]]
 
 --
 -- First we load item manipulation functionality into our namespace

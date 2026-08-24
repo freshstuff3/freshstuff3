@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global
 -- host/ptokax.lua
 
---[[ local path_separator = package.config:sub(1, 1)
+local path_separator = package.config:sub(1, 1)
 local base_path
 if type(Core) == "table" and type(Core.GetPtokaXPath) == "function" then
     local ptokax_path = Core.GetPtokaXPath()
@@ -14,7 +14,7 @@ elseif path_separator == "\\" then
     base_path = "C:\\freshstuff3\\freshstuff3\\"
 else
     base_path = "/freshstuff3/freshstuff3/"
-end ]]
+end
 
 -- package.path = package.path .. string.format(";%s?.lua", base_path)
 
