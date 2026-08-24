@@ -58,13 +58,18 @@ function ChatArrival(user, data)
     if type(user) == "table" then
         nick = user.sNick
     end
-    local cmd, args = data:match("^(%S+)%s*(.*)$")
+    local cmd, args = data:match("^!(%S+)%s*(.*)$")
     if cmd then
         cmd = cmd:lower()
     end
     local Command = require "helpers.command"
     if Command._registry[cmd] then
-        Command:execute(cmd, args, user)
+        local success, result = Command:execute(cmd, args, nick)
+        if not success then
+            Core.SendToNick(nick, "Error: " .. result)
+        else
+            Core.SendToNick(nick, result)
+        end
         return true
     end
     --Event.fire("Chat", nick, data)
