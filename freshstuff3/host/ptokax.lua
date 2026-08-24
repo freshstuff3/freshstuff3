@@ -56,14 +56,14 @@ end
 
 function ChatArrival(user, data)
     local nick = type(user) == "table" and user.sNick or   user
-    local message = data:match("^<[^>]+>%s*(.*)$") or data
-    message = message:gsub("|$", "")
-    local cmd, args = message:match("^!(%S+)%s*(.-)%s*$")
-    if not cmd then
+    data = data:sub(1, -2)
+    local prefix, cmd = data:match("^%b<>%s*(%p)(%S+)")
+    if prefix ~= "!" or not cmd then
         return
     end
 
     cmd = cmd:lower()
+    local args = data:match("^%b<>%s*!%S+%s*(.*)$") or ""
     local Command = require "helpers.command"
     if Command._registry[cmd] then
         local success, result = Command:execute(cmd, args, nick)
