@@ -16,7 +16,7 @@ else
     base_path = "/freshstuff3/freshstuff3/"
 end
 
--- package.path = package.path .. string.format(";%s?.lua", base_path)
+package.path = package.path .. string.format(";%s?.lua", base_path)
 
 --- Lua 5.1 compatibility wrapper
 if not table.move then
@@ -52,12 +52,6 @@ function OnStartup()
     end)
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
 end
-
-
-TmrMan.AddTimer(1000, function ()
-    print(os.time())
-    -- Event.fire("Timer", os.time())
-end)
 
 function ChatArrival(user, data)
     local nick = user
