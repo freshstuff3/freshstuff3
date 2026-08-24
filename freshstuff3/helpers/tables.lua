@@ -36,21 +36,27 @@
 	
 	chillcode, http://lua-users.org/wiki/SaveTableToFile
 	Licensed under the same terms as Lua itself.
+
+	-- Slight modifications by b_e to be able to require 
+	-- proplerly in Lua 5.2
 ]]--
-do
-	-- declare local variables
-	--// exportstring( string )
-	--// returns a "Lua" portable version of the string
-	local function exportstring( s )
-		s = string.format( "%q",s )
-		-- to replace
-		s = string.gsub( s,"\\\n","\\n" )
-		s = string.gsub( s,"\r","\\r" )
-		s = string.gsub( s,string.char(26),"\"..string.char(26)..\"" )
-		return s
-	end
+
+-- declare local variables
+--// exportstring( string )
+--// returns a "Lua" portable version of the string
+local function exportstring( s )
+	s = string.format( "%q",s )
+	-- to replace
+	s = string.gsub( s,"\\\n","\\n" )
+	s = string.gsub( s,"\r","\\r" )
+	s = string.gsub( s,string.char(26),"\"..string.char(26)..\"" )
+	return s
+end
+
+local tbl = {}
+
 --// The Save Function
-function table.save(  tbl,filename )
+function tbl.save(tbl,filename )
 	local charS,charE = "   ","\n"
 	local file,err
 	-- create a pseudo file that writes to a string and return the string
@@ -145,7 +151,7 @@ function table.save(  tbl,filename )
 end
 
 --// The Load Function
-function table.load( sfile )
+function tbl.load(sfile)
 	-- catch marker for stringtable
 	if string.sub( sfile,-3,-1 ) == "--|" then
 		tables,err = loadstring( sfile )
@@ -176,5 +182,5 @@ function table.load( sfile )
 	end
 	return tables[1]
 end
--- close do
-end
+
+return tbl

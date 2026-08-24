@@ -42,7 +42,7 @@ function Bus2:Bus_delete_releases(ids, nick, options)
         fire_events = not preview
     end
     
-    local id_list, normalize_error = self:_normalize_ids(ids)
+    local id_list, normalize_error = self:Item_normalize_ids(ids)
     if not id_list then
         local result = { deleted = {}, errors = { normalize_error }, not_found = {} }
         return false, result, normalize_error
@@ -118,21 +118,29 @@ function Bus2:Bus_delete_releases(ids, nick, options)
         end
     end
     
-    -- Perform deletion (sorted descending to avoid index shifting)
-    table.sort(to_delete, function(a, b) return a.id > b.id end)
+    -- Perform one batch deletion; Item_delete handles ordering and cache
+    -- invalidation for all shifted item IDs.
+    local delete_ids = {}
+    for _, item in ipairs(to_delete) do
+        table.insert(delete_ids, item.id)
+    end
     local deleted = {}
     local delete_errors = {}
-    
-    for _, item in ipairs(to_delete) do
-        local success, err = self:Item_delete(item.id, true)
-        if success then
-            table.insert(deleted, item)
-        else
-            table.insert(delete_errors, {
-                id = item.id,
-                error = err or "Unknown error"
-            })
+
+    local success, deleted_items, failed_ids = self:Item_delete(delete_ids, true)
+    if success then
+        local failed_by_id = {}
+        for _, id in ipairs(failed_ids or {}) do
+            failed_by_id[id] = true
+            table.insert(not_found, id)
         end
+        for _, item in ipairs(to_delete) do
+            if not failed_by_id[item.id] then
+                table.insert(deleted, item)
+            end
+        end
+    else
+        table.insert(delete_errors, deleted_items or "Unknown error")
     end
     
     -- Fire post-delete events
@@ -320,26 +328,6 @@ function Bus2:_format_category_deletion(path, result)
     return table.concat(lines, "\r\n")
 end
 
---- Normalize and deduplicate an array of release IDs.
-function Bus2:_normalize_ids(ids)
-    local result, seen = {}, {}
-    if type(ids) ~= "table" then
-        return false, "❌ IDs must be an array"
-    end
-
-    for _, id in ipairs(ids) do
-        if type(id) ~= "number" or id < 1 or id % 1 ~= 0 then
-            return false, "❌ IDs must be positive integers"
-        end
-        if not seen[id] then
-            seen[id] = true
-            table.insert(result, id)
-        end
-    end
-    return result
-end
-
-
 ---Rename a category
 ---@inprogress WIP
 ---@param old_path string
@@ -368,7 +356,7 @@ function Bus2:Bus_move_rel(ids, new_category)
         return false, "❌ Category does not exist: " .. clean_category
     end
 
-    local id_list, err = self:_normalize_ids(ids)
+    local id_list, err = self:Item_normalize_ids(ids)
     if not id_list or #id_list == 0 then
         return false, err or "❌ No release IDs specified"
     end

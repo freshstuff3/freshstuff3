@@ -105,7 +105,7 @@ function Bus:Bus_show_details(ids, format, sort_order)
     if type(ids) == "number" then
         ids = { ids }
     end
-    ids = self:_normalize_ids(ids)
+    ids = self:Item_normalize_ids(ids)
     if not ids or #ids == 0 then
         return "Invalid ID format"
     end
@@ -448,7 +448,7 @@ function Bus:Bus_split_ids(str)
             table.insert(result, i)
         end 
     end
-    local ids = self:_normalize_ids(result)
+    local ids = self:Item_normalize_ids(result)
     return ids and #ids > 0 and ids or false
 end
 

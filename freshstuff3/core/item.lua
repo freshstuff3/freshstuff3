@@ -109,43 +109,91 @@ function Item:Item_move_id(id, path, is_journal)
     return true
 end
 
+function Item:Item_normalize_ids(ids)
+    local result, seen = {}, {}
+    if type(ids) ~= "table" then
+        return false, "❌ IDs must be an array"
+    end
+
+    for _, id in ipairs(ids) do
+        if type(id) ~= "number" or id < 1 or id % 1 ~= 0 then
+            return false, "❌ IDs must be positive integers"
+        end
+        if not seen[id] then
+            seen[id] = true
+            table.insert(result, id)
+        end
+    end
+    return result
+end
+
 --- ## DELETE DATA ITEM
 ---
 ---
 ---
 ---
----@param id integer ID of the item to delete
+---@param ids integer|table IDs of the items to delete
 ---@param is_journal? boolean If true, journals the deletion. Default: false
 ---@return boolean success True on success, false on failure
----@return table|string deleted The deleted item object on success, or error message on failure
----
-function Item:Item_delete(id, is_journal)
-    if not self._data[id] then
-        -- Item already deleted, return success
-        return false, string.format("Item with ID %d does not exist", id)
+---@return table|string|nil deleted The deleted item object on success, or error message on failure, or nil if none were deleted
+---@return table|nil failed The IDs that were not found in the database, or nil if all were deleted
+function Item:Item_delete(ids, is_journal)
+    if type(ids) == "number" then
+        ids = { ids }
+    elseif type(ids) == "table" then
+        ids = self:Item_normalize_ids(ids)
+        if not ids then
+            return false, "Invalid IDs parameter"
+        end
+    else
+        return false, "IDs must be a number or an array of numbers"
     end
-    -- Store the item before deletion
-    ---@type table
-    local deleted_item = self._data[id]
-
-    -- Mark category as dirty
-    if deleted_item and deleted_item.category then
-        local cat = deleted_item.category
-        if self._category_index[cat] then
-            self._category_index[cat].dirty = true
-            self:Tree_mark_parents_dirty(cat)
+    table.sort(ids, function(a, b) return a > b end)
+    local smallest = ids[#ids] or 1
+    local deleted_items = {}
+    local failed_items = {}
+    for _, id in ipairs(ids) do
+        local obj = self._data[id]
+        if not obj then
+            -- Item already deleted, return success
+            table.insert(failed_items, id)
+        else
+        -- Store the item before deletion
+        ---@type table
+            table.insert(deleted_items, obj)
+            -- Remove from _data finally
+            if is_journal then
+                local succ = self:Journal_append_del(id)
+                if not succ then
+                    return false, "Failed to write deletion to journal, NOT deleted"
+                end
+            end
+            table.remove(self._data, id)
+            local cat = obj.category
+            if self._category_index[cat] then
+                self._category_index[cat].dirty = true
+                self:Tree_mark_parents_dirty(cat)
+            end
         end
     end
-
-    if is_journal then
-        local succ = self:Journal_append_del(id)
-        if not succ then
-            return false, "Failed to write deletion to journal, NOT deleted"
+    -- table.remove() shifts all subsequent items down by 1, 
+    -- so we need to mark all categories dirty for all items after the deleted one
+    -- Rather than running it after each deletion, we can do it once after all deletions are done
+    -- and items have been actually deleted. This is more efficient and avoids redundant operations.
+    if #deleted_items > 0 then
+        for  index = smallest, #self._data do
+            local item = self._data[index]
+            if item then
+                local cat = item.category
+                if self._category_index[cat] then
+                    self._category_index[cat].dirty = true
+                    self:Tree_mark_parents_dirty(cat)
+                end
+            end
         end
     end
-    -- Remove from _data finally
-    table.remove(self._data, id)
-    return true, deleted_item
+    return true, #deleted_items > 0 and deleted_items or
+    nil, #failed_items > 0 and failed_items or nil
 end
 
 --- Retrieve items from database by ID
@@ -154,7 +202,7 @@ end
 ---@return table|string notfound IDs not found in the database, or error string on failure
 function Item:get(ids)
     ids = tonumber(ids) and { ids } or ids
-    local normalized_ids, err = self:_normalize_ids(ids)
+    local normalized_ids, err = self:Item_normalize_ids(ids)
     if not normalized_ids then
         return false, err or "Invalid IDs parameter"
     end
@@ -188,7 +236,7 @@ function Item:Item_validate_title(title)
     -- local FORBIDDEN = require "config".FORBIDDEN or {}
     -- Check new item for forbidden words first
     ---@type table
-    local _FORBIDDEN = FORBIDDEN or { "shit" }
+    local _FORBIDDEN = { "shit" }
     for _, word in ipairs(_FORBIDDEN) do
         if string.find(title:lower(), word:lower(), 1, true) then
             return false, string.format("Forbidden word detected %s", word)

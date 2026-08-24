@@ -291,45 +291,51 @@ function Category:Category_delete(path, is_force, is_nuke, is_preview, is_serial
         return to_del, cats_to_delete
     end
     
-    -- Delete categories from tree (bottom-up - deepest first)
-    -- Sort by depth (deepest first)
+    -- Delete items while their categories still exist, allowing Item_delete
+    -- to invalidate the relevant category and parent caches.
+    if #to_del > 0 then
+        local success, deleted_items, failed_items = self:Item_delete(to_del, is_serialize)
+        if not success then
+            return false, deleted_items
+        end
+        if failed_items then
+            local failed_by_id = {}
+            for _, id in ipairs(failed_items) do
+                failed_by_id[id] = true
+            end
+            local remaining_ids = {}
+            for _, id in ipairs(to_del) do
+                if not failed_by_id[id] then
+                    table.insert(remaining_ids, id)
+                end
+            end
+            to_del = remaining_ids
+        end
+    end
+
+    -- Delete categories from tree (bottom-up - deepest first).
     table.sort(cats_to_delete, function(a, b)
         local depth_a = #self:Tree_split_path(a)
         local depth_b = #self:Tree_split_path(b)
         return depth_a > depth_b
     end)
-    
-    -- Delete each category node from the tree
+
     for _, cat_path in ipairs(cats_to_delete) do
-        -- Remove from index
         self._category_index[cat_path] = nil
-        -- Remove from tree
         self:Tree_delete_node(cat_path)
     end
     
-    -- Also remove the root path from index (in case it wasn't removed)
+    -- Also remove the root path from index (in case it wasn't removed).
     self._category_index[path] = nil
     
-    -- Serialize the category file
     if is_serialize then
         local succ, err = self:Category_serialize()
         assert(succ, "❌ Failed to serialize category: " .. (err or "unknown error"))
     end
     
-    -- Actually delete the items from _data
     if #to_del > 0 then
-        -- Sort descending so we don't shift indices
-        table.sort(to_del, function(a, b) return a > b end)
-        local deleted_count = 0
-        for _, id in ipairs(to_del) do
-            if self._data[id] then
-                self:Item_delete(id, is_serialize)
-                deleted_count = deleted_count + 1
-            end
-        end
-        return to_del, string.format("Deleted %d items", deleted_count)
+        return to_del, string.format("Deleted %d items", #to_del)
     end
-    
     return {}, string.format("Empty category %s deleted!", path)
 end
 
@@ -614,20 +620,12 @@ function Category:Category_rename(old_path, new_path, is_serialize)
     for id, _ in ipairs(node_new._releases) do
         self:Item_move_id(id, new_path, is_serialize)
     end
-    self._category_index[new_path] = { dirty = false }
-
-    -- 
-    local parent_path = old_path:match("^(.*)/[^/]+$")
-    if parent_path then
-        -- It's a subcategory, remove from parent's children
-        local parent = self:Tree_rebuild_node(parent_path)
-        if parent then
-            local name = old_path:match("^.*/([^/]+)$")
-            parent[name] = nil
-        end
-    else
-        -- It's top-level, remove directly
-        self._category_tree[old_path] = nil
+    -- We are not rebuilding, it's marked dirty by Item_move_id,
+    -- will be rebuilt on next access. We just need to remove the 
+    -- old node from the tree and index.
+    local deleted, delete_err = self:Tree_delete_node(old_path)
+    if not deleted then
+        return false, "❌ Failed to remove old category from tree: " .. delete_err
     end
     self._category_index[old_path] = nil
     -- ✅ Optional serialization (like journal_path)
@@ -635,7 +633,7 @@ function Category:Category_rename(old_path, new_path, is_serialize)
         local ok, err = self:Category_serialize()
         if not ok then
             ---@bug No rollback on serialisation failure
-            return false, "Serialization failed: " .. err
+            return false, "❌ Serialization failed: " .. err    
         end
     end
     return node_new._releases, node_old._releases
@@ -728,6 +726,7 @@ function Category:Tree_rebuild_node(path)
     entry.dirty = false
     return node
 end
+
 --- ### Split category path into parts
 --- 
 --- @param path string category path
