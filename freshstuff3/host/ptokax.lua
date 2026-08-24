@@ -48,7 +48,7 @@ function OnStartup()
         return
     end
     TmrMan.AddTimer(1000, function ()
-       SendToAll(os.time)
+       Core.SendToAll(os.time)
     end)
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
 end
