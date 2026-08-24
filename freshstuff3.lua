@@ -1,19 +1,24 @@
 --- freshstuff3.lua
 --- Entry point for freshstuff3
----@todo move this into host app and hardcode for interpreter
---- since there is no way a lua script can tell its own path, we have to hardcode it here for now
 --[[
 Loading sequence:
 
 We load NMDC.lua and fall back to shell therein
 Obviously for verlihub, if/then/else will be used to detect host and load plugins accordingly 
 
-But first, we need to detect OS and set the base path accordingly
-Temporary for now, will move to host app and hardcode for interpreter
+When running under PtokaX, use its configured scripts directory.
+The standalone fallback remains for the local Lua interpreter.
 ]]
 
+local path_separator = package.config:sub(1, 1)
 local base_path
-if package.config:sub(1,1) == "\\" then
+if type(Core) == "table" and type(Core.GetPtokaXPath) == "function" then
+    local ptokax_path = Core.GetPtokaXPath()
+    if not ptokax_path:match("[/\\]$") then
+        ptokax_path = ptokax_path .. path_separator
+    end
+    base_path = ptokax_path .. "scripts" .. path_separator .. "freshstuff3" .. path_separator
+elseif path_separator == "\\" then
     -- Running on Windows
     base_path = "C:\\freshstuff3\\freshstuff3\\"
 else

@@ -30,24 +30,27 @@ function OnStartup()
             print("🔧 Console set to UTF-8")
         end
         Init:open_lua_shell()
-    else
-        SetTimer(1000)
-        StartTimer()
+        return
+    end
+    TmrMan.AddTimer(1000, function ()
+       do return end
+        -- Event.fire("Timer", os.time())
+    end)
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
     end
 end
 
-function OnTimer()
+TmrMan.AddTimer(1000, function ()
     print(os.time())
     -- Event.fire("Timer", os.time())
-end
+end)
 
 function ChatArrival(user, data)
     local nick = user
     if type(user) == "table" then
         nick = user.sNick
     end
-    Event.fire("Chat", nick, data)
+    E--vent.fire("Chat", nick, data)
 end
 
 function ToArrival(user, data)
@@ -55,7 +58,7 @@ function ToArrival(user, data)
     if type(user) == "table" then
         nick = user.sNick
     end
-    Event.fire("PrivMsg", nick, data)
+    --Event.fire("PrivMsg", nick, data)
 end
 
 function UserConnected(user)
@@ -63,7 +66,7 @@ function UserConnected(user)
     if type(user) == "table" then
         nick = user.sNick
     end
-    Event.fire("UserConnected", nick, user.iProfile)
+    --Event.fire("UserConnected", nick, user.iProfile)
 end
 
 function UserDisconnected(user)
@@ -71,9 +74,9 @@ function UserDisconnected(user)
     if type(user) == "table" then
         nick = user.sNick
     end
-    Event.fire("UserDisconnected", nick)
+    --Event.fire("UserDisconnected", nick)
 end
 
 function OnError(err)
-    Event.fire("Error", err)
+    --Event.fire("Error", err)
 end
