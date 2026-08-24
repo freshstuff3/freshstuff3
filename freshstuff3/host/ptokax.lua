@@ -37,8 +37,8 @@ local Init = require "helpers.init"
 -- ---- HOST EVENT BRIDGE ----
 ---
 function OnStartup()
+    Init:load_plugins()
     if type(Core) ~= "table" then
-        Init:load_plugins()
         if package.config:sub(1,1) == "\\" then
             -- Running on Windows
             os.execute("chcp 65001 > nul 2>&1")
@@ -48,14 +48,15 @@ function OnStartup()
         return
     end
     TmrMan.AddTimer(1000, function ()
-       Core.SendToAll("freshstuff3", os.time())
+        Core.SendToAll("<freshstuff3> " .. os.time() .. "|")
     end)
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
 end
 
 function ChatArrival(user, data)
     local nick = type(user) == "table" and user.sNick or   user
-    local message = data:match("^<[^>]+>%s*(.*)|$") or data
+    local message = data:match("^<[^>]+>%s*(.*)$") or data
+    message = message:gsub("|$", "")
     local cmd, args = message:match("^!(%S+)%s*(.-)%s*$")
     if not cmd then
         return
