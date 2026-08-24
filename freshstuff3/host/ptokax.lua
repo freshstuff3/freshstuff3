@@ -54,11 +54,8 @@ function OnStartup()
 end
 
 function ChatArrival(user, data)
-    local nick = user
-    if type(user) == "table" then
-        nick = user.sNick
-    end
-    local cmd, args = data:match("^!(%S+)%s*(.*)$")
+    local nick = type(user) == "table" and user.sNick or   user
+    local cmd, args = data:match("^!(%S+)%s+(.+)$")
     if cmd then
         cmd = cmd:lower()
     end
