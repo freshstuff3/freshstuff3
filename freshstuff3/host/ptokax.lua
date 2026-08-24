@@ -1,6 +1,22 @@
 ---@diagnostic disable: undefined-global
 -- host/ptokax.lua
 
+local path_separator = package.config:sub(1, 1)
+local base_path
+if type(Core) == "table" and type(Core.GetPtokaXPath) == "function" then
+    local ptokax_path = Core.GetPtokaXPath()
+    assert(type(ptokax_path) == "string", "Core.GetPtokaXPath() must return a string")
+    if not ptokax_path:match("[/\\]$") then
+        ptokax_path = ptokax_path .. path_separator
+    end
+    base_path = ptokax_path .. "scripts" .. path_separator .. "freshstuff3" .. path_separator
+elseif path_separator == "\\" then
+    base_path = "C:\\freshstuff3\\freshstuff3\\"
+else
+    base_path = "/freshstuff3/freshstuff3/"
+end
+
+package.path = package.path .. string.format(";%s?.lua", base_path)
 
 --- Lua 5.1 compatibility wrapper
 if not table.move then
@@ -50,7 +66,7 @@ function ChatArrival(user, data)
     if type(user) == "table" then
         nick = user.sNick
     end
-    E--vent.fire("Chat", nick, data)
+    --Event.fire("Chat", nick, data)
 end
 
 function ToArrival(user, data)
@@ -77,6 +93,6 @@ function UserDisconnected(user)
     --Event.fire("UserDisconnected", nick)
 end
 
-function OnError(err)
+--function OnError(err)
     --Event.fire("Error", err)
-end
+--end
