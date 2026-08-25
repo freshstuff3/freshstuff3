@@ -2,18 +2,8 @@
 /*
 !/freshstuff3.lua
 !/.gitignore
-
-# Track the freshstuff3 directory and everything inside
-!/freshstuff3/
-
-# But explicitly ignore freshstuff3/data/
-freshstuff3/data/*
-
-
-# Ignore everything in root except what we specify
-/*
-!/freshstuff3.lua
-!/.gitignore
+!/.github/
+!/.github/**
 
 # Track the freshstuff3 directory and everything inside
 !/freshstuff3/
