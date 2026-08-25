@@ -29,14 +29,8 @@ local Category = {}
 ---   - If a release has a category that doesn't exist yet: Creates it
 ---   - All categories are marked clean (dirty = false) on init
 ---
---- File format expected:
---- ```lua
----   return {
----     ["Music"] = true,
----     ["Music/Metal"] = true,
----     ["Music/Metal/Death"] = true,
----   }
---- ```
+--- File format: a MessagePack map of category paths to `true`, for example
+--- `{ ["Music"] = true, ["Music/Metal"] = true }` before encoding.
 ---
 ---@todo If file loading fails, create from scratch from _data
 ---@todo Add validation: ensure _data is not nil before iterating
@@ -412,28 +406,18 @@ end
 --[[ 
 ### SAVE CATEGORIES TO FILE
 
-Serializes the category index (_category_index) to a Lua file.
+Serializes the category index (_category_index) to a MessagePack file.
 The category tree (_category_tree) is NOT serialised as it will be
-rebuilt into a fullly clean state from _data (i.e. RAM) on startup anyway.
+rebuilt on demand from the in-memory release data.
 
 Why only _category_index:
   - _category_index is a flat list of all categories that exist
-  - _category_tree is a nested structure derived from _data
-  - On startup, _category_tree is rebuilt from _data
+  - _category_tree is a nested runtime structure
+  - Its release lists are rebuilt from _data when a category is queried
   - _category_index provides fast existence checks without traversing _data
 
-File format:
-
-```lua
-  return {
-    ["Music"] = true,
-    ["Music/Metal"] = true,
-    ["Music/Metal/Death"] = true,
-  }
-```
-
-Values are category markers only. The dirty state is NOT persisted; a clean
-tree is built during startup based upon _data.
+The file is a MessagePack map whose values are category markers only. The
+dirty state is not persisted.
 
  ]]
 ---@return boolean success True if save succeeded

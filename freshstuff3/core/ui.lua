@@ -3,7 +3,6 @@
 
 --[[ 
 # Data visualiser core module for FreshStuff3
-(part 1 of 2)
 
 Provides ASCII tree, Markdown table, and detailed item views.
 
@@ -19,17 +18,14 @@ and return formatted strings ready for display.
 
 Usage:
   -- Get IDs (e.g., latest 10 items)
-  local ids = {}
-  for i = -- fix this later
-      table.insert(ids, i)
-  end
+  local ids = { 1, 2, 3 }
   
   -- Render as tree (default)
-  local output = UI.render(ids, Item)
+  local output = self:UI_render(ids)
   
   -- Or get category IDs and render as markdown
-  local music_ids = Category:get_subcat("Music", Item)
-  local output = UI.render(music_ids, Item, "md", "st")
+  local music_ids = self:Category_get_subcat("Music")
+  local output = self:UI_render(music_ids, "md", "st")
 
  Output formats (via render()):
    - `tree`   - ASCII tree with emojis (📁 categories, ✅ releases)
@@ -41,10 +37,10 @@ Usage:
  Default sort order is oldest first.
     -  c   : chronological (oldest first) - default
     -  r   : reverse chronological (newest first)
-    -  n   : sort by nick (ascending)
-    -  rn  : reverse sort by nick (descending)
-    -  t   : sort by title (ascending)
-    -  rt  : reverse sort by title (descending)
+    -  sn  : sort by nick (ascending)
+    -  rsn : reverse sort by nick (descending)
+    -  st  : sort by title (ascending)
+    -  rst : reverse sort by title (descending)
 
 
 ## MARKDOWN OUTPUT

@@ -1,5 +1,5 @@
 -- plugins/release.lua
--- Business logic and frontend for freshstuff3 core fucntionality
+--- Business logic and frontend for FreshStuff3 core functionality.
 -- This plugin cannot be disabled.
 local path_separator = package.config:sub(1, 1)
 local base_path

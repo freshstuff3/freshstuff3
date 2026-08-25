@@ -1,9 +1,9 @@
--- core/commands.lua
+-- helpers/command.lua
 -- Global command system - scan once on init, then use cache
 
 local Commands = { _registry = {}, _config = {} }
 
----@note should be required inside hsotapp main stack
+--- Initialise after plugins have loaded so their command handlers are discoverable.
 function Commands:init()
     self._registry = {}
     self._config = require "config"
