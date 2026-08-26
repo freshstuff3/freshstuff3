@@ -447,14 +447,6 @@ function Category:Category_get_subcat(path)
     assert(path ~= nil and path ~= "", "Path unspecified!")
     
     local result = self:Tree_rebuild_node(path)
-    if result then
-        local child_names = {}
-        for k, _ in pairs(result) do
-            if k ~= "_releases" then
-            end
-        end
-    end
-
     if not result then return {} end
     
     local list = {}

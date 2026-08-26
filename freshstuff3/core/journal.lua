@@ -135,9 +135,9 @@ function Journal:Journal_compact()
     f:close()
     
     if package.config:sub(1,1) == "\\" then
-        self:win_rename_file(tmp, self.TEST_CATEGORY)
+        self:win_rename_file(tmp, self.JOURNAL_FILE)
     else
-        os.rename(tmp, self.TEST_CATEGORY)
+        os.rename(tmp, self.JOURNAL_FILE)
     end
     return true
 end
