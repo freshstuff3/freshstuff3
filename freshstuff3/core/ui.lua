@@ -260,10 +260,11 @@ end
 ---@param total number
 ---@param format string
 ---@param sort_order string|nil
+---@param is_all_items boolean Whether the selected IDs cover all releases.
 ---@return string
-function UI:UI_header_latest(count, total, format, sort_order)
-    local label = (count >= total) and "ALL THE ITEMS" or string.format("THE LATEST %d ITEMS", count)
-    if count >= total then
+function UI:UI_header_latest(count, total, format, sort_order, is_all_items)
+    local label = is_all_items and "ALL THE ITEMS" or string.format("THE LATEST %d ITEMS", count)
+    if is_all_items then
         label = string.format("%s ( TOTAL: %d )", label, total)
     end
     local parts = {

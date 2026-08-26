@@ -58,37 +58,46 @@ end
 --- Show category tree with count but not individual releases
 --- 
 function Bus:Bus_show_flat_tree(path)
-    -- Business only validates and gets raw data
+    local root_path = ""
+    local root_node = self._category_tree
+
     if path then
-        local p, ret = self:Category_process_path(path)
-        if p then
-            if not self._category_index[ret] then 
-                return false, string.format("Category %s does not exist!", ret)
-            end
-            -- Get all categories under this path
-            local categories = {}
-            local prefix = ret .. "/"
-            for cat, _ in pairs(self._category_index) do
-               if cat == ret then
-                    table.insert(categories, cat)
-               elseif #cat > #prefix and cat:sub(1, #prefix) == prefix then
-                    table.insert(categories, cat)
-                end
-            end
-            -- UI handles ALL formatting
-            return self:UI_render_flat_tree(categories, ret)
-        else 
-            return false, ret 
+        local valid, sanitized_path = self:Category_process_path(path)
+        if not valid then
+            return false, sanitized_path
         end
-    else
-        -- Get all categories
-        local categories = {}
-        for cat, _ in pairs(self._category_index) do
-            table.insert(categories, cat)
+        if not self._category_index[sanitized_path] then
+            return false, string.format("Category %s does not exist!", sanitized_path)
         end
-        -- UI handles ALL formatting
-        return self:UI_render_flat_tree(categories)
+        root_path = sanitized_path
+        root_node = self:Tree_get_node(root_path)
+        if not root_node then
+            -- Repair a missing tree node while preserving the existing
+            -- "already exists" result from Category_create.
+            local _, repair_error = self:Category_create(root_path, false)
+            root_node = self:Tree_get_node(root_path)
+            if not root_node then
+                return false, repair_error or
+                    string.format("Category tree node %s could not be restored.", root_path)
+            end
+        end
     end
+
+    local categories = {}
+    local function collect_categories(node, node_path)
+        if node_path ~= "" and self._category_index[node_path] then
+            table.insert(categories, node_path)
+        end
+        for name, child in pairs(node) do
+            if name ~= "_releases" then
+                local child_path = node_path == "" and name or node_path .. "/" .. name
+                collect_categories(child, child_path)
+            end
+        end
+    end
+
+    collect_categories(root_node, root_path)
+    return self:UI_render_flat_tree(categories, root_path ~= "" and root_path or nil)
 end
 
 --- Show release details
@@ -221,6 +230,7 @@ function Bus:Bus_show_new(number, format, sort_order)
     end
     
     -- Build IDs (business logic)
+    local is_all_items = number >= total
     local count = math.min(number, total)
     local ids = {}
     for i = 1, count do
@@ -228,7 +238,7 @@ function Bus:Bus_show_new(number, format, sort_order)
     end
     
     -- UI handles header AND content
-    local header = self:UI_header_latest(count, total, format, sort_order)
+    local header = self:UI_header_latest(count, total, format, sort_order, is_all_items)
     return header .. self:UI_render(ids, format, sort_order)
 end
 

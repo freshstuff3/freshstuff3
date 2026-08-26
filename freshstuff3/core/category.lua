@@ -103,9 +103,7 @@ function Category:Category_create(path, is_serialize)
     local succ, result = self:Category_process_path(path)
     if not succ then return false, result end
     path = result
-    if self._category_index[path] then
-        return false, "❌ Category already exists: " .. path -- return false if exists
-    end
+    local category_exists = self._category_index[path] ~= nil
     local parts = self:Tree_split_path(path)
     local current = self._category_tree
     local full_path = ""
@@ -113,14 +111,25 @@ function Category:Category_create(path, is_serialize)
     for i, part in ipairs(parts) do
         full_path = i == 1 and part or (full_path .. "/" .. part)
 
-        if not current[part] then
-            current[part] = { _releases = {} }
+        local node = current[part]
+        if node == nil then
+            node = { _releases = {} }
+            current[part] = node
+        elseif type(node) ~= "table" then
+            return false, "❌ Invalid category tree node: " .. full_path
+        elseif type(node._releases) ~= "table" then
+            node._releases = {}
         end
 
+        -- Reconcile either side of the index/tree pair before descending.
         if not self._category_index[full_path] then
             self._category_index[full_path] = {}
         end
-        current = current[part]
+        current = node
+    end
+
+    if category_exists then
+        return false, "❌ Category already exists: " .. path
     end
 
     if is_serialize then
@@ -133,105 +142,36 @@ function Category:Category_create(path, is_serialize)
     return current
 end
 
---[[ 
-
-### DELETE CATEGORY
-
-Deletes a category and optionally its releases and subcategories.
-Supports preview mode, force deletion (with releases), and nuke deletion (with subcategories).
-
-Behavior:
-  - If category doesn't exist: Returns error
-  - If category is empty (no releases, no subcats): Deletes immediately (no force needed)
-  - If category has releases but no subcats and is_force = false: Returns error with release count
-  - If category has releases but no subcats and is_force = true: Deletes category and all releases
-  - If category has subcategories and is_nuke = false: Returns error with subcategory list
-  - If category has subcategories and is_nuke = true: Deletes category, all subcategories, and all releases
-  - If is_preview = true: Returns what would be deleted without actually deleting anything
-
-State matrix for _category_index[category]:
-  nil                    -- Category doesn't exist
-  {}                     -- Category exists, empty (no releases)
-  { dirty = false }      -- Category exists, has releases, clean
-  { dirty = true }       -- Category exists, has releases, dirty
-
-Deletion modes:
-  1. Empty category deletion (no flags needed):
-     - Category exists but has no releases and no subcategories
-     - Removes from _category_index and _category_tree
-     - Serializes category file
-
-  2. Force deletion (is_force = true):
-     - Deletes category even if it has releases
-     - Only works if category has NO subcategories
-     - Deletes all releases in category from _data
-     - Removes from _category_index and _category_tree
-     - Serializes category file
-
-  3. Nuke deletion (is_nuke = true):
-     - Deletes category AND all subcategories recursively
-     - Deletes ALL releases in category and subcategories from _data
-     - Removes all subcategories from _category_index and _category_tree
-     - Serializes category file
-
-  4. Preview mode (is_preview = true):
-     - Shows what would be deleted
-     - Returns list of items and categories that would be affected
-     - NO changes are made to _data, _category_index, or _category_tree
-
-Examples:
-```lua
-  -- Preview deletion (dry run)
-  local ids, cats = Category:Category_delete("Music/Rock", false, false, true, false)
-  -- ids = {1, 2, 3}, cats = {"Music/Rock"}
-
-  -- Force delete category with releases (no subcategories)
-  local ids, result = Category:Category_delete("Music/Rock", true, false, false, true)
-  -- ids = {1, 2, 3}, result = "Deleted category Music/Rock (3 items)"
-
-  -- Nuke delete category with subcategories
-  local ids, result = Category:Category_delete("Music", true, true, false, true)
-  -- ids = {1,2,3,4,5,6,7,8,9}, result = "Deleted category Music (9 items)"
-
-  -- Try to delete non-empty category without force (fails)
-  local ids, err = Category:Category_delete("Music/Rock", false, false, false, true)
-  -- ids = false, err = "Category `Music/Rock` not deleted: it has 3 releases, but this is not a 'force' deletion."
-
-  -- Try to delete category with subcategories without nuke (fails)
-  local ids, err = Category:Category_delete("Music", true, false, false, true)
-  -- ids = false, err = "Category Music not deleted: it has subcategories (Rock, Jazz, Classical), but this is not a 'nuke' deletion."
-``` 
-]]
---- 
----@param path string Category path to delete
----@param is_force? boolean Delete category with releases (only if no subcategories). Default: false
----@param is_nuke? boolean Delete category, subcategories, and all releases recursively. Requires is_force = true. Default: false
----@param is_preview? boolean Dry run - return what would be deleted without making changes. Default: true
----@param is_serialize? boolean If true, serializes the category index and journals deleted items. Default: false
+--- ### CATEGORY DELETION
+---
+--- Target discovery is separate from mutation: the business layer uses
+--- `Category_get_deletion_targets` for previews and event payloads, while
+--- `Category_delete` recomputes targets immediately before deleting.
+---@param path string Category path to inspect
+---@param is_force? boolean Allow deletion of a non-empty leaf category
+---@param is_nuke? boolean Allow recursive deletion of subcategories
 ---@return table|boolean items Returns:
----   - On preview: table of item IDs that would be deleted
----   - On success: table of deleted item IDs
+---   - On success: table of item IDs that would be deleted
 ---   - On error: false
 ---@return table|string result Returns:
----   - On preview: table of category paths that would be deleted
----   - On success: string message with deletion summary
+---   - On success: table of category paths that would be deleted
 ---   - On error: string error message
 ---@todo Consider moving deleted items to a "trash" category instead of permanent deletion
 ---@todo Add confirmation prompt for nuke deletions (safety) -- for Lua only (optional)
-function Category:Category_delete(path, is_force, is_nuke, is_preview, is_serialize)
+function Category:Category_get_deletion_targets(path, is_force, is_nuke)
     assert(path ~= nil, "Unspecified path!")
     
     local state = self._category_index[path]
     if not state then
         return false, string.format("❌ Category %s does not exist!", path)
     end
-    
+
     -- Get the node (rebuild if dirty)
     local node = self:Tree_rebuild_node(path)
     if not node then
         return false, string.format("❌ Error retrieving node for category path %s", path)
     end
-    
+
     -- Collect all items in this category and subcategories
     local all_ids = self:Category_get_subcat(path)
     local to_del = {}
@@ -240,12 +180,12 @@ function Category:Category_delete(path, is_force, is_nuke, is_preview, is_serial
             table.insert(to_del, id)
         end
     end
-    
+
     -- Check for subcategories
     local has_subcats = false
     local subcat_names = {}
     local cats_to_delete = { path }
-    
+
     -- Collect all subcategory paths
     local function collect_all_subcats(current_node, current_path)
         for name, child in pairs(current_node) do
@@ -259,32 +199,40 @@ function Category:Category_delete(path, is_force, is_nuke, is_preview, is_serial
         end
     end
     collect_all_subcats(node, path)
-    
+
     -- Handle subcategories
     if has_subcats then
-        if not is_nuke then 
+        if not is_nuke then
             return false, string.format(
                 "❌ Category %s not deleted: it has subcategories (%s), "..
-                "but this is not a \"nuke\" deletion.", 
+                "but this is not a \"nuke\" deletion.",
                 path, table.concat(subcat_names, ", ")
             )
         end
-    else
-        -- No subcategories, check if force is needed
-        if #to_del > 0 and not is_force then
-            return false, string.format(
-                "❌ Category `%s` not deleted: it has %d releases, "..
-                "but this is not a \"force\" deletion.", 
-                path, #to_del
-            )
-        end
+    elseif #to_del > 0 and not is_force then
+        return false, string.format(
+            "❌ Category `%s` not deleted: it has %d releases, "..
+            "but this is not a \"force\" deletion.",
+            path, #to_del
+        )
     end
     
-    -- If preview, return what would be deleted
-    if is_preview then
-        return to_del, cats_to_delete
+    return to_del, cats_to_delete
+end
+
+--- Delete a category and, when permitted, its releases and subcategories.
+---@param path string Category path to delete
+---@param is_force? boolean Allow deletion of a non-empty leaf category
+---@param is_nuke? boolean Allow recursive deletion of subcategories
+---@param is_serialize? boolean Journal deleted releases and serialize categories
+---@return table|boolean items Deleted item IDs, or false on failure
+---@return string result Deletion summary or error message
+function Category:Category_delete(path, is_force, is_nuke, is_serialize)
+    local to_del, cats_to_delete = self:Category_get_deletion_targets(path, is_force, is_nuke)
+    if not to_del then
+        return false, cats_to_delete
     end
-    
+
     -- Delete items while their categories still exist, allowing Item_delete
     -- to invalidate the relevant category and parent caches.
     if #to_del > 0 then

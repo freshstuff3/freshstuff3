@@ -186,43 +186,9 @@ function Bus2:Bus_delete_category(path, user, options)
     local force = options.force or false
     local nuke = options.nuke or false
 
-    -- If the category is empty, we delete it right away
-    -- Rebuild before testing emptiness so stale tree state cannot route a
-    -- populated category through the non-force empty-category path.
-    local node = self:Tree_rebuild_node(clean_path)
-
-    if not node then
-        return false, nil, "❌ Error retrieving this category from tree: " .. clean_path
-    end
-
-    local has_subcategories = false
-    for child_name in pairs(node) do
-        if child_name ~= "_releases" then
-            has_subcategories = true
-            break
-        end
-    end
-
-    if not has_subcategories and not next(node._releases) then
-        local result = { categories = { clean_path }, items = {}, errors = {} }
-        if preview then
-            result.preview = true
-            return true, result, self:_format_category_deletion(clean_path, result)
-        end
-        local success, err = self:Category_delete(clean_path, false, false, false, true)
-        if success then
-            return true, result,
-                "✅ Empty category deleted: " .. clean_path
-        else
-            return false, { categories = {}, items = {}, errors = { err } },
-                "❌ Error deleting category: " .. err
-        end
-    end
-
-    -- Category_delete owns validation, recursive traversal, tree mutation,
-    -- category serialization, and item deletion. First use it as a dry run
-    -- to obtain a stable event payload for either preview or execution.
-    local item_ids, category_paths = self:Category_delete(clean_path, force, nuke, true, false)
+    -- Target discovery powers preview and event payloads without giving
+    -- execution a stale plan from an earlier command phase.
+    local item_ids, category_paths = self:Category_get_deletion_targets(clean_path, force, nuke)
     if not item_ids then
         return false, { items = {}, categories = {}, errors = { category_paths } }, category_paths
     end
@@ -252,7 +218,7 @@ function Bus2:Bus_delete_category(path, user, options)
             string.format("Deletion cancelled: %s", event_result.cancel_reason or "Unknown")
     end
 
-    local deleted_ids, message = self:Category_delete(clean_path, force, nuke, false, true)
+    local deleted_ids, message = self:Category_delete(clean_path, force, nuke, true)
     if not deleted_ids then
         return false, { items = {}, categories = {}, errors = { message } }, message
     end
