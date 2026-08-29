@@ -8,7 +8,6 @@ Registration
 xxx._event_handlers = {
     CategoryPostDelete = {
         {
-            priority = 10,
             func = function(self, data)
                 -- handle event
             end
@@ -16,7 +15,6 @@ xxx._event_handlers = {
     },
     ItemsPostDelete = {
         {
-            priority = 5,
             func = function(self, data)
                 -- handle event
             end
@@ -29,7 +27,7 @@ One handler per event, except for timers.
 ]]
 
 local Event = {}
-Event._registry = {}  -- event_name -> list of { instance, handler, priority }
+Event._registry = {}  -- event_name -> list of { instance, handler }
 
 function Event:init()
     for module_name, module in pairs(package.loaded) do
@@ -45,21 +43,14 @@ function Event:_register_plugin(plugin)
     for event_name, handlers in pairs(plugin._event_handlers) do
         for _, h in ipairs(handlers) do
             if type(h) == "table" and type(h.func) == "function" then
-                local priority = h.priority or 0
-                
                 if not self._registry[event_name] then
                     self._registry[event_name] = {}
                 end
-                
+
                 table.insert(self._registry[event_name], {
                     instance = plugin,
                     handler = h.func,
-                    priority = priority,
                 })
-                
-                table.sort(self._registry[event_name], function(a, b)
-                    return a.priority > b.priority
-                end)
             end
         end
     end
@@ -104,4 +95,3 @@ end
 
 ---@todo need separate timer fire for multitimer
 return Event
-

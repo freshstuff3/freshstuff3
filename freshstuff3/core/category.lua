@@ -537,7 +537,10 @@ function Category:Category_rename(old_path, new_path, is_serialize)
             return false, "❌ Categories that have subcategories cannot be renamed."
         end
     end
-    local node_new = self:Category_create(new_path)
+    local node_new, create_err = self:Category_create(new_path)
+    if not node_new then
+        return false, create_err
+    end
 
     -- Move items to new category
     table.move(node_old._releases, 1, #node_old._releases, 1, node_new._releases)
