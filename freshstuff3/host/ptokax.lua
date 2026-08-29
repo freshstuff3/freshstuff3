@@ -34,6 +34,17 @@ end
 local Event = require "helpers.event"
 local Init = require "helpers.init"
 
+--- Send a command response as one NMDC private-chat message.
+--- NMDC reserves "|" as its message terminator; its character entity displays
+--- as a literal pipe in DC++ without splitting the protocol message.
+---@param nick string
+---@param message string
+local function send_to_nick(nick, message)
+    message = tostring(message):gsub("%z", ""):gsub("|", "&#124;")
+    Core.SendToNick(nick,
+        "$To: " .. nick .. " From: FreshStuff3 $<FreshStuff3> " .. message .. "|")
+end
+
 -- ---- HOST EVENT BRIDGE ----
 ---
 function OnStartup()
@@ -47,10 +58,10 @@ function OnStartup()
         Init:open_lua_shell()
         return
     end
-    local timer_id = TmrMan.AddTimer(1000, function ()
+--[[     local timer_id = TmrMan.AddTimer(1000, function ()
         Core.SendToAll("<b_e> " .. os.time() .. "|")
     end)
-    assert(timer_id, "Failed to register freshstuff3 timer")
+    assert(timer_id, "Failed to register freshstuff3 timer") ]]
     -- Event.fire("HostStarted", "PtokaX", Core.Version)
 end
 
@@ -68,9 +79,9 @@ function ChatArrival(user, data)
     if Command._registry[cmd] then
         local success, result = Command:execute(cmd, args, nick)
         if not success then
-            Core.SendToNick(nick, "Error: " .. result)
+            send_to_nick(nick, "Error: " .. result)
         else
-            Core.SendToNick(nick, result)
+            send_to_nick(nick, result)
         end
         return true
     end
