@@ -190,6 +190,7 @@ local SORT_MAP = {
 
 --- Sort order names for display
 local SORT_NAMES = {
+    input = "specified order",
     c = "chronological (oldest on top)",
     sn  = "owner's nick",
     st  = "item title",
@@ -215,9 +216,13 @@ local function get_format_name(format)
 end
 
 --- Get sort order display line
+---@param format string
 ---@param sort_order string|nil
 ---@return string
-local function get_sort_line(sort_order)
+local function get_sort_line(format, sort_order)
+    if format == "tree" then
+        return ""
+    end
     local name = SORT_NAMES[sort_order] or SORT_NAMES["c"]
     return "↕️ SORTING ORDER: " .. name
 end
@@ -250,7 +255,7 @@ function UI:UI_header_search(query, format, sort_order)
         "🔎 SEARCH RESULTS",
         "🧐 QUERY: " .. query,
         "👀 VIEW: " .. get_format_name(format),
-        get_sort_line(sort_order),
+        get_sort_line(format, sort_order),
     }
     return join_header(parts)
 end
@@ -269,7 +274,7 @@ function UI:UI_header_latest(count, total, format, sort_order, is_all_items)
     end
     local parts = {
         get_format_name(format) .. " OF " .. label,
-        get_sort_line(sort_order),
+        get_sort_line(format, sort_order),
     }
     return join_header(parts)
 end
@@ -282,9 +287,18 @@ end
 function UI:UI_header_range(range, format, sort_order)
     local parts = {
         get_format_name(format) .. " OF ALL THE ITEMS IN THE " .. range .. " RANGE",
-        get_sort_line(sort_order),
+        get_sort_line(format, sort_order),
     }
     return join_header(parts)
+end
+
+--- Build header for one detailed release.
+---@param id number
+---@return string
+function UI:UI_header_detail(id)
+    return join_header({
+        "🔬 DETAILED VIEW OF ITEM " .. id,
+    })
 end
 
 --- Build header for "newer than" time window
@@ -298,7 +312,7 @@ function UI:UI_header_newer(time_window, format, sort_order)
     local label = string.format("ITEMS FROM THE LAST %d %s", tonumber(number) or 0, mult_tbl[mult] or "day(s)")
     local parts = {
         get_format_name(format) .. " OF " .. label,
-        get_sort_line(sort_order),
+        get_sort_line(format, sort_order),
     }
     return join_header(parts)
 end
@@ -312,7 +326,7 @@ end
 function UI:UI_header_category(path, count, format, sort_order)
     local parts = {
         get_format_name(format) .. " OF ALL THE ITEMS IN " .. path .. " (TOTAL: " .. count .. ")",
-        get_sort_line(sort_order),
+        get_sort_line(format, sort_order),
     }
     return join_header(parts)
 end
@@ -351,14 +365,17 @@ end
 ---@param sort_order string|nil
 ---@return table sorted_items
 function UI:UI_apply_sort(items, sort_order)
-    -- Fall back to chronological if sort_order is nil or invalid
-    -- or if sort_func is not found in SORT_MAP (unlikely)
-    local sort_key = sort_order or "c"
-    local sort_func = SORT_MAP[sort_key] or SORT_MAP["c"]
     local sorted = {}
     for _, item in ipairs(items) do
         table.insert(sorted, item)
     end
+
+    if sort_order == "input" then
+        return sorted
+    end
+
+    -- Fall back to chronological if sort_order is nil or invalid.
+    local sort_func = SORT_MAP[sort_order or "c"] or SORT_MAP["c"]
     table.sort(sorted, sort_func)
     return sorted
 end

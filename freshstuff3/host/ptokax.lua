@@ -34,15 +34,29 @@ end
 local Event = require "helpers.event"
 local Init = require "helpers.init"
 
---- Send a command response as one NMDC private-chat message.
+--- Escape text that will be embedded in an NMDC message.
 --- NMDC reserves "|" as its message terminator; its character entity displays
 --- as a literal pipe in DC++ without splitting the protocol message.
+---@param message string
+---@return string
+local function escape_nmdc_message(message)
+    return tostring(message):gsub("%z", ""):gsub("|", "&#124;")
+end
+
+--- Send a response to a private command.
 ---@param nick string
 ---@param message string
 local function send_to_nick(nick, message)
-    message = tostring(message):gsub("%z", ""):gsub("|", "&#124;")
     Core.SendToNick(nick,
-        "$To: " .. nick .. " From: FreshStuff3 $<FreshStuff3> " .. message .. "|")
+        "$To: " .. nick .. " From: FreshStuff3 $<FreshStuff3> " ..
+        escape_nmdc_message(message) .. "|")
+end
+
+--- Send a response to a main-chat command only to the issuer's main chat.
+---@param nick string
+---@param message string
+local function send_to_main_chat(nick, message)
+    Core.SendToNick(nick, "<FreshStuff3> " .. escape_nmdc_message(message) .. "|")
 end
 
 -- ---- HOST EVENT BRIDGE ----
@@ -79,9 +93,9 @@ function ChatArrival(user, data)
     if Command._registry[cmd] then
         local success, result = Command:execute(cmd, args, nick)
         if not success then
-            send_to_nick(nick, "Error: " .. result)
+            send_to_main_chat(nick, "Error: " .. result)
         else
-            send_to_nick(nick, result)
+            send_to_main_chat(nick, result)
         end
         return true
     end
@@ -89,11 +103,25 @@ function ChatArrival(user, data)
 end
 
 function ToArrival(user, data)
-    local nick = user
-    if type(user) == "table" then
-        nick = user.sNick
+    local nick = type(user) == "table" and user.sNick or user
+    data = data:sub(1, -2)
+    local prefix, cmd = data:match("%$<[^>]+>%s*(%p)(%S+)")
+    if prefix ~= "!" or not cmd then
+        return
     end
-    --Event.fire("PrivMsg", nick, data)
+
+    cmd = cmd:lower()
+    local args = data:match("%$<[^>]+>%s*!%S+%s*(.*)$") or ""
+    local Command = require "helpers.command"
+    if Command._registry[cmd] then
+        local success, result = Command:execute(cmd, args, nick)
+        if not success then
+            send_to_nick(nick, "Error: " .. result)
+        else
+            send_to_nick(nick, result)
+        end
+        return true
+    end
 end
 
 function UserConnected(user)

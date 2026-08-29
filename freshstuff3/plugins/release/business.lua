@@ -308,25 +308,33 @@ end
 function Bus:Bus_show_range(str, format, sort_order)
     format = format or "tree"
     local result, ids
+    local is_single_id = tonumber(str) ~= nil
+    -- Lists and ranges are ordered deliberately by the user. An explicit sort
+    -- switch still takes precedence over that order.
+    local effective_sort_order = sort_order or "input"
     
     -- Parse input (business logic)
-    if tonumber(str) then
+    if is_single_id then
         -- Single ID -> show details
         ids = { tonumber(str) }
-        result = self:UI_render(ids, "detail", sort_order)
+        result = self:UI_render(ids, "detail", effective_sort_order)
     else
         -- Parse range using UI helper (parsing, not formatting)
         ids = self:Bus_split_ids(str) or {}
         if not next(ids) then
             result = "Invalid parameter! Usage: id1,id2,id3 or id1-id2"
         else
-            result = self:UI_render(ids, format, sort_order)
+            result = self:UI_render(ids, format, effective_sort_order)
         end
     end
     
     -- UI handles header
-    local header = self:UI_header_range(str, format, sort_order)
-    result = header .. result
+    if is_single_id then
+        result = self:UI_header_detail(ids[1]) .. result
+    else
+        local header = self:UI_header_range(str, format, effective_sort_order)
+        result = header .. result
+    end
     return result .. string.format("\r\n\r\nTotal items retrieved: %d", #(ids or {}))
 end
 ---
